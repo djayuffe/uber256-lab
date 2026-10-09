@@ -17,8 +17,7 @@ ORG 100h
     inc bl
     jnz .pal
     fninit
-    in al,61h                 ; PC speaker on, driven by PIT channel 2
-    or al,3
+    mov al,3                  ; PC speaker on, driven by PIT channel 2
     out 61h,al
     mov bx,data
     fld1
@@ -49,18 +48,19 @@ frame:
     fld st1
     fmul dword [bx+16]
     fistp word [bx+22]
-    mov ax,[bx+22]
-    add ax,100
-    imul ax,ax,320
+    imul ax,[bx+22],320       ; y*320 + x + (100*320+160): centre the picture
     add ax,[bx+20]
-    add ax,160
-    mov di,ax
-    add byte [es:di],4
-    dec cx
-    jnz .it
-    fld dword [bx]            ; morph the first parameter a little every frame
+    add ax,32160
+    xchg ax,di
+    add byte [es:di],12
+    loop .it
+    mov si,12                 ; morph two parameters a little every frame (a and d)
+.mp:
+    fld dword [bx+si]
     fadd dword [bx+24]
-    fstp dword [bx]
+    fstp dword [bx+si]
+    sub si,12
+    jnc .mp
     mov al,[bx+20]            ; the speaker's pitch follows the attractor's x coordinate
     out 42h,al
     mov al,3
@@ -78,8 +78,7 @@ frame:
     sub al,1
     adc al,0
     stosb
-    test di,di
-    jnz .dec
+    loop .dec                 ; CX is 0 here: 65536 passes cover the whole segment
     in al,60h
     dec al
     jnz frame
