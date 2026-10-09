@@ -1,74 +1,230 @@
 # uber256-lab
 
-**Experiments in the 256-byte class: strange attractors on the x87 FPU, and a texture made of the program's own code.**
+**Three 256-byte-class DOS demos: two strange attractors drawn on the x87 FPU, and a texture made of the program's own machine code.**
 
 [![CI](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml)
 
-![GALAXY, CLIFF and SELFTEX running in DOSBox](docs/gallery.jpg)
+![GALAXY (two moments of its morph), CLIFF and SELFTEX running in DOSBox](docs/gallery.jpg)
 
-Three real-mode DOS `.COM` programs in NASM, each under 256 bytes. All three were run in
-real DOSBox for the screenshots and are checked by an emulated-CPU test suite.
+*Real DOSBox 0.74-3 captures of the shipped binaries. Top row: GALAXY at the start and about a minute in.
+Bottom row: CLIFF and SELFTEX.*
 
-| Program | Size | What it is |
-|---|---|---|
-| `GALAXY.COM` | 205 B | de Jong attractor, 6000 orbit points per frame, accumulated into a fading glow buffer. Two parameters drift, so the shape slowly morphs. The orbit also tunes the PC speaker. |
-| `CLIFF.COM` | 210 B | The same engine with Clifford-attractor equations and parameters: two wings and a ring of caustics. |
-| `SELFTEX.COM` | 77 B | Pixel = a byte of the program's own machine code, indexed by `x*y/64 + time`. The hyperbolic bands are the code's byte pattern. |
+Everything here is a flat 16-bit real-mode `.COM` file written in NASM. There are no images, no data files, no
+libraries, and no DOS calls except setting the video mode and leaving. Every pixel, every palette colour and every
+sound is computed by a few hundred bytes of code.
+
+| Program | Size | Needs | What it is |
+|---|---|---|---|
+| [`GALAXY.COM`](src/galaxy.asm) | 205 B | 386 + FPU, VGA | A de Jong strange attractor drawn as a glowing, fading, slowly morphing cloud. The orbit also tunes the PC speaker. |
+| [`CLIFF.COM`](src/cliff.asm) | 210 B | 386 + FPU, VGA | The same engine with Clifford-attractor equations and parameters: two curling wings over a web of caustics. |
+| [`SELFTEX.COM`](src/selftex.asm) | 77 B | 386, VGA | Each pixel is a byte of the program's own machine code, picked by `x*y/64 + time`. The hyperbolic bands you see are the code. |
+
+## Contents
+
+- [Run it](#run-it)
+- [Screenshots](#screenshots)
+- [GALAXY and CLIFF in detail](#galaxy-and-cliff-in-detail)
+- [SELFTEX in detail](#selftex-in-detail)
+- [Ideas from the 256-byte brief: what was tried](#ideas-from-the-256-byte-brief-what-was-tried)
+- [Testing](#testing)
+- [Releases and CI](#releases-and-ci)
+- [Limitations](#limitations)
+- [Layout](#layout)
 
 ## Run it
 
+Download the `.COM` files from the [latest release](../../releases/latest) and run one in
+[DOSBox](https://www.dosbox.com/):
+
+```
+mount c .
+c:
+GALAXY.COM
+```
+
+Or build from source (needs [NASM](https://www.nasm.us/); on macOS `brew install nasm` and `brew install --cask dosbox`):
+
 ```sh
-./build.sh              # NASM build, enforces the 256-byte limit
+./build.sh              # assembles src/*.asm, enforces the 256-byte limit, writes SHA256SUMS
 ./run-dosbox.sh galaxy  # galaxy | cliff | selftex
 ```
 
-**Esc** exits to text mode. GALAXY and CLIFF need a 386+ with an FPU (`fninit`, `fsin`, `fcos`);
-any emulator or machine from the 486DX on is fine. Use `cycles=max` (shipped in `DOSBOX.CONF`).
-The speaker tone is generated, but I have not listened to it, so its sound is untested by ear.
+**Esc** quits each demo cleanly: it restores text mode 3 and returns to DOS. `DOSBOX.CONF` sets `cycles=max`.
+The attractors compute 6000 points per frame with trigonometry, so they want a fast CPU; at a low fixed cycle count
+they just run at a lower frame rate.
 
-## How the attractor fits in 205 bytes
+## Screenshots
 
-- The palette is streamed to the DAC (port 3C9h) with a `shr` chain: one loop, no table.
-- Each orbit step is `x' = sin(a*y) - cos(b*x)`, `y' = sin(c*x) - cos(d*y)` with the four
-  constants in a 28-byte data block. `fxch` / `fstp st2` swap the new point in without temporaries.
-- `fistp` turns the point into a pixel offset (`y*320 + x` with `imul ax,ax,320`) and the pixel
-  gets `add byte [es:di], 4`, so hot regions glow.
-- After each frame the whole 64 KB segment is faded with `v -= v>>4; v -= 1` in one `stosb` loop
-  run by `loop` with CX already 0, so 65536 passes cover the segment exactly once.
-- Scratch words for the pixel position live just past the end of the file, inside the segment.
+All captured from the real binaries in DOSBox.
+
+| | |
+|---|---|
+| ![GALAXY early](docs/galaxy-early.jpg) | ![GALAXY later](docs/galaxy-late.jpg) |
+| **GALAXY, start.** The de Jong orbit is a spray of arcs fanning out of a bright point. Brightness is the number of times the orbit has landed on a pixel. | **GALAXY, about a minute later.** Two of the four parameters drift every frame, so the same engine turns into a different object: the arcs close into spheres around a dense core. |
+| ![CLIFF](docs/cliff.jpg) | ![SELFTEX](docs/selftex.jpg) |
+| **CLIFF.** A Clifford attractor: two wings, with bright caustic edges where the orbit piles up. | **SELFTEX.** The program's own bytes as a texture. The curves are where `x*y/64 + time` keeps landing on similar code bytes. |
+
+## GALAXY and CLIFF in detail
+
+The two programs share almost all of their code and differ in the equations and constants. They are an
+*accumulating-orbit renderer*: iterate a 2D map thousands of times, add a little light to the pixel under each
+point, and fade the whole screen slightly every frame.
+
+### The map
+
+GALAXY iterates the de Jong map
+
+```
+x' = sin(a*y) - cos(b*x)
+y' = sin(c*x) - cos(d*y)          a = 1.4, b = -2.3, c = 2.4, d = -2.1
+```
+
+and CLIFF the Clifford map
+
+```
+x' = sin(a*y) + c*cos(a*x)
+y' = sin(b*x) + d*cos(b*y)        a = -1.4, b = 1.6, c = 1.0, d = 0.7
+```
+
+Both keep (x, y) as the top two entries of the FPU stack. One iteration is about twenty x87 instructions
+(`fld`, `fmul`, `fsin`, `fcos`, `fsubp` or `faddp`, `fxch`, `fstp`). The four parameters are read straight from memory
+with `fmul dword [bx+k]`, so the whole constant block is 28 bytes.
+
+### From orbit to pixel
+
+The point is scaled by 45, rounded with `fistp` into two scratch words, and turned into a screen offset:
+
+```
+imul ax,[bx+22],320     ; y * 320
+add  ax,[bx+20]         ; + x
+add  ax,32160           ; + 100*320 + 160: the centre of the 320x200 screen
+xchg ax,di
+add  byte [es:di],12    ; add light
+```
+
+The scratch words live just past the end of the file, inside the program's own 64 KB segment, so they cost no
+bytes. A pixel's brightness is the number of orbit hits it has received (12 per hit), which is what makes dense
+regions glow and sparse ones stay faint.
+
+### Palette
+
+The DAC (port 3C9h) is programmed by one small loop that writes red, green and blue from a single counter with a
+`shr` between writes: `R = i/4`, `G = i/8`, `B = i/16`. That is a black, red, orange, near-white "fire" ramp with no table.
+
+### Fade and timing
+
+After 6000 points the program waits for the vertical retrace (port 3DAh bit 3), then makes one pass over all
+65,536 bytes of the segment: `v = v - (v >> 4) - 1`, clamped at zero by `sub al,1` / `adc al,0`. The `loop`
+instruction does the counting; CX is already 0 at that point, so 65,536 passes cover the segment exactly once.
+Light therefore decays exponentially, and a moving attractor leaves soft trails.
+
+### Morphing
+
+Each frame, parameters `a` and `d` (offsets 0 and 12) are nudged by a small constant (0.0006 for GALAXY, 0.0004 for
+CLIFF) in a two-pass loop (`mov si,12` ... `sub si,12` / `jnc`). The attractor slowly turns into related ones, which is
+why screenshots a minute apart look like different objects.
+
+### Sound
+
+The speaker is enabled with `mov al,3` / `out 61h,al`, and PIT channel 2 is reprogrammed every frame with the low byte
+of the orbit's current x coordinate (`out 42h,al`, then the high byte 3), so the pitch follows the attractor.
+**I have not listened to this**: the tests verify the port writes, not the audio.
+
+### Why 386 + FPU
+
+The code is assembled with `CPU 386` for `imul ax,[mem],imm` and the x87 instructions, and calls `fninit` once at
+start-up. DOSBox emulates an FPU; on real hardware a 486DX or later (or a 386 with a 387) is needed.
+
+## SELFTEX in detail
+
+```
+pixel(x, y) = the byte at offset  ((x*y >> 6) + t) & 255  from 100h      ; the program's own bytes
+```
+
+The 77-byte program gets `x` and `y` from one `div` by 320 in a DI loop that wraps the 64 KB segment, multiplies
+them, shifts, adds a frame counter, and uses the result as an index into its **own code**, which sits at
+offset 100h. The "texture" is the machine code itself: runs of similar opcodes show up as flat areas and the
+rest as a coloured scatter. `x*y` is a hyperbola, so the constant-index contours are the curves in the screenshot,
+and adding the frame counter slides the whole pattern.
+
+The palette is streamed to the DAC as `i`, `2i`, `4i` (the DAC keeps the low 6 bits), so each byte value is a distinct,
+fairly saturated colour. It is the smallest idea in the repo, and the one that most directly asks what the
+program looks like when you view it as an image.
 
 ## Ideas from the 256-byte brief: what was tried
 
+The project started from a long brief of 256-byte-intro techniques. The honest outcome:
+
 | Idea | Result |
 |---|---|
-| Dynamical systems / attractors on the FPU | **Works** (GALAXY, CLIFF). |
-| Accumulation buffer with fade (feedback) | **Works**, used by both attractors. |
-| Parameter morphing | **Works**: two constants drift per frame. |
-| Orbit-driven PIT sound | Implemented; unheard. |
-| Code as texture / lookup table | **Works** (SELFTEX). Verified in DOSBox. |
-| Neighbour-averaging feedback ("nebula") | Failed: averaging halves the energy, the screen goes black. Dropped. |
-| Carry-flag cellular automaton | Prototyped (six variants); not good enough to ship. |
-| Integer equation search scored by compressibility | Ran; candidates not better than the attractors, none shipped. |
-| Genetic search over tiny programs | Earlier work in [uber-micro-demos](https://github.com/djayuffe/uber-micro-demos) (EVO1/EVO2). |
-| VGA latch / CRTC scroll tricks, single phase-transition system | Not attempted yet. |
+| Dynamical systems / strange attractors on the FPU | **Works.** GALAXY and CLIFF. |
+| Accumulation buffer with fade (framebuffer feedback) | **Works.** Used by both attractors. |
+| Parameter morphing | **Works.** Two parameters drift per frame. |
+| Palette generated by code (no table) | **Works.** All three demos. |
+| Orbit-driven PIT sound | Implemented; **unheard**. |
+| Code as texture / lookup table | **Works.** SELFTEX. |
+| Neighbour-averaging feedback ("nebula") | **Failed.** Averaging halves the energy each frame, so the screen goes black. Dropped. |
+| Carry-flag cellular automaton | Six variants prototyped; none good enough to ship. |
+| Integer-expression search scored by compressibility | Ran; no candidate beat the attractors, so none shipped. |
+| Genetic search over tiny programs | See [uber-micro-demos](https://github.com/djayuffe/uber-micro-demos) (EVO1, EVO2). |
+| VGA latch / CRTC scroll tricks, a single phase-transition system | Not attempted. |
 
 ## Testing
 
-`tests/run_tests.sh` builds and runs every `.COM` in an emulated 16-bit CPU (Unicorn, x87 included):
-size limit, mode 13h first, all 768 DAC values, the picture is drawn and stays on screen, many
-brightness levels, the picture changes between frames, FPU opcodes present, speaker programmed,
-no stray memory access, and Esc returns to text mode.
+`tests/run_tests.sh` builds everything and runs each `.COM` in an emulated 16-bit CPU
+([Unicorn](https://www.unicorn-engine.org/), x87 included), entered the way DOS enters a program
+(`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped. It runs 33 checks:
+
+- **All demos:** at most 256 bytes; the first call is `INT 10h` with AX = 0013h; all 768 DAC values are written and the
+  palette is not black; no memory is touched outside video RAM and the program's own segment.
+- **GALAXY and CLIFF:** FPU opcodes are present; a curve (500 to 30,000 lit pixels) is drawn and stays inside the
+  screen; many brightness levels appear (accumulation rather than on/off); the picture changes between frames;
+  the speaker is on and PIT channel 2 is re-tuned.
+- **SELFTEX:** a rich, textured screen (dozens of colours); it scrolls between frames; no sound.
+- **All demos:** pressing Esc ends with `INT 10h` AX = 3 and a clean return to DOS.
+
+An emulator cannot judge how a demo looks, so each one was also run in real DOSBox and captured (the screenshots above).
+Needs Python 3; the script installs `unicorn` into `./.venv`.
+
+## Releases and CI
+
+Every push and pull request builds the demos, enforces the 256-byte limit and runs the tests on GitHub Actions. To publish a release,
+add a section to `CHANGELOG.md` and push a tag:
+
+```sh
+git tag v1.2.0 && git push origin v1.2.0
+```
+
+The release workflow rebuilds, re-tests, and attaches the `.COM` files, `SHA256SUMS` and the gallery image, with that section as the notes.
+
+## Limitations
+
+- GALAXY and CLIFF need an FPU and are not meant for slow machines.
+- The speaker output has never been listened to.
+- The attractors were tuned by eye in DOSBox; the glow palette may look slightly different on other VGA hardware.
+- Only 320x200 VGA mode 13h is used, and the programs do not check that the machine has VGA.
+- Not tried on real hardware.
 
 ## Layout
 
 ```
-src/*.asm           the demos
-build.sh            NASM build + 256-byte gate
+src/galaxy.asm      de Jong attractor
+src/cliff.asm       Clifford attractor
+src/selftex.asm     self-code texture
+build.sh            NASM build + 256-byte gate + SHA256SUMS
 run-dosbox.sh       DOSBox launcher
+DOSBOX.CONF         DOSBox settings (cycles=max)
 tests/              emulator tests
 docs/               real DOSBox screenshots
+CHANGELOG.md        release notes
 .github/workflows/  CI and tag-driven releases
 ```
 
-MIT licence. Sibling projects: [uber-micro-demos](https://github.com/djayuffe/uber-micro-demos) (under 9 bytes),
-[uber-tiny-demos](https://github.com/djayuffe/uber-tiny-demos) (index).
+## Related
+
+[uber-micro-demos](https://github.com/djayuffe/uber-micro-demos) (28 demos under 9 bytes) and
+[uber-tiny-demos](https://github.com/djayuffe/uber-tiny-demos) (the index of these projects).
+
+## License
+
+MIT. See [LICENSE](LICENSE).
