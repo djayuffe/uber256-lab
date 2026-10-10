@@ -282,7 +282,7 @@ CHANGELOG.md        release notes
 
 ## Related
 
-[uber-micro-demos](https://github.com/djayuffe/uber-micro-demos) (28 demos under 9 bytes) and
+[uber-micro-demos](https://github.com/djayuffe/uber-micro-demos) (29 demos under 9 bytes) and
 [uber-tiny-demos](https://github.com/djayuffe/uber-tiny-demos) (the index of these projects).
 
 ## License
