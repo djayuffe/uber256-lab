@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.5.0]
+- **LATCH** (82 B): a rule-60 cellular automaton computed by the VGA graphics controller (latches, write mode 3, XOR, set/reset). 7 new checks (85 in all).
+- Found: in DOSBox 0.74 the graphics controller's data rotate appeared to have no effect in write mode 3; LATCH shifts the mask with `rcr` instead.
+
 ## [1.4.0]
 - **ESCHER** (137 B): the picture is drawn once; only the CRTC start address and line compare move. 12 new emulator checks.
 - **CHLADNI** (224 B): FPU Chladni nodal lines with drifting mode numbers and speaker tone. 11 new emulator checks (78 in all).

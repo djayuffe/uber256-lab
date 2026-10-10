@@ -1,6 +1,6 @@
 # uber256-lab
 
-**Seven 256-byte-class DOS demos: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, and a texture made of the program's own machine code.**
+**Eight 256-byte-class DOS demos: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, and a texture made of the program's own machine code.**
 
 [![CI](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml)
 
@@ -20,6 +20,7 @@ sound is computed by a few hundred bytes of code.
 | [`FIRE.COM`](src/fire.asm) | 123 B | 386, VGA | Framebuffer feedback: each pixel becomes the average of four pixels below it, minus a little, with random heat injected at the bottom. A smoky turbulent fire, no FPU. |
 | [`ESCHER.COM`](src/escher.asm) | 137 B | 386, VGA | The picture is drawn once; after that only the CRT controller's start address and line-compare registers move, folding a hyperbolic texture into an impossible patchwork. No pixel is ever redrawn. |
 | [`CHLADNI.COM`](src/chladni.asm) | 224 B | 386 + FPU, VGA | The nodal lines of a vibrating plate, `sin(ax)sin(by) - sin(bx)sin(ay) = 0`, with drifting mode numbers that also tune the speaker. |
+| [`LATCH.COM`](src/latch.asm) | 82 B | 386, EGA/VGA | A rule-60 cellular automaton (Sierpinski waterfalls) computed by the VGA graphics controller: each byte read loads 8 pixels x 4 planes into the latches, each write puts them back one row up with an XOR colour applied by the hardware. |
 | [`JULIA.COM`](src/julia.asm) | 161 B | 386, VGA | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape. No FPU, no sine table. |
 | [`SELFTEX.COM`](src/selftex.asm) | 77 B | 386, VGA | Each pixel is a byte of the program's own machine code, picked by `x*y/64 + time`. The hyperbolic bands you see are the code. |
 
@@ -32,6 +33,7 @@ sound is computed by a few hundred bytes of code.
 - [FIRE in detail](#fire-in-detail)
 - [ESCHER in detail](#escher-in-detail)
 - [CHLADNI in detail](#chladni-in-detail)
+- [LATCH in detail](#latch-in-detail)
 - [JULIA in detail](#julia-in-detail)
 - [SELFTEX in detail](#selftex-in-detail)
 - [Ideas from the 256-byte brief: what was tried](#ideas-from-the-256-byte-brief-what-was-tried)
@@ -78,6 +80,8 @@ All captured from the real binaries in DOSBox.
 | **JULIA, later.** As c moves, the set pinches, twists and breaks into dust, and tiny copies of the whole appear along the spirals. | **ESCHER.** One hyperbolic texture, shown through a moving start address and a line-compare split: the bands meet themselves at seams that cannot be real. |
 | ![CHLADNI](docs/chladni-a.jpg) | ![CHLADNI later](docs/chladni-b.jpg) |
 | **CHLADNI.** Sand gathers on the lines where the plate does not move. | **CHLADNI, later.** As the mode number drifts, the nodal lines reconnect into loops, then a lattice. |
+| ![LATCH](docs/latch-a.jpg) | ![LATCH later](docs/latch-b.jpg) |
+| **LATCH.** Two Sierpinski waterfalls rise from seeds just below the screen; the colourful left edges are the seeds, which change every frame. | **LATCH, another moment.** The XOR colour is the frame counter, so the whole structure changes colour as it flows. |
 
 ## In motion
 
@@ -215,6 +219,29 @@ The mode number `a` drifts each frame through [1.5, 4.5) using `fprem` (so it ca
 so `|f|` is symmetric both ways; the test confirms the picture is 100% mirror-symmetric. The picture costs a few million FPU operations a frame, so it runs at a few frames per second in DOSBox.
 As with the attractors, **I have not listened to the speaker.**
 
+## LATCH in detail
+
+The brief's highest-rated idea was to treat the VGA as a graphics ALU rather than a framebuffer. LATCH uses the 16-colour planar mode 0Dh, where one byte address holds 8 pixels in each of 4 bit planes, and programs the graphics controller once:
+
+| Register | Value | Meaning |
+|---|---|---|
+| GR01 | 0Fh | set/reset enabled on all four planes |
+| GR03 | 18h | logical function XOR |
+| GR05 | 03h | write mode 3: the bit mask is the CPU data |
+| GR00 | frame counter | the set/reset colour, rewritten every frame |
+
+The inner loop is four instructions, `es lodsb / rcr al,1 / stosb / loop`, with SI one row (40 bytes) ahead of DI:
+
+- **`es lodsb`** reads a byte from the row below. On the VGA, any read loads all four planes of that address (32 bits, 8 pixels) into the **latches**, and returns plane 0 in AL.
+- **`rcr al,1`** shifts that plane-0 mask one pixel to the right. Because bytes go left to right, the carry hands each byte's rightmost pixel to the next byte's leftmost, so the neighbour is exact across byte boundaries.
+- **`stosb`** writes one row up. In write mode 3 the VGA takes every pixel from the latches, except where the mask is set; there it XORs the set/reset colour in. So a pixel changes colour when its left neighbour below had plane 0 set: on plane 0 that is the cellular-automaton rule `new(x) = old(x) XOR old(x-1)`, rule 60, whose space-time diagram is the Sierpinski triangle.
+
+Every frame the program writes two seed bytes into the row just below the screen (the frame counter and its complement) and recomputes all 200 rows bottom-up, so each row is the next generation of the row below and the pattern rises. The CPU never computes a colour: the 4-plane copy and the XOR are done by the graphics controller, 32 pixel-bits per `lodsb`/`stosb` pair.
+
+**A DOSBox finding.** My first version used the graphics controller's own data rotate (GR03 = 19h, rotate by 1) instead of `rcr`. In DOSBox 0.74 that drew a single rising column: the rotate appeared to have no effect in write mode 3, so the CPU now does the shift. Real VGA hardware applies the rotate before the mask; I have not been able to check that here.
+
+**Testing limits.** The emulated CPU in the test suite has no VGA latches, so its 7 checks cover the register programming, the inner loop and the clean exit; the picture itself has only been seen in DOSBox. There is no GIF for LATCH: my screen recording of it caught another window instead of DOSBox, so I discarded it and used DOSBox's own window captures.
+
 ## JULIA in detail
 
 For every pixel, take z = (x, y) and iterate `z' = z*z + c` until |z|^2 exceeds 4 or 31 steps have passed. Pixels that never escape are
@@ -285,11 +312,12 @@ A later brief proposed about 25 further effects built from hidden machine state 
 | Candidate | Result |
 |---|---|
 | Line-Compare Escher / Start-Address Hypercube / Split-Pan | **Works as ESCHER.** CRTC start address plus line compare animate an image that is never redrawn. The "bland texture" warning in the brief was right: with an XOR checker it is only a scroll; a hyperbolic texture makes it. |
+| VGA latches and write-mode logic (the third brief's #74-80) | **Works as LATCH**: a cellular automaton whose copy and XOR are done by the graphics controller. The hardware data rotate appeared to do nothing in DOSBox; a CPU `rcr` replaces it. |
 | Speaker-Chladni | **Works as CHLADNI**, with a true FPU plate equation rather than the brief's integer surrogate. |
 | Opcode Moire (the program as lookup texture) | Already done as SELFTEX. |
 | DAC Cellular Contours (a cellular automaton in the palette) | **Tried, not shipped.** A running sum over the 768 DAC bytes each frame is Pascal's triangle mod 64; with a smooth start palette or a saturated one it turns into confetti within seconds, even updating only every 16th frame. The palette does read back and write correctly in DOSBox; the rule is the problem. |
 | Carry-Lace (the carry flag as hidden memory) | **Tried, not shipped.** The brief's loop ends in `test di,di`, which clears CF every pixel, so the carry never reaches the next pixel. What remains is a 9-bit exact average of the left and upper neighbours (`adc` + `rcr`) plus a phase: diagonal dune strata for the first few frames, then fine noise. Ending the loop with `loop` instead (flags untouched) makes the carry real, and looks much the same. |
-| Return-Address Rain, IVT Constellation, PSP Voronoi, BIOS Font Diffraction, command-tail bloom, instruction-phase decoding, latch morphology, plane effects, logical brush, overscan halo, IRQ and exception effects, beam-raced self-modification, glyph genome and the rest | **Not attempted yet.** Several depend on timing or inherited state that DOSBox cannot confirm; the brief itself rates them least robust. |
+| Return-Address Rain, IVT Constellation, PSP Voronoi, BIOS Font Diffraction, command-tail bloom, instruction-phase decoding, plane effects, logical brush, overscan halo, IRQ and exception effects, beam-raced self-modification, glyph genome and the rest | **Not attempted yet.** Several depend on timing or inherited state that DOSBox cannot confirm; the brief itself rates them least robust. |
 
 ## Third brief: synthesising 4 to 16 byte kernels
 
@@ -310,7 +338,7 @@ The earlier, text-mode version of this search (in [uber-micro-demos](https://git
 
 `tests/run_tests.sh` builds everything and runs each `.COM` in an emulated 16-bit CPU
 ([Unicorn](https://www.unicorn-engine.org/), x87 included), entered the way DOS enters a program
-(`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped. It runs 78 checks:
+(`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped. It runs 85 checks:
 
 - **All demos:** at most 256 bytes; the first call is `INT 10h` with AX = 0013h; all 768 DAC values are written and the
   palette is not black; no memory is touched outside video RAM and the program's own segment.
@@ -320,6 +348,7 @@ The earlier, text-mode version of this search (in [uber-micro-demos](https://git
 - **FIRE:** the bottom is hot and the heat dies off with height; a smooth ramp of values; the flames move; no sound.
 - **ESCHER:** the texture is drawn once and no pixel is ever written again; each frame writes the CRTC start-address and line-compare registers; the start address moves inside video memory and the split sweeps one scan line per frame.
 - **CHLADNI:** four `fsin` per pixel; bright nodal lines with smooth falloff; the picture is mirror-symmetric as the equation requires; the speaker is retuned; the figure changes as the mode number drifts.
+- **LATCH:** mode 0Dh; the graphics-controller set-up (set/reset, XOR, write mode 3); the set/reset colour changes every frame; the latch-copy inner loop; no stray memory; clean exit.
 - **JULIA:** colour bands, a black set that fills part of the screen, point symmetry, no FPU or sound in the code, the picture changes as c moves.
 - **SELFTEX:** a rich, textured screen (dozens of colours); it scrolls between frames; no sound.
 - **All demos:** pressing Esc ends with `INT 10h` AX = 3 and a clean return to DOS.
@@ -333,7 +362,7 @@ Every push and pull request builds the demos, enforces the 256-byte limit and ru
 add a section to `CHANGELOG.md` and push a tag:
 
 ```sh
-git tag v1.5.0 && git push origin v1.5.0
+git tag v1.6.0 && git push origin v1.6.0
 ```
 
 The release workflow rebuilds, re-tests, and attaches the `.COM` files, `SHA256SUMS` and the gallery image, with that section as the notes.
@@ -354,6 +383,7 @@ src/cliff.asm       Clifford attractor
 src/fire.asm        framebuffer-feedback fire
 src/escher.asm      CRTC-only animation (start address + line compare)
 src/chladni.asm     Chladni plate nodal lines on the FPU
+src/latch.asm       cellular automaton computed by the VGA graphics controller
 src/julia.asm       integer Julia set with an orbiting constant
 src/selftex.asm     self-code texture
 build.sh            NASM build + 256-byte gate + SHA256SUMS

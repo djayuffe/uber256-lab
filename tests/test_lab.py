@@ -154,5 +154,18 @@ check(sum(1 for a, b in zip(s, s2) if a != b) > 1000, "CHLADNI: the mode number 
 rx = Run("CHLADNI.COM"); rx.run_until_exit(1, per=2)
 check(rx.exited and (0x10, 0x03) in rx.ints, "CHLADNI: Esc restores text mode 3 and returns to DOS")
 
+print("\n== LATCH ==")
+r = Run("LATCH.COM").frames(3, per=2)
+check(len(r.com) <= 256, f"LATCH: {len(r.com)} bytes (limit 256)")
+check(r.ints[0] == (0x10, 0x0D), "LATCH: first call is INT 10h, AX = 000Dh (320x200, 16 colours, planar)")
+gc = [v for p, v in r.outs if p == 0x3CE]
+check(gc[:3] == [0x0F01, 0x1803, 0x0305], "LATCH: graphics controller set up as set/reset on all planes (GR01 = 0Fh), logical function XOR (GR03 = 18h), write mode 3 (GR05 = 03h)")
+colours = [v >> 8 for v in gc[3:] if v & 255 == 0]
+check(len(colours) >= 3 and all(b - a == 1 for a, b in zip(colours, colours[1:])), f"LATCH: the set/reset colour (GR00) is the frame counter, rewritten every frame ({colours[:4]})")
+check(b"\x26\xAC\xD0\xD8\xAA\xE2" in r.com, "LATCH: the inner loop is es lodsb / rcr al,1 / stosb / loop: each byte read loads the VGA latches from the row below, each write lands one row up")
+check(not r.unmapped and not any(p == 0x3C9 for p, v in r.outs), "LATCH: no palette writes and no stray memory: the colours are the default EGA 16")
+rx = Run("LATCH.COM"); rx.run_until_exit(1, per=2)
+check(rx.exited and (0x10, 0x03) in rx.ints, "LATCH: Esc sets text mode 3 (which also resets the graphics controller) and returns to DOS")
+
 print("\nRESULT: " + ("ALL PASS" if not fails else f"{len(fails)} FAILED"))
 sys.exit(1 if fails else 0)
