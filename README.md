@@ -1,13 +1,13 @@
 # uber256-lab
 
-**Four 256-byte-class DOS demos: two strange attractors drawn on the x87 FPU, a framebuffer-feedback fire, and a texture made of the program's own machine code.**
+**Five 256-byte-class DOS demos: two strange attractors on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set whose constant orbits, and a texture made of the program's own machine code.**
 
 [![CI](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml)
 
-![GALAXY (two moments of its morph), FIRE, CLIFF and SELFTEX running in DOSBox](docs/gallery.jpg)
+![GALAXY (two moments of its morph), FIRE, CLIFF, SELFTEX and JULIA running in DOSBox](docs/gallery.jpg)
 
 *Real DOSBox 0.74-3 captures of the shipped binaries. Top row: GALAXY at the start and about a minute in, then FIRE.
-Bottom row: CLIFF and SELFTEX.*
+Bottom row: CLIFF, SELFTEX and JULIA.*
 
 Everything here is a flat 16-bit real-mode `.COM` file written in NASM. There are no images, no data files, no
 libraries, and no DOS calls except setting the video mode and leaving. Every pixel, every palette colour and every
@@ -18,6 +18,7 @@ sound is computed by a few hundred bytes of code.
 | [`GALAXY.COM`](src/galaxy.asm) | 205 B | 386 + FPU, VGA | A de Jong strange attractor drawn as a glowing, fading, slowly morphing cloud. The orbit also tunes the PC speaker. |
 | [`CLIFF.COM`](src/cliff.asm) | 210 B | 386 + FPU, VGA | The same engine with Clifford-attractor equations and parameters: two curling wings over a web of caustics. |
 | [`FIRE.COM`](src/fire.asm) | 123 B | 386, VGA | Framebuffer feedback: each pixel becomes the average of four pixels below it, minus a little, with random heat injected at the bottom. A smoky turbulent fire, no FPU. |
+| [`JULIA.COM`](src/julia.asm) | 161 B | 386, VGA | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape. No FPU, no sine table. |
 | [`SELFTEX.COM`](src/selftex.asm) | 77 B | 386, VGA | Each pixel is a byte of the program's own machine code, picked by `x*y/64 + time`. The hyperbolic bands you see are the code. |
 
 ## Contents
@@ -26,6 +27,7 @@ sound is computed by a few hundred bytes of code.
 - [Screenshots](#screenshots)
 - [GALAXY and CLIFF in detail](#galaxy-and-cliff-in-detail)
 - [FIRE in detail](#fire-in-detail)
+- [JULIA in detail](#julia-in-detail)
 - [SELFTEX in detail](#selftex-in-detail)
 - [Ideas from the 256-byte brief: what was tried](#ideas-from-the-256-byte-brief-what-was-tried)
 - [Testing](#testing)
@@ -65,8 +67,10 @@ All captured from the real binaries in DOSBox.
 | **GALAXY, start.** The de Jong orbit is a spray of arcs fanning out of a bright point. Brightness is the number of times the orbit has landed on a pixel. | **GALAXY, about a minute later.** Two of the four parameters drift every frame, so the same engine turns into a different object: the arcs close into spheres around a dense core. |
 | ![FIRE](docs/fire.jpg) | ![CLIFF](docs/cliff.jpg) |
 | **FIRE.** Heat rises, diffuses and cools. The bright speckle at the very bottom is the injected noise; the swirling plumes above come only from the feedback. | **CLIFF.** A Clifford attractor: two wings, with bright caustic edges where the orbit piles up. |
-| ![SELFTEX](docs/selftex.jpg) | |
-| **SELFTEX.** The program's own bytes as a texture. The curves are where `x*y/64 + time` keeps landing on similar code bytes. | |
+| ![SELFTEX](docs/selftex.jpg) | ![JULIA](docs/julia-a.jpg) |
+| **SELFTEX.** The program's own bytes as a texture. The curves are where `x*y/64 + time` keeps landing on similar code bytes. | **JULIA, one moment.** The black region is the set; the colour bands are how many iterations a point survives before escaping. |
+| ![JULIA later](docs/julia-b.jpg) | |
+| **JULIA, later.** As c moves, the set pinches, twists and breaks into dust, and tiny copies of the whole appear along the spirals. | |
 
 ## GALAXY and CLIFF in detail
 
@@ -158,6 +162,32 @@ This is the version of the feedback idea that works. The earlier NEBULA attempt 
 the screen, so every frame lost energy and it faded to black; here the random rows put it back. The PIT counter (port 40h)
 was tried first as the noise source and made smooth blobs instead of flames: successive reads are too correlated, hence the LCG.
 
+## JULIA in detail
+
+For every pixel, take z = (x, y) and iterate `z' = z*z + c` until |z|^2 exceeds 4 or 31 steps have passed. Pixels that never escape are
+black (they are in the Julia set); the others are coloured by how late they escaped, through the palette.
+
+All of it is 16-bit integer maths in **8.8 fixed point** (256 = 1.0), so there is no FPU in the program:
+
+```
+imul bx           ; dx:ax = x*x as 16.16
+shrd ax,dx,8      ; back to 8.8
+...
+imul si           ; x*y
+shrd ax,dx,7      ; 2*x*y: the shift by 7 does the doubling for free
+add  ax,[ci]      ; y' = 2xy + ci
+```
+
+`x` and `y` come from one `div` by 320 over the pixel index, centred and doubled (so the screen spans about +-1.25 by +-0.78).
+
+**The constant c moves.** After each frame the program rotates (cr, ci) a little with a *Minsky oscillator*: `cr += ci >> 5`, then
+`ci -= cr >> 5` using the updated `cr`. That integer recurrence traces a near-circle of radius 0.7 with no sine table, so c walks around
+a circle in the parameter plane and the Julia set transforms continuously: connected shapes, spirals and finally dust.
+
+The palette is the usual `R = i`, `G = 2i`, `B = 4i` stream (the DAC keeps six bits), which wraps through saturated bands as the escape count changes.
+A frame costs tens of millions of instructions, so it runs at a few frames per second in DOSBox: this is a slow-motion demo, and the emulator
+test renders only a handful of frames.
+
 ## SELFTEX in detail
 
 ```
@@ -186,6 +216,8 @@ The project started from a long brief of 256-byte-intro techniques. The honest o
 | Palette generated by code (no table) | **Works.** All three demos. |
 | Orbit-driven PIT sound | Implemented; **unheard**. |
 | Noise from a code-only PRNG | **Works.** FIRE's 16-bit LCG. |
+| Dynamical system in pure integer maths | **Works as JULIA**: 8.8 fixed point, no FPU. |
+| Oscillator without a sine table | **Works.** JULIA's Minsky circle. |
 | Code as texture / lookup table | **Works.** SELFTEX. |
 | Neighbour-averaging feedback | **Works as FIRE**, with random heat injected every frame. The first attempt ("nebula"), with no energy source, failed: averaging halves the energy and the screen goes black. |
 | Carry-flag cellular automaton | Six variants prototyped; none good enough to ship. |
@@ -197,7 +229,7 @@ The project started from a long brief of 256-byte-intro techniques. The honest o
 
 `tests/run_tests.sh` builds everything and runs each `.COM` in an emulated 16-bit CPU
 ([Unicorn](https://www.unicorn-engine.org/), x87 included), entered the way DOS enters a program
-(`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped. It runs 44 checks:
+(`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped. It runs 55 checks:
 
 - **All demos:** at most 256 bytes; the first call is `INT 10h` with AX = 0013h; all 768 DAC values are written and the
   palette is not black; no memory is touched outside video RAM and the program's own segment.
@@ -205,6 +237,7 @@ The project started from a long brief of 256-byte-intro techniques. The honest o
   screen; many brightness levels appear (accumulation rather than on/off); the picture changes between frames;
   the speaker is on and PIT channel 2 is re-tuned.
 - **FIRE:** the bottom is hot and the heat dies off with height; a smooth ramp of values; the flames move; no sound.
+- **JULIA:** colour bands, a black set that fills part of the screen, point symmetry, no FPU or sound in the code, the picture changes as c moves.
 - **SELFTEX:** a rich, textured screen (dozens of colours); it scrolls between frames; no sound.
 - **All demos:** pressing Esc ends with `INT 10h` AX = 3 and a clean return to DOS.
 
@@ -217,7 +250,7 @@ Every push and pull request builds the demos, enforces the 256-byte limit and ru
 add a section to `CHANGELOG.md` and push a tag:
 
 ```sh
-git tag v1.3.0 && git push origin v1.3.0
+git tag v1.4.0 && git push origin v1.4.0
 ```
 
 The release workflow rebuilds, re-tests, and attaches the `.COM` files, `SHA256SUMS` and the gallery image, with that section as the notes.
@@ -236,6 +269,7 @@ The release workflow rebuilds, re-tests, and attaches the `.COM` files, `SHA256S
 src/galaxy.asm      de Jong attractor
 src/cliff.asm       Clifford attractor
 src/fire.asm        framebuffer-feedback fire
+src/julia.asm       integer Julia set with an orbiting constant
 src/selftex.asm     self-code texture
 build.sh            NASM build + 256-byte gate + SHA256SUMS
 run-dosbox.sh       DOSBox launcher

@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.3.0]
+- **JULIA** (161 B): integer-only (8.8 fixed point) Julia set whose constant orbits on a Minsky oscillator; 11 new emulator checks (55 in all).
+
 ## [1.2.0]
 - **FIRE** (123 B): framebuffer-feedback fire with an LCG noise source and a generated fire palette; 11 new emulator checks (44 in all).
 - README: FIRE write-up, updated gallery and experiment table.

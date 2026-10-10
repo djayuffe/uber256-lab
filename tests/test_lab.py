@@ -41,17 +41,17 @@ class Run:
     def on_intr(self, uc, n, ud):
         self.ints.append((n, uc.reg_read(UC_X86_REG_AX)))
         if n == 0x20: self.exited = True; uc.emu_stop()
-    def frames(self, n):
+    def frames(self, n, per=40):
         """Run until n more retrace waits have been polled (about n frames)."""
-        self.vs_stop = self.vs_reads + n * 40
+        self.vs_stop = self.vs_reads + n * per
         start = self.uc.reg_read(UC_X86_REG_IP) if self.started else 0x100
         self.started = True
         self.uc.emu_start(start, 0xFFFF0, count=30_000_000)
         return self
     def screen(self): return bytes(self.uc.mem_read(0xA0000, 0x10000))
     def dac(self): return [v for p, v in self.outs if p == 0x3C9]
-    def run_until_exit(self, esc_after):
-        self.frames(esc_after); self.p60 = 1
+    def run_until_exit(self, esc_after, per=40):
+        self.frames(esc_after, per); self.p60 = 1
         self.vs_stop = None
         self.uc.emu_start(self.uc.reg_read(UC_X86_REG_IP), 0xFFFF0, count=30_000_000)
 
@@ -108,6 +108,19 @@ r.frames(1); s2 = r.screen()
 check(sum(1 for a, b in zip(s, s2) if a != b) > 3000, "FIRE: the flames move (feedback + fresh noise every frame)")
 rx = Run("FIRE.COM"); rx.run_until_exit(1)
 check(rx.exited and (0x10, 0x03) in rx.ints, "FIRE: Esc restores text mode 3 and returns to DOS")
+
+print("\n== JULIA ==")
+r = Run("JULIA.COM").frames(1, per=2); common("JULIA", r)
+s = r.screen()
+black = sum(1 for b in s[:64000] if b == 0)
+check(len(set(s[:64000])) > 6, f"JULIA: escape-time colour bands ({len(set(s[:64000]))} distinct colours)")
+check(5000 < black < 55000, f"JULIA: the set itself (never escapes) is black and fills part of the screen ({black} of 64000 pixels)")
+check(s[:64000] == s[:64000][::-1] or sum(1 for a, b in zip(s[:64000], s[:64000][::-1]) if a == b) > 50000, "JULIA: the image is point-symmetric (Julia sets are symmetric under z -> -z)")
+check(not any(p == 0x42 for p, v in r.outs) and not any(b in (0xD9, 0xDB, 0xDD) for b in r.com[:60]), "JULIA: no FPU and no sound: pure 8.8 fixed-point integer maths")
+r.frames(3, per=2); s2 = r.screen()
+check(sum(1 for a, b in zip(s[:64000], s2[:64000]) if a != b) > 500, "JULIA: the constant c circles, so the picture changes frame to frame")
+rx = Run("JULIA.COM"); rx.run_until_exit(1, per=2)
+check(rx.exited and (0x10, 0x03) in rx.ints, "JULIA: Esc restores text mode 3 and returns to DOS")
 
 print("\nRESULT: " + ("ALL PASS" if not fails else f"{len(fails)} FAILED"))
 sys.exit(1 if fails else 0)
