@@ -291,6 +291,21 @@ A later brief proposed about 25 further effects built from hidden machine state 
 | Carry-Lace (the carry flag as hidden memory) | **Tried, not shipped.** The brief's loop ends in `test di,di`, which clears CF every pixel, so the carry never reaches the next pixel. What remains is a 9-bit exact average of the left and upper neighbours (`adc` + `rcr`) plus a phase: diagonal dune strata for the first few frames, then fine noise. Ending the loop with `loop` instead (flags untouched) makes the carry real, and looks much the same. |
 | Return-Address Rain, IVT Constellation, PSP Voronoi, BIOS Font Diffraction, command-tail bloom, instruction-phase decoding, latch morphology, plane effects, logical brush, overscan halo, IRQ and exception effects, beam-raced self-modification, glyph genome and the rest | **Not attempted yet.** Several depend on timing or inherited state that DOSBox cannot confirm; the brief itself rates them least robust. |
 
+## Third brief: synthesising 4 to 16 byte kernels
+
+A further brief argued that below about 32 bytes one should stop encoding effects and let the CPU accidentally perform them: use `DI` as the coordinate, `MUL` as the shader, byte roll-over as free oscillators, the flags as hidden state, and search instruction sequences automatically. I tried the search part.
+
+[`tools/synth13.py`](tools/synth13.py) builds random programs from the 8-byte mode-13h setup (`mov al,13h / int 10h / push A000h / pop es`), a random 4 to 8 byte body drawn from a pool of one- and two-byte instructions (BCD adjusts, `xchg`, `mul`/`div`, `aam`, rotates, ALU ops, string ops) and a backward jump, runs each in the emulated CPU, and scores the framebuffer at three moments (coverage, colour variety, compressibility, left/up coherence, number of distinct rows and columns, change between frames). About 880,000 programs were tried over two runs.
+
+| Result | |
+|---|---|
+| Programs that passed the filters | 1,412 in the first run; 431 in the second, which also required 60+ distinct rows and columns |
+| What they look like | Overwhelmingly **vertical bars, stripes and textured noise** (a `stosw` with a counter in a different register is the whole family). A few show faint curved streaks or diagonal bands. |
+| Hand-written kernels from the brief (`mov ax,di / mul ah / xor al,ah / stosb` and seven variants) | Hash-like texture in the default VGA palette, with a faint moire; the default palette scatters neighbouring colour indices, so a streamed palette (as in this repo's demos) is needed before any of them reads as an image. That puts them past 16 bytes. |
+| Shipped | **Nothing.** The scoring can measure structure and change but not beauty, and none of the survivors was worth a demo. |
+
+The earlier, text-mode version of this search (in [uber-micro-demos](https://github.com/djayuffe/uber-micro-demos)) found two shippable programs because text mode already has a palette and a character set doing the visual work. Mode 13h with the default palette does not.
+
 ## Testing
 
 `tests/run_tests.sh` builds everything and runs each `.COM` in an emulated 16-bit CPU
