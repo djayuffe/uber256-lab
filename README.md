@@ -27,6 +27,7 @@ sound is computed by a few hundred bytes of code.
 
 - [Run it](#run-it)
 - [Screenshots](#screenshots)
+- [In motion](#in-motion)
 - [GALAXY and CLIFF in detail](#galaxy-and-cliff-in-detail)
 - [FIRE in detail](#fire-in-detail)
 - [ESCHER in detail](#escher-in-detail)
@@ -77,6 +78,23 @@ All captured from the real binaries in DOSBox.
 | **JULIA, later.** As c moves, the set pinches, twists and breaks into dust, and tiny copies of the whole appear along the spirals. | **ESCHER.** One hyperbolic texture, shown through a moving start address and a line-compare split: the bands meet themselves at seams that cannot be real. |
 | ![CHLADNI](docs/chladni-a.jpg) | ![CHLADNI later](docs/chladni-b.jpg) |
 | **CHLADNI.** Sand gathers on the lines where the plate does not move. | **CHLADNI, later.** As the mode number drifts, the nodal lines reconnect into loops, then a lattice. |
+
+## In motion
+
+Real recordings of the shipped binaries in DOSBox 0.74-3 (`cycles=max`), so what you see is the real frame rate of each demo, not an emulator's idea of it.
+
+| | |
+|---|---|
+| ![GALAXY](docs/galaxy.gif) | ![CLIFF](docs/cliff.gif) |
+| **GALAXY**, 16 s: the orbit cloud builds up and slowly changes shape as two parameters drift. | **CLIFF**, 14 s: the same engine with Clifford equations. |
+| ![FIRE](docs/fire.gif) | ![JULIA](docs/julia.gif) |
+| **FIRE**, 10 s: the flames rise from the first frame, from the hot row at the bottom. | **JULIA**, 24 s: each frame is drawn top to bottom, and the set changes as c moves. |
+| ![SELFTEX](docs/selftex.gif) | ![ESCHER](docs/escher.gif) |
+| **SELFTEX**, 8 s: the bands slide as the frame counter is added to the lookup index. | **ESCHER**, 9 s at 20 fps: the blocks slide and the seams move; only CRTC registers change. |
+| ![CHLADNI](docs/chladni.gif) | |
+| **CHLADNI**, 10 s: nearly every video frame is a new picture (about 27 fps in DOSBox) as the mode number drifts. | |
+
+*How they were made: with DOSBox in front, its window was screen-captured at 30 to 60 frames per second (cropped to the window only), then converted to 25 fps GIFs at the native 320x200 (ESCHER at 20 fps to keep it small) with a reduced palette. A small patch where the mouse pointer sat at the top edge was painted black. GIF cannot show a 70 Hz display, so very fast detail is smoother in the real thing.*
 
 ## GALAXY and CLIFF in detail
 
