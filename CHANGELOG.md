@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.0]
+- **ESCHER** (137 B): the picture is drawn once; only the CRTC start address and line compare move. 12 new emulator checks.
+- **CHLADNI** (224 B): FPU Chladni nodal lines with drifting mode numbers and speaker tone. 11 new emulator checks (78 in all).
+- README: a section on the second brief's candidates, with the results of the ones tried (including two that did not work: a palette cellular automaton and the carry-flag recurrence).
+
 ## [1.3.0]
 - **JULIA** (161 B): integer-only (8.8 fixed point) Julia set whose constant orbits on a Minsky oscillator; 11 new emulator checks (55 in all).
 

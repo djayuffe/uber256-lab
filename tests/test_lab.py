@@ -37,7 +37,7 @@ class Run:
         return self.p60 if port == 0x60 else (self.p61 if port == 0x61 else 0)
     def on_out(self, uc, port, size, v, ud):
         if port == 0x61: self.p61 = v & 255
-        self.outs.append((port, v & 255))
+        self.outs.append((port, v & (0xFFFF if size == 2 else 255)))
     def on_intr(self, uc, n, ud):
         self.ints.append((n, uc.reg_read(UC_X86_REG_AX)))
         if n == 0x20: self.exited = True; uc.emu_stop()
@@ -121,6 +121,38 @@ r.frames(3, per=2); s2 = r.screen()
 check(sum(1 for a, b in zip(s[:64000], s2[:64000]) if a != b) > 500, "JULIA: the constant c circles, so the picture changes frame to frame")
 rx = Run("JULIA.COM"); rx.run_until_exit(1, per=2)
 check(rx.exited and (0x10, 0x03) in rx.ints, "JULIA: Esc restores text mode 3 and returns to DOS")
+
+print("\n== ESCHER ==")
+r = Run("ESCHER.COM").frames(1, per=2); common("ESCHER", r)
+s1 = r.screen()[:64000]
+check(len(set(s1)) > 100 and sum(1 for b in s1 if b) > 30000, f"ESCHER: the texture is drawn once ({len(set(s1))} distinct colours)")
+r.frames(5, per=2); s2 = r.screen()[:64000]
+check(s1 == s2, "ESCHER: after that no pixel is ever written again: the whole animation is CRTC registers")
+crtc = [(p, v) for p, v in r.outs if p == 0x3D4]
+idx = [v & 255 for p, v in crtc]
+check(len(crtc) >= 12 and idx[:6] == [0x0C, 0x0D, 0x18, 0x0C, 0x0D, 0x18], f"ESCHER: each frame writes CRTC start address high (0Ch) and low (0Dh) and line compare (18h) ({len(crtc)} writes)")
+starts = {((v >> 8) << 8) | (crtc[i + 1][1] >> 8) for i, (p, v) in enumerate(crtc) if v & 255 == 0x0C and i + 1 < len(crtc)}
+check(len(starts) >= 5 and max(starts) < 0x4000, f"ESCHER: the start address moves ({len(starts)} distinct values, all inside video memory)")
+splits = [v >> 8 for p, v in crtc if v & 255 == 0x18]
+check(all(b - a == 1 for a, b in zip(splits, splits[1:])), "ESCHER: the line-compare split sweeps down one scan line per frame")
+check(not any(p == 0x42 for p, v in r.outs), "ESCHER: no sound")
+rx = Run("ESCHER.COM"); rx.run_until_exit(1, per=2)
+check(rx.exited and (0x10, 0x03) in rx.ints, "ESCHER: Esc restores text mode 3 (which also resets the CRTC) and returns to DOS")
+
+print("\n== CHLADNI ==")
+r = Run("CHLADNI.COM").frames(1, per=2); common("CHLADNI", r)
+s = r.screen()[:64000]
+bright = sum(1 for b in s if b > 200)
+check(any(b in (0xD9, 0xDB) for b in r.com) and r.com.count(b"\xD9\xFE") >= 4, "CHLADNI: four FSIN per pixel on the x87 FPU")
+check(2000 < bright < 40000 and len(set(s)) > 100, f"CHLADNI: bright nodal lines on a dark plate with smooth falloff ({bright} bright pixels, {len(set(s))} levels)")
+mirror = sum(1 for y in range(200) for x in range(1, 320) if s[y * 320 + x] == s[y * 320 + 320 - x])
+flip = sum(1 for y in range(1, 200) for x in range(320) if s[y * 320 + x] == s[(200 - y) * 320 + x])
+check(mirror > 0.97 * 200 * 319 and flip > 0.97 * 199 * 320, f"CHLADNI: |f| is symmetric left-right and top-bottom, as the plate equation requires ({mirror / (200 * 319):.1%} / {flip / (199 * 320):.1%})")
+check(r.p61 & 3 == 3 and any(p == 0x42 for p, v in r.outs), "CHLADNI: the speaker is on and PIT channel 2 is retuned from the mode number")
+r.frames(2, per=2); s2 = r.screen()[:64000]
+check(sum(1 for a, b in zip(s, s2) if a != b) > 1000, "CHLADNI: the mode number drifts, so the figure changes")
+rx = Run("CHLADNI.COM"); rx.run_until_exit(1, per=2)
+check(rx.exited and (0x10, 0x03) in rx.ints, "CHLADNI: Esc restores text mode 3 and returns to DOS")
 
 print("\nRESULT: " + ("ALL PASS" if not fails else f"{len(fails)} FAILED"))
 sys.exit(1 if fails else 0)
