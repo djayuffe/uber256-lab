@@ -195,5 +195,18 @@ check(sum(1 for a, b in zip(s1, s2) if a >> 5 != b >> 5) > 1000, "ORDER: the reg
 rx = Run("ORDER.COM"); rx.run_until_exit(1, per=2)
 check(rx.exited and (0x10, 0x03) in rx.ints, "ORDER: Esc restores text mode 3 and returns to DOS")
 
+print("\n== ROOTS ==")
+r = Run("ROOTS.COM").frames(1, per=2); common("ROOTS", r)
+s1 = r.screen()[:64000]
+white = [i for i in range(320, 64000) if s1[i] & 127 == 127 and i % 320]
+pos = sum(1 for b in s1 if not b & 128) / 64000
+check(300 < len(white) < 6000 and 0.1 < pos < 0.9, f"ROOTS: thin root curves ({len(white)} white pixels) between positive and negative regions ({pos:.0%} positive)")
+check(all((s1[i] ^ s1[i-1]) & 128 or (s1[i] ^ s1[i-320]) & 128 for i in white), "ROOTS: every white pixel is a real sign change against its left or upper neighbour")
+check(not any(op in r.com for op in (b"\xDB\xE3", b"\xD9\xFE", b"\xD9\xFF")) and not any(p == 0x42 for p, v in r.outs), "ROOTS: 32-bit integer maths only (no fninit, fsin or fcos), no sound")
+r.frames(3, per=2); s2 = r.screen()[:64000]
+check(sum(1 for a, b in zip(s1, s2) if (a ^ b) & 128) > 1000, "ROOTS: the sign regions (and so the roots) move as T changes")
+rx = Run("ROOTS.COM"); rx.run_until_exit(1, per=2)
+check(rx.exited and (0x10, 0x03) in rx.ints, "ROOTS: Esc restores text mode 3 and returns to DOS")
+
 print("\nRESULT: " + ("ALL PASS" if not fails else f"{len(fails)} FAILED"))
 sys.exit(1 if fails else 0)

@@ -1,6 +1,6 @@
 # uber256-lab
 
-**Ten 256-byte-class DOS demos: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, a picture made only of orderings, and a texture made of the program's own machine code.**
+**Eleven 256-byte-class DOS demos: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, a picture made only of orderings, the migrating roots of a polynomial, and a texture made of the program's own machine code.**
 
 [![CI](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml)
 
@@ -19,6 +19,7 @@ sound is computed by a few hundred bytes of code.
 | [`FIRE.COM`](src/fire.asm) | 123 B | 386, VGA | Framebuffer feedback: each pixel becomes the average of four pixels below it, minus a little, with random heat injected at the bottom. A smoky turbulent fire, no FPU. |
 | [`ESCHER.COM`](src/escher.asm) | 137 B | 386, VGA | The picture is drawn once; after that only the CRT controller's start address and line-compare registers move, folding a hyperbolic texture into an impossible patchwork. No pixel is ever redrawn. |
 | [`CHLADNI.COM`](src/chladni.asm) | 224 B | 386 + FPU, VGA | The nodal lines of a vibrating plate, `sin(ax)sin(by) - sin(bx)sin(ay) = 0`, with drifting mode numbers that also tune the speaker. |
+| [`ROOTS.COM`](src/roots.asm) | 232 B | 386, VGA | Polynomial root migration: the white curves are where a cubic in x and y changes sign; as one coefficient sweeps, the roots migrate, pinch into a crossing and reconnect the other way. Warm and cool contour bands show the sign. |
 | [`ORDER.COM`](src/order.asm) | 123 B | 386, VGA | Three cheap expressions per pixel (hyperbolas, vertical lines, horizontal lines) are never drawn; only which of the six orderings they are in is, so the screen is a set of regions whose boundaries fold and collide as time moves. |
 | [`WARP.COM`](src/warp.asm) | 72 B | 386, VGA | No video mode, no drawing: the DOS screen you launched it from is squashed, stretched and sheared by rewriting two CRT-controller registers (character height and row stride) every frame. |
 | [`LATCH.COM`](src/latch.asm) | 82 B | 386, EGA/VGA | A rule-60 cellular automaton (Sierpinski waterfalls) computed by the VGA graphics controller: each byte read loads 8 pixels x 4 planes into the latches, each write puts them back one row up with an XOR colour applied by the hardware. |
@@ -34,6 +35,7 @@ sound is computed by a few hundred bytes of code.
 - [FIRE in detail](#fire-in-detail)
 - [ESCHER in detail](#escher-in-detail)
 - [CHLADNI in detail](#chladni-in-detail)
+- [ROOTS in detail](#roots-in-detail)
 - [ORDER in detail](#order-in-detail)
 - [WARP in detail](#warp-in-detail)
 - [LATCH in detail](#latch-in-detail)
@@ -83,8 +85,8 @@ All captured from the real binaries in DOSBox.
 | **JULIA, later.** As c moves, the set pinches, twists and breaks into dust, and tiny copies of the whole appear along the spirals. | **ESCHER.** One hyperbolic texture, shown through a moving start address and a line-compare split: the bands meet themselves at seams that cannot be real. |
 | ![CHLADNI](docs/chladni-a.jpg) | ![CHLADNI later](docs/chladni-b.jpg) |
 | **CHLADNI.** Sand gathers on the lines where the plate does not move. | **CHLADNI, later.** As the mode number drifts, the nodal lines reconnect into loops, then a lattice. |
-| ![ORDER](docs/order.jpg) | |
-| **ORDER** in DOSBox: hyperbola fans cut by straight partitions, each region an ordering of three numbers. | |
+| ![ORDER](docs/order.jpg) | ![ROOTS](docs/roots.jpg) |
+| **ORDER** in DOSBox: hyperbola fans cut by straight partitions, each region an ordering of three numbers. | **ROOTS** in DOSBox: two root curves just after they have crossed and reconnected. |
 | ![WARP](docs/warp-a.jpg) | ![WARP squashed](docs/warp-b.jpg) |
 | **WARP.** The DOSBox start-up screen, stretched and sheared into a staircase: the text in memory is unchanged. | **WARP, squashed.** At 4 scan lines per character the whole screen collapses into the top fifth. |
 | ![LATCH](docs/latch-a.jpg) | ![LATCH later](docs/latch-b.jpg) |
@@ -106,10 +108,12 @@ Real recordings of the shipped binaries in DOSBox 0.74-3 (`cycles=max`), so what
 | **CHLADNI**, 10 s: nearly every video frame is a new picture (about 27 fps in DOSBox) as the mode number drifts. | **LATCH**, 6 s: the Sierpinski waterfalls rising, one generation per frame. Rendered (see below). |
 | ![WARP](docs/warp.gif) | ![ORDER](docs/order.gif) |
 | **WARP**, 6.5 s: the DOS screen squashing, stretching and shearing. Rendered (see below). | **ORDER**, 6 s: the regions folding as the three expressions move. Rendered (see below). |
+| ![ROOTS](docs/roots.gif) | |
+| **ROOTS**, 5 s: the root curves migrating, crossing and reconnecting. Rendered (see below). | |
 
 *How they were made: with DOSBox in front, its window was screen-captured at 30 to 60 frames per second (cropped to the window only), then converted to 25 fps GIFs at the native 320x200 (ESCHER at 20 fps to keep it small) with a reduced palette. A small patch where the mouse pointer sat at the top edge was painted black. GIF cannot show a 70 Hz display, so very fast detail is smoother in the real thing.*
 
-*LATCH, WARP and ORDER were not screen-recorded: they were rendered frame by frame from the real binaries in the emulated CPU, with a model of the VGA (the four planes, latches, write mode 3 and XOR for LATCH; text memory, the ROM font dumped from DOSBox, and the CRTC character height and row stride for WARP; mode 13h and the DAC for ORDER), one GIF frame per one to three video frames. Their stills above are real DOSBox captures, and the renders match them.*
+*LATCH, WARP, ORDER and ROOTS were not screen-recorded: they were rendered frame by frame from the real binaries in the emulated CPU, with a model of the VGA (the four planes, latches, write mode 3 and XOR for LATCH; text memory, the ROM font dumped from DOSBox, and the CRTC character height and row stride for WARP; mode 13h and the DAC for ORDER and ROOTS), one GIF frame per one to three video frames. Their stills above are real DOSBox captures, and the renders match them.*
 
 ## GALAXY and CLIFF in detail
 
@@ -229,6 +233,20 @@ The mode number `a` drifts each frame through [1.5, 4.5) using `fprem` (so it ca
 `a` crossed `b`), and the same value is written to PIT channel 2, so the tone and the figure change together. `f` is antisymmetric under `x -> -x` and under `y -> -y`,
 so `|f|` is symmetric both ways; the test confirms the picture is 100% mirror-symmetric. The picture costs a few million FPU operations a frame, so it runs at a few frames per second in DOSBox.
 As with the attractors, **I have not listened to the speaker.**
+
+## ROOTS in detail
+
+From the same list, "polynomial root migration" (#9), which turned out to show the list's "catastrophe" idea (#98) too. For each pixel, with X = x - 160 and Y = y - 100:
+
+```
+v = X^3/64  -  6 X (Y + T)  +  Y^2 T / 16          (32-bit integers; T sweeps -32..+31 and back)
+```
+
+The program never draws v itself. Bit 7 of each pixel's colour is v's **sign**, and a pixel turns white when its sign differs from the pixel to its left or the one above (the row above is already in video memory, so the screen itself is the memory for the edge test). Those white pixels are the zero set of the cubic: its roots. The other seven bits shade |v| into faint contour bands, warm on the positive side and cool on the negative.
+
+As T moves, the curves migrate. At some values two branches meet in a crossing and then reconnect the other way: a saddle, the point where the picture's topology changes. The palette is built by one loop: shades 0..63 warm, 128..191 cool, and entries 127 and 255 white so a root keeps its sign bit.
+
+I prototyped about twenty of the list's mechanisms as NumPy models first (Collatz stopping times, coprimality, quadratic residues, 3-adic valuations, bit run lengths, functional-graph basins, determinants, projective curtains, curvature, energy defects of a Minsky circle, wrap-around conservation failure, forward/backward rotation error, integer vortices, an integer logistic map, inverse branches of x^2 mod 256, hysteresis) and only built the two that looked like something: ORDER and ROOTS. Most of the number-theory fields read as noise at screen resolution; several of the others are familiar shapes (hyperbola contours, ray floors, bifurcation diagrams).
 
 ## ORDER in detail
 
@@ -377,7 +395,7 @@ The earlier, text-mode version of this search (in [uber-micro-demos](https://git
 
 `tests/run_tests.sh` builds everything and runs each `.COM` in an emulated 16-bit CPU
 ([Unicorn](https://www.unicorn-engine.org/), x87 included), entered the way DOS enters a program
-(`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped. It runs 101 checks:
+(`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped. It runs 111 checks:
 
 - **All demos:** at most 256 bytes; the first call is `INT 10h` with AX = 0013h; all 768 DAC values are written and the
   palette is not black; no memory is touched outside video RAM and the program's own segment.
@@ -387,6 +405,7 @@ The earlier, text-mode version of this search (in [uber-micro-demos](https://git
 - **FIRE:** the bottom is hot and the heat dies off with height; a smooth ramp of values; the flames move; no sound.
 - **ESCHER:** the texture is drawn once and no pixel is ever written again; each frame writes the CRTC start-address and line-compare registers; the start address moves inside video memory and the split sweeps one scan line per frame.
 - **CHLADNI:** four `fsin` per pixel; bright nodal lines with smooth falloff; the picture is mirror-symmetric as the equation requires; the speaker is retuned; the figure changes as the mode number drifts.
+- **ROOTS:** thin root curves between positive and negative regions; every white pixel is a real sign change; integer only; the roots move; clean exit.
 - **ORDER:** at least five of the six orderings appear as large coherent regions; integer only; the boundaries move; clean exit.
 - **WARP:** only CRTC registers 09h and 13h are written; the character height steps through 4..19 scan lines with bit 6 kept; the stride stays within 36..43; the text in video memory is untouched; clean exit.
 - **LATCH:** mode 0Dh; the graphics-controller set-up (set/reset, XOR, write mode 3); the set/reset colour changes every frame; the latch-copy inner loop; no stray memory; clean exit.
@@ -403,7 +422,7 @@ Every push and pull request builds the demos, enforces the 256-byte limit and ru
 add a section to `CHANGELOG.md` and push a tag:
 
 ```sh
-git tag v1.8.0 && git push origin v1.8.0
+git tag v1.9.0 && git push origin v1.9.0
 ```
 
 The release workflow rebuilds, re-tests, and attaches the `.COM` files, `SHA256SUMS` and the gallery image, with that section as the notes.
@@ -424,6 +443,7 @@ src/cliff.asm       Clifford attractor
 src/fire.asm        framebuffer-feedback fire
 src/escher.asm      CRTC-only animation (start address + line compare)
 src/chladni.asm     Chladni plate nodal lines on the FPU
+src/roots.asm       migrating roots of a cubic
 src/order.asm       regions from the ordering of three expressions
 src/warp.asm        DOS screen warped by CRTC character height and row stride
 src/latch.asm       cellular automaton computed by the VGA graphics controller

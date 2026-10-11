@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.8.0]
+- **ROOTS** (232 B): polynomial root migration, the sign changes of a cubic as white curves that cross and reconnect. 10 new checks (111 in all). Rendered GIF and DOSBox still.
+- README: the twenty mechanisms prototyped from the 100-effects list and why only two were built.
+
 ## [1.7.0]
 - **ORDER** (123 B): regions defined only by the ordering of three per-pixel expressions. 10 new checks (101 in all).
 - Rendered GIFs for LATCH, WARP and ORDER; gallery shows all demos.
