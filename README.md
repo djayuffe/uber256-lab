@@ -4,9 +4,9 @@
 
 [![CI](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml)
 
-![GALAXY (two moments of its morph), FIRE, CLIFF, SELFTEX, JULIA, ESCHER and CHLADNI running in DOSBox](docs/gallery.jpg)
+![All nine demos in DOSBox: GALAXY, CLIFF, CHLADNI, FIRE, JULIA, SELFTEX, ESCHER, LATCH and WARP](docs/gallery.jpg)
 
-*Real DOSBox 0.74-3 captures of the shipped binaries. Top row: GALAXY at the start and about a minute in, then FIRE.
+*Real DOSBox 0.74-3 captures of the shipped binaries. Top row: GALAXY, CLIFF, CHLADNI. Middle: FIRE, JULIA, SELFTEX. Bottom: ESCHER, LATCH, WARP.*
 Bottom row: CLIFF, SELFTEX, JULIA, ESCHER and CHLADNI.*
 
 Everything here is a flat 16-bit real-mode `.COM` file written in NASM. There are no images, no data files, no
