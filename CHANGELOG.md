@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.6.0]
+- **WARP** (72 B): the DOS screen squashed, stretched and sheared by CRTC registers 09h and 13h, with no drawing. 6 new checks (91 in all).
+- README: three ideas from the same brief that did not work (mode-13h stride shear, mode-13h CR09 zoom that flickers in DOSBox, LATCH with a rotating read map).
+
 ## [1.5.0]
 - **LATCH** (82 B): a rule-60 cellular automaton computed by the VGA graphics controller (latches, write mode 3, XOR, set/reset). 7 new checks (85 in all).
 - Found: in DOSBox 0.74 the graphics controller's data rotate appeared to have no effect in write mode 3; LATCH shifts the mask with `rcr` instead.

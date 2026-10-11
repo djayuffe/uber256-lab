@@ -1,6 +1,6 @@
 # uber256-lab
 
-**Eight 256-byte-class DOS demos: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, and a texture made of the program's own machine code.**
+**Nine 256-byte-class DOS demos: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, and a texture made of the program's own machine code.**
 
 [![CI](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml)
 
@@ -20,6 +20,7 @@ sound is computed by a few hundred bytes of code.
 | [`FIRE.COM`](src/fire.asm) | 123 B | 386, VGA | Framebuffer feedback: each pixel becomes the average of four pixels below it, minus a little, with random heat injected at the bottom. A smoky turbulent fire, no FPU. |
 | [`ESCHER.COM`](src/escher.asm) | 137 B | 386, VGA | The picture is drawn once; after that only the CRT controller's start address and line-compare registers move, folding a hyperbolic texture into an impossible patchwork. No pixel is ever redrawn. |
 | [`CHLADNI.COM`](src/chladni.asm) | 224 B | 386 + FPU, VGA | The nodal lines of a vibrating plate, `sin(ax)sin(by) - sin(bx)sin(ay) = 0`, with drifting mode numbers that also tune the speaker. |
+| [`WARP.COM`](src/warp.asm) | 72 B | 386, VGA | No video mode, no drawing: the DOS screen you launched it from is squashed, stretched and sheared by rewriting two CRT-controller registers (character height and row stride) every frame. |
 | [`LATCH.COM`](src/latch.asm) | 82 B | 386, EGA/VGA | A rule-60 cellular automaton (Sierpinski waterfalls) computed by the VGA graphics controller: each byte read loads 8 pixels x 4 planes into the latches, each write puts them back one row up with an XOR colour applied by the hardware. |
 | [`JULIA.COM`](src/julia.asm) | 161 B | 386, VGA | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape. No FPU, no sine table. |
 | [`SELFTEX.COM`](src/selftex.asm) | 77 B | 386, VGA | Each pixel is a byte of the program's own machine code, picked by `x*y/64 + time`. The hyperbolic bands you see are the code. |
@@ -33,6 +34,7 @@ sound is computed by a few hundred bytes of code.
 - [FIRE in detail](#fire-in-detail)
 - [ESCHER in detail](#escher-in-detail)
 - [CHLADNI in detail](#chladni-in-detail)
+- [WARP in detail](#warp-in-detail)
 - [LATCH in detail](#latch-in-detail)
 - [JULIA in detail](#julia-in-detail)
 - [SELFTEX in detail](#selftex-in-detail)
@@ -80,6 +82,8 @@ All captured from the real binaries in DOSBox.
 | **JULIA, later.** As c moves, the set pinches, twists and breaks into dust, and tiny copies of the whole appear along the spirals. | **ESCHER.** One hyperbolic texture, shown through a moving start address and a line-compare split: the bands meet themselves at seams that cannot be real. |
 | ![CHLADNI](docs/chladni-a.jpg) | ![CHLADNI later](docs/chladni-b.jpg) |
 | **CHLADNI.** Sand gathers on the lines where the plate does not move. | **CHLADNI, later.** As the mode number drifts, the nodal lines reconnect into loops, then a lattice. |
+| ![WARP](docs/warp-a.jpg) | ![WARP squashed](docs/warp-b.jpg) |
+| **WARP.** The DOSBox start-up screen, stretched and sheared into a staircase: the text in memory is unchanged. | **WARP, squashed.** At 4 scan lines per character the whole screen collapses into the top fifth. |
 | ![LATCH](docs/latch-a.jpg) | ![LATCH later](docs/latch-b.jpg) |
 | **LATCH.** Two Sierpinski waterfalls rise from seeds just below the screen; the colourful left edges are the seeds, which change every frame. | **LATCH, another moment.** The XOR colour is the frame counter, so the whole structure changes colour as it flows. |
 
@@ -219,6 +223,20 @@ The mode number `a` drifts each frame through [1.5, 4.5) using `fprem` (so it ca
 so `|f|` is symmetric both ways; the test confirms the picture is 100% mirror-symmetric. The picture costs a few million FPU operations a frame, so it runs at a few frames per second in DOSBox.
 As with the attractors, **I have not listened to the speaker.**
 
+## WARP in detail
+
+WARP never sets a video mode and never writes a pixel. It runs on top of whatever DOS screen you launched it from and changes only how the CRT controller **reads** that text:
+
+- **CR09, maximum scan line** (brief #71): the height of a character cell, normally 16 scan lines. A triangle wave steps it through 4..19 lines, so the 400-line display shows the same 25 rows of text squashed into a strip or stretched past the bottom of the screen. Bit 6 (bit 9 of the line-compare value) is kept.
+- **CR13, offset** (brief #72): how many words of video memory each text row advances. Normally 40 (80 characters); a slower triangle wave moves it through 36..43, so each row starts a few characters earlier or later than the row above and the screen shears into a staircase that reverses.
+
+Both writes happen once per frame after the vertical retrace; no timing register is touched. The emulator test checks that only those two registers are written, that the character height steps through all 16 values and the stride stays within 36..43, and that the text in video memory is never modified.
+
+**Tried alongside it and not shipped:**
+- **SHEAR** (the same stride trick in mode 13h): in 256-colour mode one CR13 unit is 8 bytes, so the smallest possible change shifts each row 8 pixels further than the one above. Any stride other than the normal one turned a ring texture into horizontal noise.
+- **ZOOM** (CR09 in mode 13h, so each texture row repeats 1 to 16 times, with the start address keeping the centre fixed): it works, but in DOSBox every CR09 change makes the emulator rebuild its output surface and several frames came out black; it would flicker. WARP changes the same register in text mode without that problem in the frames I sampled.
+- **LATCH with a rotating read map** (brief #75: GR04 cycles through the four planes, so the rule reads a different plane each frame): the Sierpinski structure dissolves into coloured noise inside the same cone.
+
 ## LATCH in detail
 
 The brief's highest-rated idea was to treat the VGA as a graphics ALU rather than a framebuffer. LATCH uses the 16-colour planar mode 0Dh, where one byte address holds 8 pixels in each of 4 bit planes, and programs the graphics controller once:
@@ -338,7 +356,7 @@ The earlier, text-mode version of this search (in [uber-micro-demos](https://git
 
 `tests/run_tests.sh` builds everything and runs each `.COM` in an emulated 16-bit CPU
 ([Unicorn](https://www.unicorn-engine.org/), x87 included), entered the way DOS enters a program
-(`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped. It runs 85 checks:
+(`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped. It runs 91 checks:
 
 - **All demos:** at most 256 bytes; the first call is `INT 10h` with AX = 0013h; all 768 DAC values are written and the
   palette is not black; no memory is touched outside video RAM and the program's own segment.
@@ -348,6 +366,7 @@ The earlier, text-mode version of this search (in [uber-micro-demos](https://git
 - **FIRE:** the bottom is hot and the heat dies off with height; a smooth ramp of values; the flames move; no sound.
 - **ESCHER:** the texture is drawn once and no pixel is ever written again; each frame writes the CRTC start-address and line-compare registers; the start address moves inside video memory and the split sweeps one scan line per frame.
 - **CHLADNI:** four `fsin` per pixel; bright nodal lines with smooth falloff; the picture is mirror-symmetric as the equation requires; the speaker is retuned; the figure changes as the mode number drifts.
+- **WARP:** only CRTC registers 09h and 13h are written; the character height steps through 4..19 scan lines with bit 6 kept; the stride stays within 36..43; the text in video memory is untouched; clean exit.
 - **LATCH:** mode 0Dh; the graphics-controller set-up (set/reset, XOR, write mode 3); the set/reset colour changes every frame; the latch-copy inner loop; no stray memory; clean exit.
 - **JULIA:** colour bands, a black set that fills part of the screen, point symmetry, no FPU or sound in the code, the picture changes as c moves.
 - **SELFTEX:** a rich, textured screen (dozens of colours); it scrolls between frames; no sound.
@@ -362,7 +381,7 @@ Every push and pull request builds the demos, enforces the 256-byte limit and ru
 add a section to `CHANGELOG.md` and push a tag:
 
 ```sh
-git tag v1.6.0 && git push origin v1.6.0
+git tag v1.7.0 && git push origin v1.7.0
 ```
 
 The release workflow rebuilds, re-tests, and attaches the `.COM` files, `SHA256SUMS` and the gallery image, with that section as the notes.
@@ -383,6 +402,7 @@ src/cliff.asm       Clifford attractor
 src/fire.asm        framebuffer-feedback fire
 src/escher.asm      CRTC-only animation (start address + line compare)
 src/chladni.asm     Chladni plate nodal lines on the FPU
+src/warp.asm        DOS screen warped by CRTC character height and row stride
 src/latch.asm       cellular automaton computed by the VGA graphics controller
 src/julia.asm       integer Julia set with an orbiting constant
 src/selftex.asm     self-code texture

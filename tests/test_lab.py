@@ -167,5 +167,21 @@ check(not r.unmapped and not any(p == 0x3C9 for p, v in r.outs), "LATCH: no pale
 rx = Run("LATCH.COM"); rx.run_until_exit(1, per=2)
 check(rx.exited and (0x10, 0x03) in rx.ints, "LATCH: Esc sets text mode 3 (which also resets the graphics controller) and returns to DOS")
 
+print("\n== WARP ==")
+r = Run("WARP.COM")
+r.uc.mem_write(0xB8000, bytes((i * 7) & 255 for i in range(4000)))
+before = bytes(r.uc.mem_read(0xB8000, 4000)); r.frames(70, per=4)
+check(len(r.com) <= 256, f"WARP: {len(r.com)} bytes (limit 256)")
+crtc = [v for p, v in r.outs if p == 0x3D4]
+idx = {v & 255 for v in crtc}
+check(idx == {0x09, 0x13}, f"WARP: writes only CRTC registers 09h and 13h, never the timing registers ({sorted(map(hex, idx))})")
+h = [v >> 8 for v in crtc if v & 255 == 0x09]
+check(all(x & 0x40 for x in h) and min(x & 31 for x in h) == 3 and max(x & 31 for x in h) == 18 and len({x & 31 for x in h}) == 16, f"WARP: CR09 keeps bit 6 and steps the character height through all 16 values from 4 to 19 scan lines")
+st = [v >> 8 for v in crtc if v & 255 == 0x13]
+check(set(st) <= set(range(36, 44)) and len(set(st)) >= 3, f"WARP: CR13 (row stride) stays within 36..43 words of the normal 40 ({sorted(set(st))})")
+check(bytes(r.uc.mem_read(0xB8000, 4000)) == before and not r.ints, "WARP: the text in video memory is never touched and no BIOS call is made while it runs")
+rx = Run("WARP.COM"); rx.run_until_exit(2, per=4)
+check(rx.exited and (0x10, 0x03) in rx.ints, "WARP: Esc sets text mode 3 (restoring the CRTC) and returns to DOS")
+
 print("\nRESULT: " + ("ALL PASS" if not fails else f"{len(fails)} FAILED"))
 sys.exit(1 if fails else 0)
