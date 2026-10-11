@@ -85,8 +85,8 @@ frame:
     or al,127
 .put:
     stosb
-    cmp di,64000
-    jb .px
+    test di,di                ; to the 64 KB wrap: the last 1536 pixels are off screen
+    jnz .px
     inc byte [t]
     mov dx,3DAh
 .vs:

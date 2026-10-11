@@ -17,14 +17,14 @@ sound is computed by a few hundred bytes of code.
 | [`GALAXY.COM`](src/galaxy.asm) | 205 B | 386 + FPU, VGA | A de Jong strange attractor drawn as a glowing, fading, slowly morphing cloud. The orbit also tunes the PC speaker. |
 | [`CLIFF.COM`](src/cliff.asm) | 210 B | 386 + FPU, VGA | The same engine with Clifford-attractor equations and parameters: two curling wings over a web of caustics. |
 | [`FIRE.COM`](src/fire.asm) | 123 B | 386, VGA | Framebuffer feedback: each pixel becomes the average of four pixels below it, minus a little, with random heat injected at the bottom. A smoky turbulent fire, no FPU. |
-| [`ESCHER.COM`](src/escher.asm) | 137 B | 386, VGA | The picture is drawn once; after that only the CRT controller's start address and line-compare registers move, folding a hyperbolic texture into an impossible patchwork. No pixel is ever redrawn. |
-| [`CHLADNI.COM`](src/chladni.asm) | 224 B | 386 + FPU, VGA | The nodal lines of a vibrating plate, `sin(ax)sin(by) - sin(bx)sin(ay) = 0`, with drifting mode numbers that also tune the speaker. |
-| [`ROOTS.COM`](src/roots.asm) | 251 B | 386, VGA | Polynomial root migration: the bright curves are where a cubic in x and y changes sign; as two coefficients sweep at different speeds, the roots migrate, pinch into crossings and reconnect, in new places each time. Warm and cool contour bands show the sign. |
-| [`ORDER.COM`](src/order.asm) | 108 B | 386, VGA | Three cheap expressions per pixel (hyperbolas, vertical lines, horizontal lines) are never drawn; only which of the six orderings they are in is, so the screen is a set of regions whose boundaries fold and collide as time moves. |
+| [`ESCHER.COM`](src/escher.asm) | 134 B | 386, VGA | The picture is drawn once; after that only the CRT controller's start address and line-compare registers move, folding a hyperbolic texture into an impossible patchwork. No pixel is ever redrawn. |
+| [`CHLADNI.COM`](src/chladni.asm) | 221 B | 386 + FPU, VGA | The nodal lines of a vibrating plate, `sin(ax)sin(by) - sin(bx)sin(ay) = 0`, with drifting mode numbers that also tune the speaker. |
+| [`ROOTS.COM`](src/roots.asm) | 247 B | 386, VGA | Polynomial root migration: the bright curves are where a cubic in x and y changes sign; as two coefficients sweep at different speeds, the roots migrate, pinch into crossings and reconnect, in new places each time. Warm and cool contour bands show the sign. |
+| [`ORDER.COM`](src/order.asm) | 106 B | 386, VGA | Three cheap expressions per pixel (hyperbolas, vertical lines, horizontal lines) are never drawn; only which of the six orderings they are in is, so the screen is a set of regions whose boundaries fold and collide as time moves. |
 | [`WARP.COM`](src/warp.asm) | 72 B | 386, VGA | No video mode, no drawing: the DOS screen you launched it from is squashed, stretched and sheared by rewriting two CRT-controller registers (character height and row stride) every frame. |
 | [`LATCH.COM`](src/latch.asm) | 82 B | 386, EGA/VGA | A rule-60 cellular automaton (Sierpinski waterfalls) computed by the VGA graphics controller: each byte read loads 8 pixels x 4 planes into the latches, each write puts them back one row up with an XOR colour applied by the hardware. |
-| [`JULIA.COM`](src/julia.asm) | 161 B | 386, VGA | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape. No FPU, no sine table. |
-| [`SELFTEX.COM`](src/selftex.asm) | 77 B | 386, VGA | Each pixel is a byte of the program's own machine code, picked by `x*y/64 + time`. The hyperbolic bands you see are the code. |
+| [`JULIA.COM`](src/julia.asm) | 155 B | 386, VGA | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape. No FPU, no sine table. |
+| [`SELFTEX.COM`](src/selftex.asm) | 73 B | 386, VGA | Each pixel is a byte of the program's own machine code, picked by `x*y/64 + time`. The hyperbolic bands you see are the code. |
 
 ## Contents
 
@@ -260,7 +260,7 @@ b = x - 2t             vertical lines, drifting the other way
 c = 3y + t             horizontal lines
 ```
 
-All three are 8-bit and wrap. Three comparisons (`a<b`, `b<c`, `a<c`) are collected into AH with `cmp` / `rcl ah,1`, so the carry flag carries each answer straight into a 3-bit region number; two of the eight patterns are logically impossible, so exactly six regions can appear (the test sees all six). The region selects a 32-entry band of the palette and `a` shades it. Where two of the expressions are equal, a boundary runs; as `t` moves, the hyperbola fans slide across the line grid and regions fold, collide and swap. No sine, square root, table or FPU. Time lives in BP and every expression is computed in a 16-bit register and compared by its low byte, which brought the program from 123 to 108 bytes with identical pixels.
+All three are 8-bit and wrap. Three comparisons (`a<b`, `b<c`, `a<c`) are collected into AH with `cmp` / `rcl ah,1`, so the carry flag carries each answer straight into a 3-bit region number; two of the eight patterns are logically impossible, so exactly six regions can appear (the test sees all six). The region selects a 32-entry band of the palette and `a` shades it. Where two of the expressions are equal, a boundary runs; as `t` moves, the hyperbola fans slide across the line grid and regions fold, collide and swap. No sine, square root, table or FPU. Time lives in BP and every expression is computed in a 16-bit register and compared by its low byte, which brought the program from 123 to 108 bytes with identical pixels (106 after a later pass).
 
 Tried from the same list and not shipped: **EUCLID** (#2, colour = the number of subtractions in Euclid's GCD algorithm on the pixel coordinates) shows the expected bright rays at rational slopes, but the background between them is irregular counts that read as noise rather than the promised "crystal city"; **ORBIT** (#47, plotting a full-period 16-bit linear congruential generator as a trajectory) covers the screen uniformly, as a full-period permutation must, so there is nothing to see but noise.
 
@@ -333,15 +333,30 @@ test renders only a handful of frames.
 pixel(x, y) = the byte at offset  ((x*y >> 6) + t) & 255  from 100h      ; the program's own bytes
 ```
 
-The 77-byte program gets `x` and `y` from one `div` by 320 in a DI loop that wraps the 64 KB segment, multiplies
+The 73-byte program gets `x` and `y` from one `div` by 320 in a DI loop that wraps the 64 KB segment, multiplies
 them, shifts, adds a frame counter, and uses the result as an index into its **own code**, which sits at
-offset 100h. The "texture" is the machine code itself: runs of similar opcodes show up as flat areas and the
+offset 100h: a single `xlat` with BX = 100h does the lookup. The "texture" is the machine code itself: runs of similar opcodes show up as flat areas and the
 rest as a coloured scatter. `x*y` is a hyperbola, so the constant-index contours are the curves in the screenshot,
 and adding the frame counter slides the whole pattern.
 
 The palette is streamed to the DAC as `i`, `2i`, `4i` (the DAC keeps the low 6 bits), so each byte value is a distinct,
 fairly saturated colour. It is the smallest idea in the repo, and the one that most directly asks what the
 program looks like when you view it as an image.
+
+## Size passes
+
+The demos have been shrunk in passes, and every change except SELFTEX's was checked to be **output-identical**: the old and new binary run side by side in the emulator, and the screen, the palette and every CRTC and graphics-controller write must match at every frame (40 frames for the fast demos, 6 for the FPU and Julia ones).
+
+| Demo | Before | After | How |
+|---|---:|---:|---|
+| ESCHER | 137 | 134 | the start-address high byte is already in AH, so CR0Ch is written without shuffling registers |
+| CHLADNI | 224 | 221 | the pixel loop runs to the 64 KB wrap (`test di,di`) instead of comparing with 64000; a shorter clamp to 255 |
+| JULIA | 161 | 155 | the real part of c lives in BP instead of memory; the 64 KB-wrap loop end |
+| ROOTS | 251 | 247 | the 64 KB-wrap loop end |
+| ORDER | 123 | 106 | time in BP, expressions in 16-bit registers compared by their low bytes, the 64 KB-wrap loop end |
+| SELFTEX | 77 | 73 | the code-byte lookup is one `xlat`; time in BP |
+
+The 64 KB-wrap loop end computes 1,536 extra pixels past the visible screen; ESCHER cannot use it, because its moving start address shows that memory. SELFTEX is the exception to "identical": its texture **is** its machine code, so any shrink changes the picture (here only the colours inside the bands; the hyperbolic structure is the same). Its GIF and still were recorded from the 77-byte build.
 
 ## Ideas from the 256-byte brief: what was tried
 

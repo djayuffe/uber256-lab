@@ -16,20 +16,20 @@ ORG 100h
     inc bl
     jnz .pal
     mov cx,320
+    mov bx,100h               ; XLAT table = the program itself
+    xor bp,bp                 ; time
 .x:
     mov ax,di
     xor dx,dx
     div cx                    ; ax = y, dx = x
     imul ax,dx                ; x*y
     shr ax,6
-    add ax,bx                 ; + time
-    mov si,ax
-    and si,255
-    mov al,[si+100h]          ; the program's own bytes are the texture
+    add ax,bp                 ; + time
+    xlat                      ; AL = [100h + AL]: the program's own bytes are the texture
     stosb
     test di,di
     jnz .x
-    inc bx
+    inc bp
     mov dx,3DAh
 .vs:
     in al,dx

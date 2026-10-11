@@ -59,14 +59,14 @@ frame:
     fstp st0
     fstp st0
     mov ax,[bx+16]
-    cmp ax,255
-    jbe .ok
+    test ah,ah                ; |f| * 600 above 255: clamp
+    jz .ok
     mov al,255
 .ok:
     not al                    ; bright where the plate is still
     stosb
-    cmp di,64000
-    jb .px
+    test di,di                ; to the 64 KB wrap: the last 1536 pixels are off screen
+    jnz .px
     fld dword [bx+28]         ; drift the mode number a through [1.5, 4.5) so it never meets b
     fld dword [bx]
     fsub dword [bx+24]

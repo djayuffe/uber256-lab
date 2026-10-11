@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.10.0]
+- Size pass, output-identical in the emulator except SELFTEX: ESCHER 137 -> 134, CHLADNI 224 -> 221, JULIA 161 -> 155, ROOTS 251 -> 247, ORDER 108 -> 106, SELFTEX 77 -> 73 (one `xlat`). 22 bytes in all. README: a table of the size passes.
+
 ## [1.9.0]
 - **ROOTS** expanded and recoloured (232 -> 251 B): a second, slower coefficient S tilts the cubic so crossings happen in new places each sweep; the two linear terms are folded into one per-frame constant; roots drawn in the brightest shade of their own side (no special white palette branch); column 0 and row 0 no longer draw false roots.
 - **ORDER** shrunk 123 -> 108 B with pixel-identical output (time in BP, expressions in 16-bit registers compared by their low bytes).

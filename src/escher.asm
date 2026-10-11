@@ -48,12 +48,11 @@ frame:
     add ax,cx                 ; horizontal: units of 4 pixels
     and ax,3FFFh
     mov dx,3D4h
-    mov cx,ax
-    mov ah,ch                 ; start address high / low
+    mov cl,al                 ; start address: AH already holds the high byte
     mov al,0Ch
     out dx,ax
     mov ah,cl
-    inc al
+    inc ax                    ; 0Dh: the low byte
     out dx,ax
     mov ax,si                 ; line compare (CR18): a split that sweeps down the screen
     mov ah,al

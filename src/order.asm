@@ -47,8 +47,8 @@ frame:
     shr al,3
     add al,ah                 ; ...and a shades it
     stosb
-    cmp di,64000
-    jb .px
+    test di,di                ; to the 64 KB wrap: the last 1536 pixels are off screen
+    jnz .px
     inc bp
     mov dx,3DAh
 .vs:

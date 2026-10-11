@@ -17,6 +17,7 @@ ORG 100h
     out dx,al
     inc bl
     jnz .pal
+    mov bp,-180               ; cr: the real part of c (ci stays in memory)
 frame:
     xor di,di
 .px:
@@ -52,18 +53,18 @@ frame:
     cmp dx,1024               ; |z|^2 > 4: escaped
     ja .out
     sub bx,ax
-    add bx,[cr]               ; x' = x*x - y*y + cx
+    add bx,bp               ; x' = x*x - y*y + cx
     loop .it
 .out:
     mov al,cl
     shl al,3
     stosb
-    cmp di,64000
-    jb .px
+    test di,di                ; to the 64 KB wrap: the last 1536 pixels are off screen
+    jnz .px
     mov ax,[ci]               ; move c round a circle
     sar ax,5
-    add [cr],ax
-    mov ax,[cr]
+    add bp,ax
+    mov ax,bp
     sar ax,5
     sub [ci],ax
     mov dx,3DAh
@@ -77,5 +78,4 @@ frame:
     mov ax,3
     int 10h
     ret
-cr: dw -180
 ci: dw 0
