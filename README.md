@@ -1,34 +1,39 @@
 # uber256-lab
 
-**Eleven 256-byte-class DOS demos: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, a picture made only of orderings, the migrating roots of a polynomial, and a texture made of the program's own machine code.**
+**Eleven DOS demos of 256 bytes or less, each playing its own generated music: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, a picture made only of orderings, the migrating roots of a polynomial, and a texture made of the program's own machine code.**
 
 [![CI](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml)
 
-![All nine demos in DOSBox: GALAXY, CLIFF, CHLADNI, FIRE, JULIA, SELFTEX, ESCHER, LATCH and WARP](docs/gallery.jpg)
+![All eleven demos in DOSBox: GALAXY, CLIFF, CHLADNI, FIRE, JULIA, SELFTEX, ESCHER, LATCH, WARP, ORDER and ROOTS](docs/gallery.jpg)
 
-*Real DOSBox 0.74-3 captures of the shipped binaries. Top row: GALAXY, CLIFF, CHLADNI. Middle: FIRE, JULIA, SELFTEX. Bottom: ESCHER, LATCH, WARP.*
+*Real DOSBox 0.74-3 captures of the shipped binaries. Top row: GALAXY, CLIFF, CHLADNI, FIRE. Middle: JULIA, SELFTEX, ESCHER, LATCH. Bottom: WARP, ORDER, ROOTS.*
 
 Everything here is a flat 16-bit real-mode `.COM` file written in NASM. There are no images, no data files, no
-libraries, and no DOS calls except setting the video mode and leaving. Every pixel, every palette colour and every
-sound is computed by a few hundred bytes of code.
+libraries, and no DOS calls except setting the video mode, hooking the timer tick and leaving. Every pixel, every
+palette colour and every note is computed by a few hundred bytes of code. The music goes out as General MIDI through an
+MPU-401, which DOSBox provides out of the box (and plays through the system's synthesizer on macOS and Windows).
 
-| Program | Size | Needs | What it is |
-|---|---|---|---|
-| [`GALAXY.COM`](src/galaxy.asm) | 201 B | 386 + FPU, VGA | A de Jong strange attractor drawn as a glowing, fading, slowly morphing cloud. The orbit also tunes the PC speaker. |
-| [`CLIFF.COM`](src/cliff.asm) | 206 B | 386 + FPU, VGA | The same engine with Clifford-attractor equations and parameters: two curling wings over a web of caustics. |
-| [`FIRE.COM`](src/fire.asm) | 123 B | 386, VGA | Framebuffer feedback: each pixel becomes the average of four pixels below it, minus a little, with random heat injected at the bottom. A smoky turbulent fire, no FPU. |
-| [`ESCHER.COM`](src/escher.asm) | 134 B | 386, VGA | The picture is drawn once; after that only the CRT controller's start address and line-compare registers move, folding a hyperbolic texture into an impossible patchwork. No pixel is ever redrawn. |
-| [`CHLADNI.COM`](src/chladni.asm) | 221 B | 386 + FPU, VGA | The nodal lines of a vibrating plate, `sin(ax)sin(by) - sin(bx)sin(ay) = 0`, with drifting mode numbers that also tune the speaker. |
-| [`ROOTS.COM`](src/roots.asm) | 247 B | 386, VGA | Polynomial root migration: the bright curves are where a cubic in x and y changes sign; as two coefficients sweep at different speeds, the roots migrate, pinch into crossings and reconnect, in new places each time. Warm and cool contour bands show the sign. |
-| [`ORDER.COM`](src/order.asm) | 106 B | 386, VGA | Three cheap expressions per pixel (hyperbolas, vertical lines, horizontal lines) are never drawn; only which of the six orderings they are in is, so the screen is a set of regions whose boundaries fold and collide as time moves. |
-| [`WARP.COM`](src/warp.asm) | 72 B | 386, VGA | No video mode, no drawing: the DOS screen you launched it from is squashed, stretched and sheared by rewriting two CRT-controller registers (character height and row stride) every frame. |
-| [`LATCH.COM`](src/latch.asm) | 82 B | 386, EGA/VGA | A rule-60 cellular automaton (Sierpinski waterfalls) computed by the VGA graphics controller: each byte read loads 8 pixels x 4 planes into the latches, each write puts them back one row up with an XOR colour applied by the hardware. |
-| [`JULIA.COM`](src/julia.asm) | 155 B | 386, VGA | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape. No FPU, no sine table. |
-| [`SELFTEX.COM`](src/selftex.asm) | 73 B | 386, VGA | Each pixel is a byte of the program's own machine code, picked by `x*y/64 + time`. The hyperbolic bands you see are the code. |
+**Watch and listen:** [`docs/uber256-lab-showreel.mp4`](docs/uber256-lab-showreel.mp4) is 77 seconds of all eleven, recorded
+in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General MIDI soundfont.
+
+| Program | Size | Needs | What it is | Music |
+|---|---|---|---|---|
+| [`GALAXY.COM`](src/galaxy.asm) | 253 B | 386 + FPU, VGA, MPU-401 | A de Jong strange attractor drawn as a glowing, fading cloud whose shape swings slowly back and forth. | The orbit plays itself: its current x position picks a vibraphone note every other tick. |
+| [`CLIFF.COM`](src/cliff.asm) | 250 B | 386 + FPU, VGA, MPU-401 | The same engine with Clifford-attractor equations and parameters: two curling wings over a web of caustics. | A marimba roll, one note per tick, from the orbit's y position. |
+| [`FIRE.COM`](src/fire.asm) | 191 B | 386, VGA, MPU-401 | Framebuffer feedback: each pixel becomes the average of four pixels below it, minus a little, with random heat injected at the bottom. A smoky turbulent fire, no FPU. | A probe drifts through the flames; when it is in one, a nylon guitar plucks, higher the hotter the pixel. |
+| [`ESCHER.COM`](src/escher.asm) | 224 B | 386, VGA, MPU-401 | The picture is drawn once; after that only the CRT controller's start address and line-compare registers move, folding a hyperbolic texture into an impossible patchwork. No pixel is ever redrawn. | A Shepard scale: it climbs a semitone at a time for ever and never gets higher. Escher's staircase, heard. |
+| [`CHLADNI.COM`](src/chladni.asm) | 245 B | 386 + FPU, VGA, MPU-401 | The nodal lines of a vibrating plate, `sin(ax)sin(by) - sin(bx)sin(ay) = 0`, with a mode number that sweeps with the clock. | A probe crosses the plate; where it meets a nodal line, a tubular bell rings. |
+| [`ROOTS.COM`](src/roots.asm) | 256 B | 386, VGA, MPU-401 | Polynomial root migration: the bright curves are where a cubic in x and y changes sign; as two coefficients sweep at different speeds, the roots migrate, pinch into crossings and reconnect, in new places each time. Warm and cool contour bands show the sign. | Steel drums play the sweeping coefficient T. |
+| [`ORDER.COM`](src/order.asm) | 173 B | 386, VGA, MPU-401 | Three cheap expressions per pixel (hyperbolas, vertical lines, horizontal lines) are never drawn; only which of the six orderings they are in is, so the screen is a set of regions whose boundaries fold and collide as time moves. | A pizzicato arpeggio whose root is the ordering under a probe walking down the screen. |
+| [`WARP.COM`](src/warp.asm) | 125 B | 386, VGA, MPU-401 | No video mode, no drawing: the DOS screen you launched it from is squashed, stretched and sheared by rewriting two CRT-controller registers (character height and row stride) every frame. | An electric piano plays the character height: the arpeggio rises as the text stretches. |
+| [`LATCH.COM`](src/latch.asm) | 140 B | 386, EGA/VGA, MPU-401 | A rule-60 cellular automaton (Sierpinski waterfalls) computed by the VGA graphics controller: each byte read loads 8 pixels x 4 planes into the latches, each write puts them back one row up with an XOR colour applied by the hardware. | A music box plays the ruler sequence (0 1 0 2 0 1 0 3 ...), the Sierpinski triangle's rhythm. |
+| [`JULIA.COM`](src/julia.asm) | 221 B | 386, VGA, MPU-401 | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape. No FPU, no sine table. | Each tick, the escape time of the pixel just drawn is a celesta note; the set itself is silence. |
+| [`SELFTEX.COM`](src/selftex.asm) | 130 B | 386, VGA, MPU-401 | Each pixel is a byte of the program's own machine code, picked by `x*y/64 + time`. The hyperbolic bands you see are the code. | The same bytes in order, on a kalimba: the score is the program. |
 
 ## Contents
 
 - [Run it](#run-it)
+- [Music](#music)
 - [Screenshots](#screenshots)
 - [In motion](#in-motion)
 - [GALAXY and CLIFF in detail](#galaxy-and-cliff-in-detail)
@@ -41,7 +46,11 @@ sound is computed by a few hundred bytes of code.
 - [LATCH in detail](#latch-in-detail)
 - [JULIA in detail](#julia-in-detail)
 - [SELFTEX in detail](#selftex-in-detail)
+- [Version 2: music, fixes and speed](#version-2-music-fixes-and-speed)
+- [Size passes](#size-passes)
 - [Ideas from the 256-byte brief: what was tried](#ideas-from-the-256-byte-brief-what-was-tried)
+- [Second brief: a catalogue of hardware-driven effects](#second-brief-a-catalogue-of-hardware-driven-effects)
+- [Third brief: synthesising 4 to 16 byte kernels](#third-brief-synthesising-4-to-16-byte-kernels)
 - [Testing](#testing)
 - [Releases and CI](#releases-and-ci)
 - [Limitations](#limitations)
@@ -62,16 +71,62 @@ Or build from source (needs [NASM](https://www.nasm.us/); on macOS `brew install
 
 ```sh
 ./build.sh              # assembles src/*.asm, enforces the 256-byte limit, writes SHA256SUMS
-./run-dosbox.sh galaxy  # galaxy | cliff | selftex
+./run-dosbox.sh galaxy  # any of: galaxy cliff chladni fire escher julia latch order roots selftex warp
 ```
 
-**Esc** quits each demo cleanly: it restores text mode 3 and returns to DOS. `DOSBOX.CONF` sets `cycles=max`.
+**Esc** quits each demo cleanly: it restores text mode 3, puts the timer vector back and returns to DOS (JULIA draws
+about ten frames a second, so hold Esc for a moment). `DOSBOX.CONF` sets `cycles=max` and spells out DOSBox's default
+MIDI set-up (`mpu401=intelligent`, `mididevice=default`), which is all the music needs: on macOS and Windows DOSBox
+plays General MIDI through the system's built-in synthesizer. On Linux, point `mididevice` at a running synth such as
+FluidSynth or TiMidity. Without a MIDI device the demos run silently.
+
 The attractors compute 6000 points per frame with trigonometry, so they want a fast CPU; at a low fixed cycle count
-they just run at a lower frame rate.
+they just run at a lower frame rate. The music does not slow down with them: it runs on the timer.
+
+## Music
+
+Every demo plays its own score, and every score is computed from what the demo is doing. They share one small engine:
+
+- **The clock.** At start-up the program asks DOS for the INT 1Ch vector (the hook the BIOS calls on each of its 18.2 timer
+  ticks a second), keeps it on the stack and installs its own handler; on Esc it puts the old vector back. The tempo is the
+  clock's, so a demo that draws three frames a second plays exactly as fast as one that draws seventy.
+- **MIDI out.** The handler writes to an MPU-401 at port 330h. One `out dx,ax` with AX = 3FC0h sends C0h (program change) to
+  the data port and 3Fh (enter UART mode) to the command port at 331h; in UART mode the MPU ignores any further 3Fh, so the
+  handler can send it every time instead of keeping state. Then the instrument number, 90h (note on) and the note.
+- **The scale.** Every note is in C major pentatonic, so any sequence the demo produces is consonant. The mapping costs
+  four bytes: for an even number 2d in AL, `aam 5` / `aad 6` gives 6*(2d div 5) + (2d mod 5) = 2d + (2d div 5) = floor(12d/5),
+  which runs 0 2 4 7 9 12 14 16 ... Adding 50 first starts the scale on middle C (d = 25 gives 60).
+- **Velocity = note.** The note byte is sent twice: higher notes are a little louder, and it costs one byte.
+- **No note-offs.** Every instrument chosen decays by itself (vibraphone, marimba, bells, guitar, celesta, music box,
+  pizzicato, steel drums, kalimba, electric piano), so nothing is left sounding when a demo quits.
+- **The clock in the handler** is the BIOS tick count at 0040:006Ch, read as `[fs:46Ch]` (FS is 0 when DOS starts a program).
+  The handler never trusts DS (an IBM BIOS enters INT 1Ch with DS = 0040h): it reads the demo's state through CS, ES or the
+  registers the interrupted loop left behind.
+
+What each one plays:
+
+| Demo | Instrument | Notes come from |
+|---|---|---|
+| GALAXY | vibraphone (11) | the orbit's current x coordinate, every other tick |
+| CLIFF | marimba (12) | the orbit's current y coordinate, every tick |
+| CHLADNI | tubular bells (14) | a probe crossing the plate one row and three pixels per step: a bell only where it is on a nodal line (the bright half of the palette), pitched by the brightness |
+| FIRE | nylon guitar (24) | a probe wandering the bottom 60 rows: a note only when the pixel under it is hot, higher for hotter |
+| ESCHER | vibraphone (11) | a Shepard scale: every four ticks, five notes an octave apart step up a semitone, with loudness 127 - 3 x distance from the middle, so the top voice fades out as a new bottom voice fades in |
+| JULIA | celesta (8) | the escape time of the pixel the main loop has just drawn (DI); the set itself is a rest |
+| LATCH | music box (10) | the ruler sequence of the step number (its trailing zero bits: 0 1 0 2 0 1 0 3 ...), the same self-similarity as the Sierpinski triangle on the screen |
+| ORDER | pizzicato strings (45) | a four-note arpeggio whose root is the ordering under a probe walking down a diagonal |
+| ROOTS | steel drums (114) | T, the coefficient the main loop patches into its own code each frame |
+| SELFTEX | kalimba (108) | the program's own first 128 bytes, in order, one per step: a riff that repeats every 14 seconds |
+| WARP | electric piano (4) | the same triangle wave that sets the character height (BL, the frame counter) |
+
+The MIDI each demo sent in a 15-second DOSBox run is in [`docs/music/`](docs/music), and the recordings with sound are
+`docs/*.mp4`. The note streams are checked by the tests and were captured from real DOSBox; the audio was rendered
+automatically (FluidSynth, FluidR3 GM) and has not been auditioned by ear, so treat the instrument choices as a starting point.
 
 ## Screenshots
 
-All captured from the real binaries in DOSBox.
+All captured from the real binaries in DOSBox (version 1 stills; version 2 draws the same pictures, see
+[In motion](#in-motion) for current recordings).
 
 | | |
 |---|---|
@@ -94,26 +149,28 @@ All captured from the real binaries in DOSBox.
 
 ## In motion
 
-Real recordings of the shipped binaries in DOSBox 0.74-3 (`cycles=max`), so what you see is the real frame rate of each demo, not an emulator's idea of it.
+Recordings of the shipped binaries in DOSBox 0.74-3 (`cycles=max`), so what you see is the real frame rate of each demo.
+The GIFs are silent; each has an MP4 with its music next to it.
 
 | | |
 |---|---|
 | ![GALAXY](docs/galaxy.gif) | ![CLIFF](docs/cliff.gif) |
-| **GALAXY**, 16 s: the orbit cloud builds up and slowly changes shape as two parameters drift. | **CLIFF**, 14 s: the same engine with Clifford equations. |
+| **GALAXY**, 9 s ([with sound](docs/galaxy.mp4)): the orbit cloud builds up and slowly changes shape. | **CLIFF**, 9 s ([with sound](docs/cliff.mp4)): the same engine with Clifford equations. |
 | ![FIRE](docs/fire.gif) | ![JULIA](docs/julia.gif) |
-| **FIRE**, 10 s: the flames rise from the first frame, from the hot row at the bottom. | **JULIA**, 24 s: each frame is drawn top to bottom, and the set changes as c moves. |
+| **FIRE**, 9 s ([with sound](docs/fire.mp4)): the flames rise from the hot rows at the bottom. | **JULIA**, 9 s ([with sound](docs/julia.mp4)): each frame is drawn top to bottom and mirrored, and the set changes as c moves. |
 | ![SELFTEX](docs/selftex.gif) | ![ESCHER](docs/escher.gif) |
-| **SELFTEX**, 8 s: the bands slide as the frame counter is added to the lookup index. | **ESCHER**, 9 s at 20 fps: the blocks slide and the seams move; only CRTC registers change. |
+| **SELFTEX**, 9 s ([with sound](docs/selftex.mp4)): the bands slide as the frame counter is added to the lookup index. | **ESCHER**, 9 s ([with sound](docs/escher.mp4)): the blocks slide and the seam moves; only CRTC registers change. |
 | ![CHLADNI](docs/chladni.gif) | ![LATCH](docs/latch.gif) |
-| **CHLADNI**, 10 s: nearly every video frame is a new picture (about 27 fps in DOSBox) as the mode number drifts. | **LATCH**, 6 s: the Sierpinski waterfalls rising, one generation per frame. Rendered (see below). |
+| **CHLADNI**, 9 s ([with sound](docs/chladni.mp4)): the nodal lines reconnect as the mode number sweeps. | **LATCH**, 9 s ([with sound](docs/latch.mp4)): the Sierpinski waterfalls rising, one generation per frame. |
 | ![WARP](docs/warp.gif) | ![ORDER](docs/order.gif) |
-| **WARP**, 6.5 s: the DOS screen squashing, stretching and shearing. Rendered (see below). | **ORDER**, 6 s: the regions folding as the three expressions move. Rendered (see below). |
+| **WARP**, 9 s ([with sound](docs/warp.mp4)): the DOS screen squashing, stretching and shearing. | **ORDER**, 9 s ([with sound](docs/order.mp4)): the regions folding as the three expressions move. |
 | ![ROOTS](docs/roots.gif) | |
-| **ROOTS**, 6 s: the root curves migrating, crossing and reconnecting. Rendered (see below). | |
+| **ROOTS**, 9 s ([with sound](docs/roots.mp4)): the root curves migrating, crossing and reconnecting. | |
 
-*How they were made: with DOSBox in front, its window was screen-captured at 30 to 60 frames per second (cropped to the window only), then converted to 25 fps GIFs at the native 320x200 (ESCHER at 20 fps to keep it small) with a reduced palette. A small patch where the mouse pointer sat at the top edge was painted black. GIF cannot show a 70 Hz display, so very fast detail is smoother in the real thing.*
-
-*LATCH, WARP, ORDER and ROOTS were not screen-recorded: they were rendered frame by frame from the real binaries in the emulated CPU, with a model of the VGA (the four planes, latches, write mode 3 and XOR for LATCH; text memory, the ROM font dumped from DOSBox, and the CRTC character height and row stride for WARP; mode 13h and the DAC for ORDER and ROOTS), one GIF frame per one to three video frames. Their stills above are real DOSBox captures, and the renders match them.*
+*How they were made: DOSBox ran under a virtual X display with its MIDI output sent to a pipe; the window was captured
+losslessly at 35 frames per second while the MIDI bytes were time-stamped as they arrived; the GIFs are 25 fps at the
+native 320x200, and the MP4s are 640x400 with the captured MIDI rendered by FluidSynth. GIF cannot show a 70 Hz display,
+so very fast detail is smoother in the real thing.*
 
 ## GALAXY and CLIFF in detail
 
@@ -138,16 +195,19 @@ y' = sin(b*x) + d*cos(b*y)        a = -1.4, b = 1.6, c = 1.0, d = 0.7
 ```
 
 Both keep (x, y) as the top two entries of the FPU stack. One iteration is about twenty x87 instructions
-(`fld`, `fmul`, `fsin`, `fcos`, `fsubp` or `faddp`, `fxch`, `fstp`). The four parameters are read straight from memory
-with `fmul dword [bx+k]`, so the whole constant block is 24 bytes (the four parameters, the scale and the drift step).
+(`fld`, `fmul`, `fsin`, `fcos`, `fsubp` or `faddp`, `fstp`); it ends with `fstp st3` / `fstp st1`, which drops the old
+point and leaves the new one in order in two instructions. The four parameters are read straight from memory with
+`fmul dword [bx+k]`. The constant block is 20 bytes: the four parameters and one dword that is two constants at once.
+Its low word is the integer 45 (the scale, used with `fimul word`), and the whole dword, 3A1D002Dh, is the float
+0.000599 (the morph rate): a float's low 16 bits only nudge the last bits of its mantissa.
 
 ### From orbit to pixel
 
 The point is scaled by 45, rounded with `fistp` into two scratch words, and turned into a screen offset:
 
 ```
-imul ax,[bx+22],320     ; y * 320
-add  ax,[bx+20]         ; + x
+imul ax,[bx+24],320     ; y * 320
+add  ax,[bx+22]         ; + x
 add  ax,32160           ; + 100*320 + 160: the centre of the 320x200 screen
 xchg ax,di
 add  byte [es:di],12    ; add light
@@ -171,15 +231,20 @@ Light therefore decays exponentially, and a moving attractor leaves soft trails.
 
 ### Morphing
 
-Each frame, parameters `a` and `d` (offsets 0 and 12) are nudged by a small constant (0.0006 for GALAXY, 0.0004 for
-CLIFF) in a two-pass loop (`mov si,12` ... `sub si,12` / `jnc`). The attractor slowly turns into related ones, which is
-why screenshots a minute apart look like different objects.
+Each frame, parameters `a` and `d` (offsets 0 and 12) move by `s*cos(s*t)`, where t is the BIOS tick count and s the
+morph rate (0.000599 for GALAXY, 0.000399 for CLIFF), in a two-pass loop (`mov si,12` ... `sub si,12` / `jnc`). Summed over
+frames that is a sine: the parameters swing back and forth over a cycle of about 10 minutes (GALAXY) or 14 (CLIFF), with an
+amplitude of the frame rate over 18.2 (about 3.9 at 70 frames a second), so the attractor turns into related ones and
+comes back. Version 1 added a constant every frame, so after a few minutes the parameters had drifted far enough to
+turn the cloud into noise.
 
 ### Sound
 
-The speaker is enabled with `mov al,3` / `out 61h,al`, and PIT channel 2 is reprogrammed every frame with the low byte
-of the orbit's current x coordinate (`out 42h,al`, then the high byte 3), so the pitch follows the attractor.
-**I have not listened to this**: the tests verify the port writes, not the audio.
+Version 1 drove the PC speaker from the orbit and never switched it off on exit. The speaker is no longer used; the
+orbit plays General MIDI instead (see [Music](#music)): every other tick (GALAXY, vibraphone) or every tick (CLIFF,
+marimba) the low bits of the current pixel position pick a pentatonic note. The tick handler reads the position with
+`mov al,[cs:bx+22]`: BX holds the data address throughout the main loop, and the BIOS does not touch BX before calling
+the hook.
 
 ### Why 386 + FPU
 
@@ -205,6 +270,11 @@ This is the version of the feedback idea that works. The earlier NEBULA attempt 
 the screen, so every frame lost energy and it faded to black; here the random rows put it back. The PIT counter (port 40h)
 was tried first as the noise source and made smooth blobs instead of flames: successive reads are too correlated, hence the LCG.
 
+Since version 2, DS is set to video memory as well as ES, so the four neighbour reads need no segment prefix (two bytes
+smaller, pixel-identical, and about 30% faster in DOSBox: 52 to 68 frames a second). The music is read off the fire:
+every other tick a probe moves four rows and three pixels on (wrapping inside rows 141 to 204), and if the pixel under
+it is hotter than 40 a nylon guitar plays heat/8 as a pentatonic degree. The cold top of the fire is silent.
+
 ## ESCHER in detail
 
 A different kind of animation: **the pixels are written once and never touched again.** The program fills the screen with `(x-160)*(y-100) >> 6`
@@ -215,6 +285,20 @@ A different kind of animation: **the pixels are written once and never touched a
 - **CR18h, line compare.** When the scan-line counter reaches this value the CRTC resets its memory address to 0 and starts fetching again from
   the top of video memory. The same texture therefore appears twice, once scrolled and once not, with a seam between them. A counter sweeps the seam down the screen.
 
+**Two fixes in version 2.** The frame loop waited only for "retrace active", and the loop is so short that it
+went round about six times in each retrace (421 iterations a second measured in DOSBox), so the split jumped six scan
+lines per frame and the oscillator ran six times too fast. It now waits for the end of one retrace and then the start of
+the next: one step per displayed frame. And in mode 13h the line-compare value has bits 8 and 9 set (CR07 bit 4 and
+CR09 bit 6: the BIOS sets 3FFh, "never"), so writing only CR18 puts the split somewhere between scan lines 768 and 1023,
+below a 400-line screen. DOSBox ignores those bits; a real VGA does not. The program clears both once at start
+(CR07 bit 4 is writable even with the CRTC write-protect bit on), so the split now sweeps scan lines 0 to 255 on real
+hardware too.
+
+**The music** is a Shepard scale. Every four ticks five vibraphone notes an octave apart (24+p, 36+p ... 72+p) step up a
+semitone, and each note's velocity is `127 - 3|n - 54|`, a bell over pitch. When p wraps from 11 to 0 the top voice
+(barely audible) disappears and a new, barely audible bottom voice appears, so the scale climbs for ever without getting
+higher: Escher's *Ascending and Descending* as sound.
+
 Where the display wraps off the end of the 64,000-byte texture the bands meet themselves at a vertical or horizontal seam, which is where the impossible,
 patchwork look comes from. Nothing in the picture is calculated per frame: three `out` instructions move an entire image. (The one-scan-line black line at the
 seam in the screenshot is DOSBox's rendering of the line-compare reset; I have not seen it on hardware.) The emulator test checks that no pixel changes after the texture is drawn.
@@ -222,17 +306,26 @@ seam in the screenshot is DOSBox's rendering of the line-compare reset; I have n
 ## CHLADNI in detail
 
 When a metal plate is bowed, sand collects on the lines that do not move. For a square plate those *nodal lines* are the zero set of a standing-wave
-combination such as `f(x, y) = sin(a*x)*sin(b*y) - sin(b*x)*sin(a*y)`. The program evaluates that on the FPU for every pixel (four `fsin` per pixel, about 25 x87
-instructions) and makes the pixel bright where `|f|` is small:
+combination such as `f(x, y) = sin(a*x)*sin(b*y) - sin(b*x)*sin(a*y)`, and the picture is bright where `|f|` is small:
 
 ```
 colour = 255 - min(255, 600 * |f|)
 ```
 
-The mode number `a` drifts each frame through [1.5, 4.5) using `fprem` (so it can never equal `b = 6` and wash the figure out, as it did in my first version when
-`a` crossed `b`), and the same value is written to PIT channel 2, so the tone and the figure change together. `f` is antisymmetric under `x -> -x` and under `y -> -y`,
-so `|f|` is symmetric both ways; the test confirms the picture is 100% mirror-symmetric. The picture costs a few million FPU operations a frame, so it runs at a few frames per second in DOSBox.
-As with the attractors, **I have not listened to the speaker.**
+**f is separable**, which version 2 uses: X and Y run over the same lattice (X = (x-160)*0.02, Y = (y-100)*0.02, and the
+200 values of Y are a subset of the 320 values of X). So each frame first fills a table of `sin(aX)` and `sin(bX)` for the
+320 columns (640 FSINs, the X step accumulated on the FPU stack), and then every pixel is four table loads, two multiplies,
+a subtraction and a scale: `|T[x].sa * T[y+60].sb - T[x].sb * T[y+60].sa| * 600`. Version 1 did four FSINs per pixel.
+For the same mode number the two are pixel-identical (checked in the emulator), and DOSBox draws 34 frames a second
+instead of 19.
+
+The mode number `a` now follows the BIOS clock, `a = 3 + sin(0.0115 t)`, so it sweeps smoothly through [2, 4] and back
+every 30 seconds (version 1 drifted it through [1.5, 4.5) and jumped back with `fprem`). `b` is 6, so they never meet
+(when they do, f is zero everywhere). `f` is antisymmetric under `x -> -x` and under `y -> -y`, so `|f|` is symmetric both
+ways, and the test checks the pixels against the formula itself.
+
+The music: every other tick a probe moves one row and three pixels across the plate; where it lands on a nodal line (a
+pixel in the bright half of the palette) a tubular bell rings, pitched by the brightness. The rhythm is the figure.
 
 ## ROOTS in detail
 
@@ -242,6 +335,12 @@ From the same list, "polynomial root migration" (#9), which turned out to show t
 v = X^3/64  +  X (16 S - 6 T - 6 Y)  +  Y^2 T / 16        (32-bit integers)
 ```
 
+Version 2 evaluates 16 v, in Horner form, so that no term needs a division and every multiplier fits a signed byte:
+
+```
+16 v = X (X^2/4 + 256 S - 96 T - 96 Y) + Y^2 T
+```
+
 T and S are two triangle waves from one 9-byte subroutine, S four times slower than T. The two linear coefficients are folded into one per-frame constant, `K = 16 S - 6 T`, so a pixel costs one multiply for them, not two.
 
 The program never draws v itself. Bit 7 of each pixel's colour is v's **sign**, and a pixel is a **root** when its sign differs from the pixel to its left or the one above (the row above is already in video memory, so the screen itself is the memory for the edge test; row 0 and column 0 are skipped). A root takes the brightest entry of its own side's ramp: orange on the positive side, blue on the negative. Everywhere else the other bits shade |v| into dim contour bands, warm or cool. The palette is one short loop: each index's low 6 bits are a brightness, and bit 7 swaps red and blue.
@@ -249,6 +348,15 @@ The program never draws v itself. Bit 7 of each pixel's colour is v's **sign**, 
 As T sweeps, the curves migrate; at some values two branches meet in a crossing and then reconnect the other way, a saddle where the picture's topology changes. The slower S tilts the whole cubic, so each sweep puts the crossings in a different place.
 
 I prototyped about twenty of the list's mechanisms as NumPy models first (Collatz stopping times, coprimality, quadratic residues, 3-adic valuations, bit run lengths, functional-graph basins, determinants, projective curtains, curvature, energy defects of a Minsky circle, wrap-around conservation failure, forward/backward rotation error, integer vortices, an integer logistic map, inverse branches of x^2 mod 256, hysteresis) and only built the two that looked like something: ORDER and ROOTS. Most of the number-theory fields read as noise at screen resolution; several of the others are familiar shapes (hyperbola contours, ray floors, bifurcation diagrams).
+
+**Version 2** had to fit the music into 9 spare bytes, and found 50: the cubic in the Horner form above (`X^2/4` is
+floored before the multiply, which moves a few contour-band edges by one step and no sign), T patched into the
+immediate of `imul ebx,esi,T` each frame instead of being read from memory per pixel, `cbw` / `cwde` in the triangle
+routine, the palette's green from `xchg ax,cx`, the row-0 test as `cmp si,-100` (an 8-bit immediate), and time from the
+BIOS clock instead of a frame counter, so there is no retrace wait at all and the animation runs at the same speed on any
+machine. One shortcut is visible to a test but not to an eye: column 0 is recognised by the low byte of X alone
+(`cmp cl,60h`), which also matches X = 96, so at x = 256 only the upper neighbour is compared (13 pixels in 32 frames
+differ from the full test). The music is T itself, played by steel drums on every tick.
 
 ## ORDER in detail
 
@@ -264,6 +372,11 @@ All three are 8-bit and wrap. Three comparisons (`a<b`, `b<c`, `a<c`) are collec
 
 Tried from the same list and not shipped: **EUCLID** (#2, colour = the number of subtractions in Euclid's GCD algorithm on the pixel coordinates) shows the expected bright rays at rational slopes, but the background between them is irregular counts that read as noise rather than the promised "crystal city"; **ORBIT** (#47, plotting a full-period 16-bit linear congruential generator as a trajectory) covers the screen uniformly, as a full-period permutation must, so there is nothing to see but noise.
 
+**Version 2** keeps all three incrementally: the outer loop walks rows, `x*y` grows by `y` per pixel, `b` by one, and
+`c` is set once per row, so there is no division or multiply per pixel (pixel-identical, 35 to 56 frames a second in
+DOSBox). The music is a pizzicato arpeggio: a probe walks down a diagonal, and the ordering under it (0 to 7) is the root
+of a four-note figure (root, +2, +4, +6 degrees), so the harmony moves each time the probe crosses a boundary.
+
 ## WARP in detail
 
 WARP never sets a video mode and never writes a pixel. It runs on top of whatever DOS screen you launched it from and changes only how the CRT controller **reads** that text:
@@ -272,6 +385,9 @@ WARP never sets a video mode and never writes a pixel. It runs on top of whateve
 - **CR13, offset** (brief #72): how many words of video memory each text row advances. Normally 40 (80 characters); a slower triangle wave moves it through 36..43, so each row starts a few characters earlier or later than the row above and the screen shears into a staircase that reverses.
 
 Both writes happen once per frame after the vertical retrace; no timing register is touched. The emulator test checks that only those two registers are written, that the character height steps through all 16 values and the stride stays within 36..43, and that the text in video memory is never modified.
+
+The tick handler reads BL, the frame counter that drives the character height, folds it into the same triangle and
+plays it on an electric piano: the arpeggio climbs as the text stretches and falls as it squashes, 18 notes a second.
 
 **Tried alongside it and not shipped:**
 - **SHEAR** (the same stride trick in mode 13h): in 256-colour mode one CR13 unit is 8 bytes, so the smallest possible change shifts each row 8 pixels further than the one above. Any stride other than the normal one turned a ring texture into horizontal noise.
@@ -296,6 +412,10 @@ The inner loop is four instructions, `es lodsb / rcr al,1 / stosb / loop`, with 
 - **`stosb`** writes one row up. In write mode 3 the VGA takes every pixel from the latches, except where the mask is set; there it XORs the set/reset colour in. So a pixel changes colour when its left neighbour below had plane 0 set: on plane 0 that is the cellular-automaton rule `new(x) = old(x) XOR old(x-1)`, rule 60, whose space-time diagram is the Sierpinski triangle.
 
 Every frame the program writes two seed bytes into the row just below the screen (the frame counter and its complement) and recomputes all 200 rows bottom-up, so each row is the next generation of the row below and the pattern rises. The CPU never computes a colour: the 4-plane copy and the XOR are done by the graphics controller, 32 pixel-bits per `lodsb`/`stosb` pair.
+
+**The music** is the same fractal in time. The ruler sequence, the number of trailing zero bits of the step number
+(`bsf`), runs 0 1 0 2 0 1 0 3 0 1 0 2 0 1 0 4 ...; it is the Towers of Hanoi move order and the row-by-row self-similarity
+of the Sierpinski triangle. A music box plays it as pentatonic degrees from middle C, every other tick.
 
 **A DOSBox finding.** My first version used the graphics controller's own data rotate (GR03 = 19h, rotate by 1) instead of `rcr`. In DOSBox 0.74 that drew a single rising column: the rotate appeared to have no effect in write mode 3, so the CPU now does the shift. Real VGA hardware applies the rotate before the mask; I have not been able to check that here.
 
@@ -323,6 +443,13 @@ add  ax,[ci]      ; y' = 2xy + ci
 `ci -= cr >> 5` using the updated `cr`. That integer recurrence traces a near-circle of radius 0.7 with no sine table, so c walks around
 a circle in the parameter plane and the Julia set transforms continuously: connected shapes, spirals and finally dust.
 
+**Version 2 computes half the picture.** A Julia set is symmetric under z -> -z. With the grid centred between pixels
+(x = 2*px - 319, y = 2*py - 199, half a pixel from version 1's) the point mirror of pixel i is exactly pixel 63999 - i, so
+the loop computes the top 32,000 pixels and writes each one twice; it also no longer computes the 1,536 bytes past the
+screen. DOSBox draws 10 frames a second instead of 2.8. The music is the drawing itself: on each tick the handler reads
+the pixel the main loop has just written (DI is the loop's pointer) and plays its escape time on a celesta; a point of
+the set (escape time 0) is a rest, so the black regions are silences.
+
 The palette is the usual `R = i`, `G = 2i`, `B = 4i` stream (the DAC keeps six bits), which wraps through saturated bands as the escape count changes.
 A frame costs tens of millions of instructions, so it runs at a few frames per second in DOSBox: this is a slow-motion demo, and the emulator
 test renders only a handful of frames.
@@ -343,9 +470,35 @@ The palette is streamed to the DAC as `i`, `2i`, `4i` (the DAC keeps the low 6 b
 fairly saturated colour. It is the smallest idea in the repo, and the one that most directly asks what the
 program looks like when you view it as an image.
 
+With music the program is 130 bytes, and the music is the code too: every other tick the handler steps through the
+program's first 128 bytes with `cs xlat` (BX is still 100h from the main loop) and plays each one as a pentatonic degree on
+a kalimba. The riff repeats every 14 seconds, and it is the same bytes you see on the screen.
+
+## Version 2: music, fixes and speed
+
+| Demo | Bytes, v1.11 -> v2 | DOSBox frames/s, v1.11 -> v2 | What changed |
+|---|---:|---:|---|
+| GALAXY | 201 -> 253 | 70 -> 70 | music; bounded morph; speaker gone; `fimul word 45` sharing its dword with the morph rate; `fstp st3` / `fstp st1` |
+| CLIFF | 206 -> 250 | 70 -> 70 | the same |
+| CHLADNI | 221 -> 245 | 19 -> 34 | separable plate (a sin table per frame); mode number on the clock; music; speaker gone |
+| FIRE | 123 -> 191 | 52 -> 68 | music; DS = video (no segment prefixes) |
+| ESCHER | 134 -> 224 | 421 -> 70 | music; one step per frame (fixed); line compare reachable on a real VGA (fixed) |
+| JULIA | 155 -> 221 | 2.8 -> 10 | music; half the picture computed and mirrored |
+| LATCH | 82 -> 140 | 70 -> 70 | music |
+| ORDER | 106 -> 173 | 35 -> 56 | music; incremental expressions, no division |
+| ROOTS | 247 -> 256 | 21 -> 28 | music; Horner form at 16x, patched immediate, clock time, no retrace wait |
+| SELFTEX | 73 -> 130 | 66 -> 66 | music |
+| WARP | 72 -> 125 | 70 -> 70 | music |
+
+The frame rates were measured in DOSBox 0.74-3 at `cycles=max` on one machine (a probe build sends a MIDI message per
+frame); only the ratios mean much. The music engine costs about 45 bytes per demo: 20 to hook and unhook the timer,
+about 14 for the handler's frame and the MIDI header, and the rest for the score. Shared savings paid for part of it:
+`in al,60h` / `cbw` / `dec ax` / `jnz` leaves AX = 0 on Esc, so `mov al,3` sets text mode, and pushing AX = 251Ch after
+the hook makes the unhook `pop ax` / `pop dx` / `pop ds` / `int 21h`.
+
 ## Size passes
 
-The demos have been shrunk in passes, and every change except SELFTEX's was checked to be **output-identical**: the old and new binary run side by side in the emulator, and the screen, the palette and every CRTC and graphics-controller write must match at every frame (40 frames for the fast demos, 6 to 8 for the FPU and Julia ones).
+Version 1's passes, before the music (version 2's changes are in the table above). Every change except SELFTEX's was checked to be **output-identical**: the old and new binary run side by side in the emulator, and the screen, the palette and every CRTC and graphics-controller write must match at every frame (40 frames for the fast demos, 6 to 8 for the FPU and Julia ones).
 
 | Demo | Before | After | How |
 |---|---:|---:|---|
@@ -358,7 +511,7 @@ The demos have been shrunk in passes, and every change except SELFTEX's was chec
 | GALAXY | 205 | 201 | the data block held a 4-byte `0.0` used only as scratch for the pixel position; the drift step takes its slot and the scratch words move past the end of the file |
 | CLIFF | 210 | 206 | the same |
 
-The 64 KB-wrap loop end computes 1,536 extra pixels past the visible screen; ESCHER cannot use it, because its moving start address shows that memory. SELFTEX is the exception to "identical": its texture **is** its machine code, so any shrink changes the picture (here only the colours inside the bands; the hyperbolic structure is the same). Its GIF and still were recorded from the 77-byte build.
+The 64 KB-wrap loop end computes 1,536 extra pixels past the visible screen; ESCHER cannot use it, because its moving start address shows that memory. SELFTEX is the exception to "identical": its texture **is** its machine code, so any shrink changes the picture (here only the colours inside the bands; the hyperbolic structure is the same). Its still was recorded from the 77-byte build; the GIF and MP4 are of the 130-byte version 2.
 
 ## Ideas from the 256-byte brief: what was tried
 
@@ -370,7 +523,7 @@ The project started from a long brief of 256-byte-intro techniques. The honest o
 | Accumulation buffer with fade (framebuffer feedback) | **Works.** Used by both attractors. |
 | Parameter morphing | **Works.** Two parameters drift per frame. |
 | Palette generated by code (no table) | **Works.** All three demos. |
-| Orbit-driven PIT sound | Implemented; **unheard**. |
+| Orbit-driven PIT sound | Implemented in version 1, **never heard**, and left the speaker on after Esc. Replaced in version 2 by General MIDI generated from the orbit. |
 | Noise from a code-only PRNG | **Works.** FIRE's 16-bit LCG. |
 | Dynamical system in pure integer maths | **Works as JULIA**: 8.8 fixed point, no FPU. |
 | Oscillator without a sine table | **Works.** JULIA's Minsky circle. |
@@ -413,27 +566,49 @@ The earlier, text-mode version of this search (in [uber-micro-demos](https://git
 ## Testing
 
 `tests/run_tests.sh` builds everything and runs each `.COM` in an emulated 16-bit CPU
-([Unicorn](https://www.unicorn-engine.org/), x87 included), entered the way DOS enters a program
-(`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped. It runs 111 checks:
+([Unicorn](https://www.unicorn-engine.org/), x87 included, [`tests/emu.py`](tests/emu.py)), entered the way DOS enters a
+program (`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped, and the emulator models
+what the demos lean on: a real interrupt-vector table with DOS functions 35h and 25h; the BIOS timer, whose `tick()`
+advances 0040:006Ch and enters the installed INT 1Ch handler as an IBM BIOS does (with DS = 0040h and AX, DX clobbered,
+so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it is in UART mode and decoded as MIDI
+(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 206 checks:
 
-- **All demos:** at most 256 bytes; the first call is `INT 10h` with AX = 0013h; all 768 DAC values are written and the
-  palette is not black; no memory is touched outside video RAM and the program's own segment.
-- **GALAXY and CLIFF:** FPU opcodes are present; a curve (500 to 30,000 lit pixels) is drawn and stays inside the
-  screen; many brightness levels appear (accumulation rather than on/off); the picture changes between frames;
-  the speaker is on and PIT channel 2 is re-tuned.
-- **FIRE:** the bottom is hot and the heat dies off with height; a smooth ramp of values; the flames move; no sound.
-- **ESCHER:** the texture is drawn once and no pixel is ever written again; each frame writes the CRTC start-address and line-compare registers; the start address moves inside video memory and the split sweeps one scan line per frame.
-- **CHLADNI:** four `fsin` per pixel; bright nodal lines with smooth falloff; the picture is mirror-symmetric as the equation requires; the speaker is retuned; the figure changes as the mode number drifts.
-- **ROOTS:** thin root curves between positive and negative regions; every white pixel is a real sign change; integer only; the roots move; clean exit.
-- **ORDER:** at least five of the six orderings appear as large coherent regions; integer only; the boundaries move; clean exit.
-- **WARP:** only CRTC registers 09h and 13h are written; the character height steps through 4..19 scan lines with bit 6 kept; the stride stays within 36..43; the text in video memory is untouched; clean exit.
-- **LATCH:** mode 0Dh; the graphics-controller set-up (set/reset, XOR, write mode 3); the set/reset colour changes every frame; the latch-copy inner loop; no stray memory; clean exit.
-- **JULIA:** colour bands, a black set that fills part of the screen, point symmetry, no FPU or sound in the code, the picture changes as c moves.
-- **SELFTEX:** a rich, textured screen (dozens of colours); it scrolls between frames; no sound.
-- **All demos:** pressing Esc ends with `INT 10h` AX = 3 and a clean return to DOS.
+- **All demos:** at most 256 bytes; the first call sets the video mode; all 768 DAC values are written and the palette is
+  not black; no memory is touched outside video RAM and the program's own segment; the PC speaker and PIT channel 2 are
+  never touched.
+- **All demos, music:** INT 1Ch is hooked through DOS with DS = the program's segment; the handler returns with IRET and
+  preserves every register and segment; UART mode is entered; the expected General MIDI program is selected; every note is
+  in C major pentatonic (ESCHER: the chromatic scale), inside 24..100, with a valid velocity.
+- **All demos, exit:** Esc ends with `INT 10h` AX = 3, the original INT 1Ch vector back in place, and a clean return to DOS.
+- **GALAXY and CLIFF:** FPU opcodes present; a curve (500 to 30,000 lit pixels) on screen; many brightness levels;
+  the picture changes between frames; the morph stays bounded as the clock runs through a whole cycle; one note every
+  other tick (GALAXY) or every tick (CLIFF).
+- **FIRE:** the bottom is hot and the heat dies off with height; a smooth ramp of values; the flames move; a guitar note
+  exactly when the probe is in a flame, pitched by its heat.
+- **ESCHER:** the texture is drawn once and never written again; the line-compare overflow bits are cleared; each frame
+  writes start address and line compare; the split sweeps one scan line per frame and exactly one retrace passes between
+  steps; every step is five notes an octave apart, a semitone above the last, with loudness `127 - 3|n - 54|`.
+- **CHLADNI:** three FSINs in the code (the table, not four per pixel); bright nodal lines with smooth falloff; the pixels
+  match the plate equation at t = 0 and 7.5 s later; mirror symmetry; a bell exactly when the probe is on a nodal line.
+- **ROOTS:** thin root curves between positive and negative regions; every white pixel is a real sign change; no false
+  roots on the top row or the left column; the sign of every sampled pixel is the sign of the cubic; integer only; the
+  roots move with the clock; a note on every tick.
+- **ORDER:** at least five orderings as large coherent regions; every sampled pixel is the ordering formula; no division
+  instruction; the boundaries move.
+- **WARP:** only CRTC registers 09h and 13h are written; the character height steps through 4..19 scan lines with bit 6
+  kept; the stride stays within 36..43; the text in video memory is untouched; every note is the current height.
+- **LATCH:** mode 0Dh; the graphics-controller set-up; the set/reset colour changes every frame; the latch-copy inner
+  loop; no palette writes; the melody is exactly the ruler sequence.
+- **JULIA:** colour bands, a black set, exact point symmetry, no FPU, the picture changes as c moves, and each tick plays
+  the pixel just drawn.
+- **SELFTEX:** a rich texture whose every pixel value is a byte of the program; it scrolls; the melody is the program's
+  bytes in order.
 
-An emulator cannot judge how a demo looks, so each one was also run in real DOSBox and captured (the screenshots above).
-Needs Python 3; the script installs `unicorn` into `./.venv`.
+[`tools/equiv.py`](tools/equiv.py) runs two builds side by side and compares the screen, the DAC stream and every CRTC,
+graphics-controller and sequencer write, frame by frame; it is how the "pixel-identical" claims above were checked.
+
+An emulator cannot judge how a demo looks or sounds, so each one was also run in real DOSBox 0.74-3 (the recordings
+above, with the MIDI DOSBox actually sent). Needs Python 3; the script installs `unicorn` into `./.venv`.
 
 ## Releases and CI
 
@@ -441,38 +616,50 @@ Every push and pull request builds the demos, enforces the 256-byte limit and ru
 add a section to `CHANGELOG.md` and push a tag:
 
 ```sh
-git tag v1.10.0 && git push origin v1.10.0
+git tag v2.0.0 && git push origin v2.0.0
 ```
 
 The release workflow rebuilds, re-tests, and attaches the `.COM` files, `SHA256SUMS` and the gallery image, with that section as the notes.
 
 ## Limitations
 
-- GALAXY and CLIFF need an FPU and are not meant for slow machines. FIRE touches 64,000 pixels four times a frame and wants a fast CPU too.
-- The speaker output has never been listened to.
+- GALAXY and CLIFF need an FPU and are not meant for slow machines; FIRE and ROOTS want a fast CPU too. The music keeps
+  time whatever the frame rate.
+- The music needs an MPU-401 in UART mode with a General MIDI synthesizer behind it (DOSBox's default; on real hardware a
+  Sound Blaster 16 or MPU-401 card with a GM module). Without one the demos run silently. The instrument choices and
+  balance were made from the note streams and an automatic FluidSynth render, not by ear.
+- The tick handler reads the BIOS clock through FS and assumes FS = 0 at start-up, which DOSBox and DOS leave it as;
+  a memory manager that changes FS would scramble the rhythm (not the pictures).
+- No demo sends note-offs; every instrument used decays by itself. A General MIDI synth set to a sustained patch on
+  channel 1 would ring on.
 - The attractors were tuned by eye in DOSBox; the glow palette may look slightly different on other VGA hardware.
-- Only 320x200 VGA mode 13h is used, and the programs do not check that the machine has VGA. ESCHER writes CRTC registers (start address and line compare only, never the timing registers) and was checked in DOSBox only.
+- Only 320x200 VGA mode 13h (and mode 0Dh for LATCH) is used, and the programs do not check that the machine has VGA.
+  ESCHER writes CRTC registers (start address, line compare and its two overflow bits, never the timing registers).
 - Not tried on real hardware.
 
 ## Layout
 
 ```
-src/galaxy.asm      de Jong attractor
-src/cliff.asm       Clifford attractor
-src/fire.asm        framebuffer-feedback fire
-src/escher.asm      CRTC-only animation (start address + line compare)
-src/chladni.asm     Chladni plate nodal lines on the FPU
-src/roots.asm       migrating roots of a cubic
-src/order.asm       regions from the ordering of three expressions
-src/warp.asm        DOS screen warped by CRTC character height and row stride
-src/latch.asm       cellular automaton computed by the VGA graphics controller
-src/julia.asm       integer Julia set with an orbiting constant
-src/selftex.asm     self-code texture
+src/galaxy.asm      de Jong attractor + orbit music
+src/cliff.asm       Clifford attractor + orbit music
+src/fire.asm        framebuffer-feedback fire + heat-probe guitar
+src/escher.asm      CRTC-only animation (start address + line compare) + Shepard scale
+src/chladni.asm     Chladni plate nodal lines on the FPU (separable) + nodal-line bells
+src/roots.asm       migrating roots of a cubic + steel drums on T
+src/order.asm       regions from the ordering of three expressions + ordering arpeggio
+src/warp.asm        DOS screen warped by CRTC character height and row stride + height arpeggio
+src/latch.asm       cellular automaton computed by the VGA graphics controller + ruler-sequence music box
+src/julia.asm       integer Julia set with an orbiting constant, mirrored + the pixels as they are drawn
+src/selftex.asm     self-code texture + the code as a riff
 build.sh            NASM build + 256-byte gate + SHA256SUMS
 run-dosbox.sh       DOSBox launcher
-DOSBOX.CONF         DOSBox settings (cycles=max)
-tests/              emulator tests
-docs/               real DOSBox screenshots
+DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
+tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture
+tests/test_lab.py   the 206 checks
+tools/equiv.py      frame-by-frame comparison of two builds
+tools/synth13.py    the mode-13h kernel search (no demo shipped)
+docs/               DOSBox screenshots, GIFs, MP4 recordings with sound, the showreel
+docs/music/         the MIDI each demo sent during its recording
 CHANGELOG.md        release notes
 .github/workflows/  CI and tag-driven releases
 ```

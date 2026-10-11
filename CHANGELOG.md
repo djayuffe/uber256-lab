@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.0.0]
+- **Music in every demo.** Each program hooks the 18.2 Hz timer tick (INT 1Ch, through DOS, restored on exit) and plays General MIDI through an MPU-401 in UART mode, so the tempo is the clock's, whatever the frame rate. Every score is generated from the demo's own state and quantised to C major pentatonic by `aam 5` / `aad 6` (an even number 2d becomes floor(12d/5)): GALAXY and CLIFF play their orbit (vibraphone, marimba), CHLADNI rings a tubular bell where a probe crosses a nodal line, FIRE plucks a nylon guitar when its probe is in a flame, ESCHER is a Shepard scale (an endless staircase in sound), JULIA plays each pixel as it is drawn (celesta), LATCH plays the ruler sequence of the Sierpinski triangle (music box), ORDER arpeggiates the ordering under a probe (pizzicato), ROOTS plays its coefficient T (steel drums), SELFTEX plays its own code bytes (kalimba), WARP plays the character-height wave that stretches the screen (electric piano).
+- **Fixed:** GALAXY, CLIFF and CHLADNI left the PC speaker droning after Esc; the speaker is no longer used at all.
+- **Fixed:** ESCHER waited only for "in retrace", so it advanced about six steps per frame (421 iterations a second measured in DOSBox); it now waits for the end of one retrace and the start of the next, one step per frame.
+- **Fixed:** ESCHER's line compare had bits 8 and 9 set (mode 13h's CR07 bit 4 and CR09 bit 6), which puts the split below the screen on a real VGA; they are cleared once at start.
+- **Fixed:** GALAXY and CLIFF drifted two parameters for ever; they now swing back and forth (by s*cos(s*t) per frame, from the BIOS clock), so the attractor stays an attractor after minutes.
+- **Faster** (DOSBox 0.74-3, `cycles=max`, frames per second before -> after): CHLADNI 19 -> 34 (the plate is separable: 640 FSINs a frame into a sin(aX), sin(bX) table instead of four per pixel; pixel-identical for the same mode number), JULIA 2.8 -> 10 (only the top half is computed and mirrored; the centre moved half a pixel so the mirror is exact), ORDER 35 -> 56 (the three expressions are kept incrementally: no division or multiply per pixel; pixel-identical), ROOTS 21 -> 28, FIRE 52 -> 68 (DS = video, no segment prefixes; pixel-identical), ESCHER 421 -> 70 (fixed, see above).
+- **CHLADNI**: the mode number follows the clock, a = 3 + sin(0.0115 t): it sweeps smoothly through [2, 4] every 30 s instead of jumping back from 4.5 to 1.5.
+- **ROOTS**: rewritten to fit the music in 256 bytes: the cubic is evaluated times 16 in Horner form, T is patched into an `imul` immediate each frame and time comes from the BIOS clock (no retrace wait).
+- Sizes (bytes, before -> after, music included): GALAXY 201 -> 253, CLIFF 206 -> 250, CHLADNI 221 -> 245, FIRE 123 -> 191, ESCHER 134 -> 224, JULIA 155 -> 221, LATCH 82 -> 140, ORDER 106 -> 173, ROOTS 247 -> 256, SELFTEX 73 -> 130, WARP 72 -> 125.
+- Tests: a shared emulator (`tests/emu.py`) with a DOS interrupt-vector table, a BIOS timer tick that enters the hook with DS = 0040h as an IBM BIOS does, and an MPU-401 capture; 206 checks, including what each demo plays. `tools/equiv.py` compares two builds frame by frame.
+- Real DOSBox recordings with sound (`docs/*.mp4`), the MIDI each demo played (`docs/music/*.mid`), new GIFs and gallery from the same runs.
+
 ## [1.11.0]
 - GALAXY 205 -> 201 and CLIFF 210 -> 206, output-identical: the scratch slot in the data block moved past the end of the file.
 

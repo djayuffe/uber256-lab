@@ -3,11 +3,21 @@
 ; XOR function and a 1-bit rotate, writing the byte back copies the latched pixels and XORs the set/reset colour
 ; into every pixel whose LEFT neighbour has plane 0 set. Copying each row from the row below therefore draws the
 ; space-time diagram of rule 60 (Sierpinski) rising up the screen, two one-byte CPU instructions per 8 pixels.
+; The music is the same fractal in time: a music box plays the ruler sequence (how many times the step number
+; divides by two: 0 1 0 2 0 1 0 3 ...), the Towers-of-Hanoi rhythm that is also the Sierpinski triangle's.
 BITS 16
 CPU 386
 ORG 100h
     mov al,0Dh
     int 10h                   ; 320x200, 16 colours, planar
+    mov ax,351Ch              ; hook the timer tick (INT 1Ch), keeping the old vector on the stack
+    int 21h
+    push es
+    push bx
+    mov ah,25h
+    mov dx,isr
+    int 21h
+    push ax                   ; AX = 251Ch, for the unhook
     push word 0A000h
     pop es
     mov dx,3CEh               ; VGA graphics controller
@@ -43,8 +53,36 @@ frame:
     jz .vs
     pop dx
     in al,60h
-    dec al
-    jnz frame
-    mov ax,3
-    int 10h
+    cbw
+    dec ax
+    jnz frame                 ; Esc (scan code 1): AX = 0
+    mov al,3
+    int 10h                   ; text mode
+    pop ax                    ; unhook INT 1Ch: AX = 251Ch, DS:DX = the old vector
+    pop dx
+    pop ds
+    int 21h
     ret
+isr:                          ; INT 1Ch, 18.2 Hz
+    pusha
+    mov dx,330h
+    mov ax,3FC0h              ; C0h to the MPU data port, then 3Fh (UART mode) to its command port
+    out dx,ax
+    mov al,10                 ; program 10: music box
+    out dx,al
+    mov al,90h                ; note on
+    out dx,al
+    mov ax,[fs:46Ch]          ; BIOS tick count
+    shr ax,1
+    jc .q                     ; a note every other tick
+    bsf ax,ax                 ; the ruler function of the step: its trailing zero bits
+    jz .q
+    add al,al
+    add al,50
+    aam 5                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic, from C4
+    aad 6
+    out dx,al                 ; note
+    out dx,al                 ; velocity = note
+.q:
+    popa
+    iret

@@ -1,12 +1,13 @@
 ; JULIA - a Julia set in 8.8 fixed point whose constant c circles slowly (a Minsky oscillator: x += y>>5, y -= x>>5).
-; No FPU, no sine table. Colour = how fast the point escapes, through a wrapping RGB palette.
+; No FPU, no sine table. Colour = how fast the point escapes, through a wrapping RGB palette. A Julia set is
+; symmetric under z -> -z, so only the top half is computed and each pixel is also written to its mirror.
+; The music is read off the picture as it is drawn: on every timer tick the escape time of the pixel just
+; computed is a celesta note, and the inside of the set is silence.
 BITS 16
 CPU 386
 ORG 100h
     mov al,13h
     int 10h
-    push word 0A000h
-    pop es
     mov dx,3C9h
 .pal:                         ; R = i, G = 2i, B = 4i (the DAC keeps 6 bits): bands of saturated colour
     mov al,bl
@@ -17,6 +18,16 @@ ORG 100h
     out dx,al
     inc bl
     jnz .pal
+    mov ax,351Ch              ; hook the timer tick (INT 1Ch), keeping the old vector on the stack
+    int 21h
+    push es
+    push bx
+    mov ah,25h
+    mov dx,isr
+    int 21h
+    push ax                   ; AX = 251Ch, for the unhook
+    push word 0A000h
+    pop es
     mov bp,-180               ; cr: the real part of c (ci stays in memory)
 frame:
     xor di,di
@@ -25,12 +36,12 @@ frame:
     xor dx,dx
     mov bx,320
     div bx                    ; ax = y, dx = x
-    sub dx,160
     shl dx,1
-    mov bx,dx                 ; bx = x  (8.8, +-1.25)
-    sub ax,100
+    sub dx,319
+    mov bx,dx                 ; bx = x  (8.8, +-1.25), centred between pixels 159 and 160
     shl ax,1
-    mov si,ax                 ; si = y
+    sub ax,199
+    mov si,ax                 ; si = y, centred between rows 99 and 100: (x, y) -> (-x, -y) is pixel i -> 63999 - i
     mov cx,31
 .it:
     mov ax,bx
@@ -53,14 +64,17 @@ frame:
     cmp dx,1024               ; |z|^2 > 4: escaped
     ja .out
     sub bx,ax
-    add bx,bp               ; x' = x*x - y*y + cx
+    add bx,bp                 ; x' = x*x - y*y + cx
     loop .it
 .out:
     mov al,cl
     shl al,3
     stosb
-    test di,di                ; to the 64 KB wrap: the last 1536 pixels are off screen
-    jnz .px
+    mov bx,64000              ; and the mirror pixel, 63999 - i
+    sub bx,di
+    mov [es:bx],al
+    cmp di,32000              ; the top half only
+    jb .px
     mov ax,[ci]               ; move c round a circle
     sar ax,5
     add bp,ax
@@ -73,9 +87,35 @@ frame:
     test al,8
     jz .vs
     in al,60h
-    dec al
-    jnz frame
-    mov ax,3
-    int 10h
+    cbw
+    dec ax
+    jnz frame                 ; Esc (scan code 1): AX = 0
+    mov al,3
+    int 10h                   ; text mode
+    pop ax                    ; unhook INT 1Ch: AX = 251Ch, DS:DX = the old vector
+    pop dx
+    pop ds
+    int 21h
     ret
+isr:                          ; INT 1Ch, 18.2 Hz: the pixel just drawn plays (DI is the main loop's pointer)
+    pusha
+    mov dx,330h
+    mov ax,3FC0h              ; C0h to the MPU data port, then 3Fh (UART mode) to its command port
+    out dx,ax
+    mov al,8                  ; program 8: celesta
+    out dx,al
+    mov al,90h                ; note on
+    out dx,al
+    mov al,[es:di-1]          ; escape time * 8
+    shr al,2
+    jz .q                     ; inside the set: a rest
+    and al,30
+    add al,44
+    aam 5                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic
+    aad 6
+    out dx,al                 ; note
+    out dx,al                 ; velocity = note
+.q:
+    popa
+    iret
 ci: dw 0
