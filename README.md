@@ -98,10 +98,14 @@ Real recordings of the shipped binaries in DOSBox 0.74-3 (`cycles=max`), so what
 | **FIRE**, 10 s: the flames rise from the first frame, from the hot row at the bottom. | **JULIA**, 24 s: each frame is drawn top to bottom, and the set changes as c moves. |
 | ![SELFTEX](docs/selftex.gif) | ![ESCHER](docs/escher.gif) |
 | **SELFTEX**, 8 s: the bands slide as the frame counter is added to the lookup index. | **ESCHER**, 9 s at 20 fps: the blocks slide and the seams move; only CRTC registers change. |
-| ![CHLADNI](docs/chladni.gif) | |
-| **CHLADNI**, 10 s: nearly every video frame is a new picture (about 27 fps in DOSBox) as the mode number drifts. | |
+| ![CHLADNI](docs/chladni.gif) | ![LATCH](docs/latch.gif) |
+| **CHLADNI**, 10 s: nearly every video frame is a new picture (about 27 fps in DOSBox) as the mode number drifts. | **LATCH**, 6 s: the Sierpinski waterfalls rising, one generation per frame. Rendered (see below). |
+| ![WARP](docs/warp.gif) | |
+| **WARP**, 6.5 s: the DOS screen squashing, stretching and shearing. Rendered (see below). | |
 
 *How they were made: with DOSBox in front, its window was screen-captured at 30 to 60 frames per second (cropped to the window only), then converted to 25 fps GIFs at the native 320x200 (ESCHER at 20 fps to keep it small) with a reduced palette. A small patch where the mouse pointer sat at the top edge was painted black. GIF cannot show a 70 Hz display, so very fast detail is smoother in the real thing.*
+
+*LATCH and WARP were not screen-recorded: they were rendered frame by frame from the real binaries in the emulated CPU, with a model of the VGA (the four planes, latches, write mode 3 and XOR for LATCH; text memory, the ROM font dumped from DOSBox, and the CRTC character height and row stride for WARP), one GIF frame per two or three video frames. Their stills above are real DOSBox captures, and the renders match them.*
 
 ## GALAXY and CLIFF in detail
 
