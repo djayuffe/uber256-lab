@@ -44,12 +44,12 @@ frame:
     fstp st2
     fld st0
     fmul dword [bx+16]
-    fistp word [bx+20]
+    fistp word [bx+24]
     fld st1
     fmul dword [bx+16]
-    fistp word [bx+22]
-    imul ax,[bx+22],320       ; y*320 + x + (100*320+160): centre the picture
-    add ax,[bx+20]
+    fistp word [bx+26]
+    imul ax,[bx+26],320       ; y*320 + x + (100*320+160): centre the picture
+    add ax,[bx+24]
     add ax,32160
     xchg ax,di
     add byte [es:di],12
@@ -57,11 +57,11 @@ frame:
     mov si,12                 ; morph two parameters a little every frame (a and d)
 .mp:
     fld dword [bx+si]
-    fadd dword [bx+24]
+    fadd dword [bx+20]
     fstp dword [bx+si]
     sub si,12
     jnc .mp
-    mov al,[bx+20]            ; the speaker's pitch follows the attractor's x coordinate
+    mov al,[bx+24]            ; the speaker's pitch follows the attractor's x coordinate
     out 42h,al
     mov al,3
     out 42h,al
@@ -86,4 +86,4 @@ frame:
     int 10h
     ret
 data:
-    dd 1.4, -2.3, 2.4, -2.1, 45.0, 0.0, 0.0006
+    dd 1.4, -2.3, 2.4, -2.1, 45.0, 0.0006   ; the pixel position words live just past the end, at +24 and +26

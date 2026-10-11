@@ -14,8 +14,8 @@ sound is computed by a few hundred bytes of code.
 
 | Program | Size | Needs | What it is |
 |---|---|---|---|
-| [`GALAXY.COM`](src/galaxy.asm) | 205 B | 386 + FPU, VGA | A de Jong strange attractor drawn as a glowing, fading, slowly morphing cloud. The orbit also tunes the PC speaker. |
-| [`CLIFF.COM`](src/cliff.asm) | 210 B | 386 + FPU, VGA | The same engine with Clifford-attractor equations and parameters: two curling wings over a web of caustics. |
+| [`GALAXY.COM`](src/galaxy.asm) | 201 B | 386 + FPU, VGA | A de Jong strange attractor drawn as a glowing, fading, slowly morphing cloud. The orbit also tunes the PC speaker. |
+| [`CLIFF.COM`](src/cliff.asm) | 206 B | 386 + FPU, VGA | The same engine with Clifford-attractor equations and parameters: two curling wings over a web of caustics. |
 | [`FIRE.COM`](src/fire.asm) | 123 B | 386, VGA | Framebuffer feedback: each pixel becomes the average of four pixels below it, minus a little, with random heat injected at the bottom. A smoky turbulent fire, no FPU. |
 | [`ESCHER.COM`](src/escher.asm) | 134 B | 386, VGA | The picture is drawn once; after that only the CRT controller's start address and line-compare registers move, folding a hyperbolic texture into an impossible patchwork. No pixel is ever redrawn. |
 | [`CHLADNI.COM`](src/chladni.asm) | 221 B | 386 + FPU, VGA | The nodal lines of a vibrating plate, `sin(ax)sin(by) - sin(bx)sin(ay) = 0`, with drifting mode numbers that also tune the speaker. |
@@ -139,7 +139,7 @@ y' = sin(b*x) + d*cos(b*y)        a = -1.4, b = 1.6, c = 1.0, d = 0.7
 
 Both keep (x, y) as the top two entries of the FPU stack. One iteration is about twenty x87 instructions
 (`fld`, `fmul`, `fsin`, `fcos`, `fsubp` or `faddp`, `fxch`, `fstp`). The four parameters are read straight from memory
-with `fmul dword [bx+k]`, so the whole constant block is 28 bytes.
+with `fmul dword [bx+k]`, so the whole constant block is 24 bytes (the four parameters, the scale and the drift step).
 
 ### From orbit to pixel
 
@@ -345,7 +345,7 @@ program looks like when you view it as an image.
 
 ## Size passes
 
-The demos have been shrunk in passes, and every change except SELFTEX's was checked to be **output-identical**: the old and new binary run side by side in the emulator, and the screen, the palette and every CRTC and graphics-controller write must match at every frame (40 frames for the fast demos, 6 for the FPU and Julia ones).
+The demos have been shrunk in passes, and every change except SELFTEX's was checked to be **output-identical**: the old and new binary run side by side in the emulator, and the screen, the palette and every CRTC and graphics-controller write must match at every frame (40 frames for the fast demos, 6 to 8 for the FPU and Julia ones).
 
 | Demo | Before | After | How |
 |---|---:|---:|---|
@@ -355,6 +355,8 @@ The demos have been shrunk in passes, and every change except SELFTEX's was chec
 | ROOTS | 251 | 247 | the 64 KB-wrap loop end |
 | ORDER | 123 | 106 | time in BP, expressions in 16-bit registers compared by their low bytes, the 64 KB-wrap loop end |
 | SELFTEX | 77 | 73 | the code-byte lookup is one `xlat`; time in BP |
+| GALAXY | 205 | 201 | the data block held a 4-byte `0.0` used only as scratch for the pixel position; the drift step takes its slot and the scratch words move past the end of the file |
+| CLIFF | 210 | 206 | the same |
 
 The 64 KB-wrap loop end computes 1,536 extra pixels past the visible screen; ESCHER cannot use it, because its moving start address shows that memory. SELFTEX is the exception to "identical": its texture **is** its machine code, so any shrink changes the picture (here only the colours inside the bands; the hyperbolic structure is the same). Its GIF and still were recorded from the 77-byte build.
 

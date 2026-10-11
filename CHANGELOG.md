@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.11.0]
+- GALAXY 205 -> 201 and CLIFF 210 -> 206, output-identical: the scratch slot in the data block moved past the end of the file.
+
 ## [1.10.0]
 - Size pass, output-identical in the emulator except SELFTEX: ESCHER 137 -> 134, CHLADNI 224 -> 221, JULIA 161 -> 155, ROOTS 251 -> 247, ORDER 108 -> 106, SELFTEX 77 -> 73 (one `xlat`). 22 bytes in all. README: a table of the size passes.
 
