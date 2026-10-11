@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.7.0]
+- **ORDER** (123 B): regions defined only by the ordering of three per-pixel expressions. 10 new checks (101 in all).
+- Rendered GIFs for LATCH, WARP and ORDER; gallery shows all demos.
+- README: EUCLID and ORBIT tried and not shipped.
+
 ## [1.6.0]
 - **WARP** (72 B): the DOS screen squashed, stretched and sheared by CRTC registers 09h and 13h, with no drawing. 6 new checks (91 in all).
 - README: three ideas from the same brief that did not work (mode-13h stride shear, mode-13h CR09 zoom that flickers in DOSBox, LATCH with a rotating read map).

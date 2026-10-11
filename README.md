@@ -1,6 +1,6 @@
 # uber256-lab
 
-**Nine 256-byte-class DOS demos: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, and a texture made of the program's own machine code.**
+**Ten 256-byte-class DOS demos: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, a picture made only of orderings, and a texture made of the program's own machine code.**
 
 [![CI](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml)
 
@@ -19,6 +19,7 @@ sound is computed by a few hundred bytes of code.
 | [`FIRE.COM`](src/fire.asm) | 123 B | 386, VGA | Framebuffer feedback: each pixel becomes the average of four pixels below it, minus a little, with random heat injected at the bottom. A smoky turbulent fire, no FPU. |
 | [`ESCHER.COM`](src/escher.asm) | 137 B | 386, VGA | The picture is drawn once; after that only the CRT controller's start address and line-compare registers move, folding a hyperbolic texture into an impossible patchwork. No pixel is ever redrawn. |
 | [`CHLADNI.COM`](src/chladni.asm) | 224 B | 386 + FPU, VGA | The nodal lines of a vibrating plate, `sin(ax)sin(by) - sin(bx)sin(ay) = 0`, with drifting mode numbers that also tune the speaker. |
+| [`ORDER.COM`](src/order.asm) | 123 B | 386, VGA | Three cheap expressions per pixel (hyperbolas, vertical lines, horizontal lines) are never drawn; only which of the six orderings they are in is, so the screen is a set of regions whose boundaries fold and collide as time moves. |
 | [`WARP.COM`](src/warp.asm) | 72 B | 386, VGA | No video mode, no drawing: the DOS screen you launched it from is squashed, stretched and sheared by rewriting two CRT-controller registers (character height and row stride) every frame. |
 | [`LATCH.COM`](src/latch.asm) | 82 B | 386, EGA/VGA | A rule-60 cellular automaton (Sierpinski waterfalls) computed by the VGA graphics controller: each byte read loads 8 pixels x 4 planes into the latches, each write puts them back one row up with an XOR colour applied by the hardware. |
 | [`JULIA.COM`](src/julia.asm) | 161 B | 386, VGA | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape. No FPU, no sine table. |
@@ -33,6 +34,7 @@ sound is computed by a few hundred bytes of code.
 - [FIRE in detail](#fire-in-detail)
 - [ESCHER in detail](#escher-in-detail)
 - [CHLADNI in detail](#chladni-in-detail)
+- [ORDER in detail](#order-in-detail)
 - [WARP in detail](#warp-in-detail)
 - [LATCH in detail](#latch-in-detail)
 - [JULIA in detail](#julia-in-detail)
@@ -81,6 +83,8 @@ All captured from the real binaries in DOSBox.
 | **JULIA, later.** As c moves, the set pinches, twists and breaks into dust, and tiny copies of the whole appear along the spirals. | **ESCHER.** One hyperbolic texture, shown through a moving start address and a line-compare split: the bands meet themselves at seams that cannot be real. |
 | ![CHLADNI](docs/chladni-a.jpg) | ![CHLADNI later](docs/chladni-b.jpg) |
 | **CHLADNI.** Sand gathers on the lines where the plate does not move. | **CHLADNI, later.** As the mode number drifts, the nodal lines reconnect into loops, then a lattice. |
+| ![ORDER](docs/order.jpg) | |
+| **ORDER** in DOSBox: hyperbola fans cut by straight partitions, each region an ordering of three numbers. | |
 | ![WARP](docs/warp-a.jpg) | ![WARP squashed](docs/warp-b.jpg) |
 | **WARP.** The DOSBox start-up screen, stretched and sheared into a staircase: the text in memory is unchanged. | **WARP, squashed.** At 4 scan lines per character the whole screen collapses into the top fifth. |
 | ![LATCH](docs/latch-a.jpg) | ![LATCH later](docs/latch-b.jpg) |
@@ -100,12 +104,12 @@ Real recordings of the shipped binaries in DOSBox 0.74-3 (`cycles=max`), so what
 | **SELFTEX**, 8 s: the bands slide as the frame counter is added to the lookup index. | **ESCHER**, 9 s at 20 fps: the blocks slide and the seams move; only CRTC registers change. |
 | ![CHLADNI](docs/chladni.gif) | ![LATCH](docs/latch.gif) |
 | **CHLADNI**, 10 s: nearly every video frame is a new picture (about 27 fps in DOSBox) as the mode number drifts. | **LATCH**, 6 s: the Sierpinski waterfalls rising, one generation per frame. Rendered (see below). |
-| ![WARP](docs/warp.gif) | |
-| **WARP**, 6.5 s: the DOS screen squashing, stretching and shearing. Rendered (see below). | |
+| ![WARP](docs/warp.gif) | ![ORDER](docs/order.gif) |
+| **WARP**, 6.5 s: the DOS screen squashing, stretching and shearing. Rendered (see below). | **ORDER**, 6 s: the regions folding as the three expressions move. Rendered (see below). |
 
 *How they were made: with DOSBox in front, its window was screen-captured at 30 to 60 frames per second (cropped to the window only), then converted to 25 fps GIFs at the native 320x200 (ESCHER at 20 fps to keep it small) with a reduced palette. A small patch where the mouse pointer sat at the top edge was painted black. GIF cannot show a 70 Hz display, so very fast detail is smoother in the real thing.*
 
-*LATCH and WARP were not screen-recorded: they were rendered frame by frame from the real binaries in the emulated CPU, with a model of the VGA (the four planes, latches, write mode 3 and XOR for LATCH; text memory, the ROM font dumped from DOSBox, and the CRTC character height and row stride for WARP), one GIF frame per two or three video frames. Their stills above are real DOSBox captures, and the renders match them.*
+*LATCH, WARP and ORDER were not screen-recorded: they were rendered frame by frame from the real binaries in the emulated CPU, with a model of the VGA (the four planes, latches, write mode 3 and XOR for LATCH; text memory, the ROM font dumped from DOSBox, and the CRTC character height and row stride for WARP; mode 13h and the DAC for ORDER), one GIF frame per one to three video frames. Their stills above are real DOSBox captures, and the renders match them.*
 
 ## GALAXY and CLIFF in detail
 
@@ -225,6 +229,20 @@ The mode number `a` drifts each frame through [1.5, 4.5) using `fprem` (so it ca
 `a` crossed `b`), and the same value is written to PIT channel 2, so the tone and the figure change together. `f` is antisymmetric under `x -> -x` and under `y -> -y`,
 so `|f|` is symmetric both ways; the test confirms the picture is 100% mirror-symmetric. The picture costs a few million FPU operations a frame, so it runs at a few frames per second in DOSBox.
 As with the attractors, **I have not listened to the speaker.**
+
+## ORDER in detail
+
+From a later brief's list of 100 mechanisms, "permutation boundary objects" (#52): compute several cheap values per pixel, and draw not the values but their **ordering**.
+
+```
+a = (x*y)/64 + t       hyperbolas, drifting one way
+b = x - 2t             vertical lines, drifting the other way
+c = 3y + t             horizontal lines
+```
+
+All three are 8-bit and wrap. Three comparisons (`a<b`, `b<c`, `a<c`) are collected into AL with `cmp` / `rcl al,1`, so the carry flag carries each answer straight into a 3-bit region number; two of the eight patterns are logically impossible, so exactly six regions can appear (the test sees all six). The region selects a 32-entry band of the palette and `a` shades it. Where two of the expressions are equal, a boundary runs; as `t` moves, the hyperbola fans slide across the line grid and regions fold, collide and swap. No sine, square root, table or FPU.
+
+Tried from the same list and not shipped: **EUCLID** (#2, colour = the number of subtractions in Euclid's GCD algorithm on the pixel coordinates) shows the expected bright rays at rational slopes, but the background between them is irregular counts that read as noise rather than the promised "crystal city"; **ORBIT** (#47, plotting a full-period 16-bit linear congruential generator as a trajectory) covers the screen uniformly, as a full-period permutation must, so there is nothing to see but noise.
 
 ## WARP in detail
 
@@ -359,7 +377,7 @@ The earlier, text-mode version of this search (in [uber-micro-demos](https://git
 
 `tests/run_tests.sh` builds everything and runs each `.COM` in an emulated 16-bit CPU
 ([Unicorn](https://www.unicorn-engine.org/), x87 included), entered the way DOS enters a program
-(`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped. It runs 91 checks:
+(`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OUT are trapped. It runs 101 checks:
 
 - **All demos:** at most 256 bytes; the first call is `INT 10h` with AX = 0013h; all 768 DAC values are written and the
   palette is not black; no memory is touched outside video RAM and the program's own segment.
@@ -369,6 +387,7 @@ The earlier, text-mode version of this search (in [uber-micro-demos](https://git
 - **FIRE:** the bottom is hot and the heat dies off with height; a smooth ramp of values; the flames move; no sound.
 - **ESCHER:** the texture is drawn once and no pixel is ever written again; each frame writes the CRTC start-address and line-compare registers; the start address moves inside video memory and the split sweeps one scan line per frame.
 - **CHLADNI:** four `fsin` per pixel; bright nodal lines with smooth falloff; the picture is mirror-symmetric as the equation requires; the speaker is retuned; the figure changes as the mode number drifts.
+- **ORDER:** at least five of the six orderings appear as large coherent regions; integer only; the boundaries move; clean exit.
 - **WARP:** only CRTC registers 09h and 13h are written; the character height steps through 4..19 scan lines with bit 6 kept; the stride stays within 36..43; the text in video memory is untouched; clean exit.
 - **LATCH:** mode 0Dh; the graphics-controller set-up (set/reset, XOR, write mode 3); the set/reset colour changes every frame; the latch-copy inner loop; no stray memory; clean exit.
 - **JULIA:** colour bands, a black set that fills part of the screen, point symmetry, no FPU or sound in the code, the picture changes as c moves.
@@ -384,7 +403,7 @@ Every push and pull request builds the demos, enforces the 256-byte limit and ru
 add a section to `CHANGELOG.md` and push a tag:
 
 ```sh
-git tag v1.7.0 && git push origin v1.7.0
+git tag v1.8.0 && git push origin v1.8.0
 ```
 
 The release workflow rebuilds, re-tests, and attaches the `.COM` files, `SHA256SUMS` and the gallery image, with that section as the notes.
@@ -405,6 +424,7 @@ src/cliff.asm       Clifford attractor
 src/fire.asm        framebuffer-feedback fire
 src/escher.asm      CRTC-only animation (start address + line compare)
 src/chladni.asm     Chladni plate nodal lines on the FPU
+src/order.asm       regions from the ordering of three expressions
 src/warp.asm        DOS screen warped by CRTC character height and row stride
 src/latch.asm       cellular automaton computed by the VGA graphics controller
 src/julia.asm       integer Julia set with an orbiting constant

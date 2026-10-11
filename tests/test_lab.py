@@ -183,5 +183,17 @@ check(bytes(r.uc.mem_read(0xB8000, 4000)) == before and not r.ints, "WARP: the t
 rx = Run("WARP.COM"); rx.run_until_exit(2, per=4)
 check(rx.exited and (0x10, 0x03) in rx.ints, "WARP: Esc sets text mode 3 (restoring the CRTC) and returns to DOS")
 
+print("\n== ORDER ==")
+r = Run("ORDER.COM").frames(1, per=2); common("ORDER", r)
+s1 = r.screen()[:64000]
+bands = {b >> 5 for b in s1}
+check(len(bands) >= 5, f"ORDER: at least five of the possible orderings appear as regions ({sorted(bands)})")
+check(sum(1 for i in range(1, 64000) if s1[i] >> 5 == s1[i-1] >> 5) > 0.97 * 64000, "ORDER: the regions are large and coherent (97%+ of horizontal neighbours share an ordering)")
+check(not any(b in (0xD9, 0xDB, 0xDD, 0xDE) for b in r.com[20:]) and not any(p == 0x42 for p, v in r.outs), "ORDER: integer only, no FPU, no sound")
+r.frames(2, per=2); s2 = r.screen()[:64000]
+check(sum(1 for a, b in zip(s1, s2) if a >> 5 != b >> 5) > 1000, "ORDER: the region boundaries move as t changes")
+rx = Run("ORDER.COM"); rx.run_until_exit(1, per=2)
+check(rx.exited and (0x10, 0x03) in rx.ints, "ORDER: Esc restores text mode 3 and returns to DOS")
+
 print("\nRESULT: " + ("ALL PASS" if not fails else f"{len(fails)} FAILED"))
 sys.exit(1 if fails else 0)
