@@ -261,7 +261,7 @@ Every frame the program writes two seed bytes into the row just below the screen
 
 **A DOSBox finding.** My first version used the graphics controller's own data rotate (GR03 = 19h, rotate by 1) instead of `rcr`. In DOSBox 0.74 that drew a single rising column: the rotate appeared to have no effect in write mode 3, so the CPU now does the shift. Real VGA hardware applies the rotate before the mask; I have not been able to check that here.
 
-**Testing limits.** The emulated CPU in the test suite has no VGA latches, so its 7 checks cover the register programming, the inner loop and the clean exit; the picture itself has only been seen in DOSBox. There is no GIF for LATCH: my screen recording of it caught another window instead of DOSBox, so I discarded it and used DOSBox's own window captures.
+**Testing limits.** The emulated CPU in the test suite has no VGA latches, so its 7 checks cover the register programming, the inner loop and the clean exit; the picture itself has only been seen in DOSBox. Its GIF is rendered, not recorded: my one attempt to screen-record it caught another window instead of DOSBox and was discarded, so the animation comes from the real binary in the emulated CPU with a model of the four planes, the latches, write mode 3 and XOR (it matches the DOSBox stills).
 
 ## JULIA in detail
 
