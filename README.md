@@ -19,8 +19,8 @@ sound is computed by a few hundred bytes of code.
 | [`FIRE.COM`](src/fire.asm) | 123 B | 386, VGA | Framebuffer feedback: each pixel becomes the average of four pixels below it, minus a little, with random heat injected at the bottom. A smoky turbulent fire, no FPU. |
 | [`ESCHER.COM`](src/escher.asm) | 137 B | 386, VGA | The picture is drawn once; after that only the CRT controller's start address and line-compare registers move, folding a hyperbolic texture into an impossible patchwork. No pixel is ever redrawn. |
 | [`CHLADNI.COM`](src/chladni.asm) | 224 B | 386 + FPU, VGA | The nodal lines of a vibrating plate, `sin(ax)sin(by) - sin(bx)sin(ay) = 0`, with drifting mode numbers that also tune the speaker. |
-| [`ROOTS.COM`](src/roots.asm) | 232 B | 386, VGA | Polynomial root migration: the white curves are where a cubic in x and y changes sign; as one coefficient sweeps, the roots migrate, pinch into a crossing and reconnect the other way. Warm and cool contour bands show the sign. |
-| [`ORDER.COM`](src/order.asm) | 123 B | 386, VGA | Three cheap expressions per pixel (hyperbolas, vertical lines, horizontal lines) are never drawn; only which of the six orderings they are in is, so the screen is a set of regions whose boundaries fold and collide as time moves. |
+| [`ROOTS.COM`](src/roots.asm) | 251 B | 386, VGA | Polynomial root migration: the bright curves are where a cubic in x and y changes sign; as two coefficients sweep at different speeds, the roots migrate, pinch into crossings and reconnect, in new places each time. Warm and cool contour bands show the sign. |
+| [`ORDER.COM`](src/order.asm) | 108 B | 386, VGA | Three cheap expressions per pixel (hyperbolas, vertical lines, horizontal lines) are never drawn; only which of the six orderings they are in is, so the screen is a set of regions whose boundaries fold and collide as time moves. |
 | [`WARP.COM`](src/warp.asm) | 72 B | 386, VGA | No video mode, no drawing: the DOS screen you launched it from is squashed, stretched and sheared by rewriting two CRT-controller registers (character height and row stride) every frame. |
 | [`LATCH.COM`](src/latch.asm) | 82 B | 386, EGA/VGA | A rule-60 cellular automaton (Sierpinski waterfalls) computed by the VGA graphics controller: each byte read loads 8 pixels x 4 planes into the latches, each write puts them back one row up with an XOR colour applied by the hardware. |
 | [`JULIA.COM`](src/julia.asm) | 161 B | 386, VGA | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape. No FPU, no sine table. |
@@ -86,7 +86,7 @@ All captured from the real binaries in DOSBox.
 | ![CHLADNI](docs/chladni-a.jpg) | ![CHLADNI later](docs/chladni-b.jpg) |
 | **CHLADNI.** Sand gathers on the lines where the plate does not move. | **CHLADNI, later.** As the mode number drifts, the nodal lines reconnect into loops, then a lattice. |
 | ![ORDER](docs/order.jpg) | ![ROOTS](docs/roots.jpg) |
-| **ORDER** in DOSBox: hyperbola fans cut by straight partitions, each region an ordering of three numbers. | **ROOTS** in DOSBox: two root curves just after they have crossed and reconnected. |
+| **ORDER** in DOSBox: hyperbola fans cut by straight partitions, each region an ordering of three numbers. | **ROOTS** in DOSBox: the roots drawn in the brightest shade of their own side, orange where the cubic is positive and blue where it is negative. |
 | ![WARP](docs/warp-a.jpg) | ![WARP squashed](docs/warp-b.jpg) |
 | **WARP.** The DOSBox start-up screen, stretched and sheared into a staircase: the text in memory is unchanged. | **WARP, squashed.** At 4 scan lines per character the whole screen collapses into the top fifth. |
 | ![LATCH](docs/latch-a.jpg) | ![LATCH later](docs/latch-b.jpg) |
@@ -109,7 +109,7 @@ Real recordings of the shipped binaries in DOSBox 0.74-3 (`cycles=max`), so what
 | ![WARP](docs/warp.gif) | ![ORDER](docs/order.gif) |
 | **WARP**, 6.5 s: the DOS screen squashing, stretching and shearing. Rendered (see below). | **ORDER**, 6 s: the regions folding as the three expressions move. Rendered (see below). |
 | ![ROOTS](docs/roots.gif) | |
-| **ROOTS**, 5 s: the root curves migrating, crossing and reconnecting. Rendered (see below). | |
+| **ROOTS**, 6 s: the root curves migrating, crossing and reconnecting. Rendered (see below). | |
 
 *How they were made: with DOSBox in front, its window was screen-captured at 30 to 60 frames per second (cropped to the window only), then converted to 25 fps GIFs at the native 320x200 (ESCHER at 20 fps to keep it small) with a reduced palette. A small patch where the mouse pointer sat at the top edge was painted black. GIF cannot show a 70 Hz display, so very fast detail is smoother in the real thing.*
 
@@ -239,12 +239,14 @@ As with the attractors, **I have not listened to the speaker.**
 From the same list, "polynomial root migration" (#9), which turned out to show the list's "catastrophe" idea (#98) too. For each pixel, with X = x - 160 and Y = y - 100:
 
 ```
-v = X^3/64  -  6 X (Y + T)  +  Y^2 T / 16          (32-bit integers; T sweeps -32..+31 and back)
+v = X^3/64  +  X (16 S - 6 T - 6 Y)  +  Y^2 T / 16        (32-bit integers)
 ```
 
-The program never draws v itself. Bit 7 of each pixel's colour is v's **sign**, and a pixel turns white when its sign differs from the pixel to its left or the one above (the row above is already in video memory, so the screen itself is the memory for the edge test). Those white pixels are the zero set of the cubic: its roots. The other seven bits shade |v| into faint contour bands, warm on the positive side and cool on the negative.
+T and S are two triangle waves from one 9-byte subroutine, S four times slower than T. The two linear coefficients are folded into one per-frame constant, `K = 16 S - 6 T`, so a pixel costs one multiply for them, not two.
 
-As T moves, the curves migrate. At some values two branches meet in a crossing and then reconnect the other way: a saddle, the point where the picture's topology changes. The palette is built by one loop: shades 0..63 warm, 128..191 cool, and entries 127 and 255 white so a root keeps its sign bit.
+The program never draws v itself. Bit 7 of each pixel's colour is v's **sign**, and a pixel is a **root** when its sign differs from the pixel to its left or the one above (the row above is already in video memory, so the screen itself is the memory for the edge test; row 0 and column 0 are skipped). A root takes the brightest entry of its own side's ramp: orange on the positive side, blue on the negative. Everywhere else the other bits shade |v| into dim contour bands, warm or cool. The palette is one short loop: each index's low 6 bits are a brightness, and bit 7 swaps red and blue.
+
+As T sweeps, the curves migrate; at some values two branches meet in a crossing and then reconnect the other way, a saddle where the picture's topology changes. The slower S tilts the whole cubic, so each sweep puts the crossings in a different place.
 
 I prototyped about twenty of the list's mechanisms as NumPy models first (Collatz stopping times, coprimality, quadratic residues, 3-adic valuations, bit run lengths, functional-graph basins, determinants, projective curtains, curvature, energy defects of a Minsky circle, wrap-around conservation failure, forward/backward rotation error, integer vortices, an integer logistic map, inverse branches of x^2 mod 256, hysteresis) and only built the two that looked like something: ORDER and ROOTS. Most of the number-theory fields read as noise at screen resolution; several of the others are familiar shapes (hyperbola contours, ray floors, bifurcation diagrams).
 
@@ -258,7 +260,7 @@ b = x - 2t             vertical lines, drifting the other way
 c = 3y + t             horizontal lines
 ```
 
-All three are 8-bit and wrap. Three comparisons (`a<b`, `b<c`, `a<c`) are collected into AL with `cmp` / `rcl al,1`, so the carry flag carries each answer straight into a 3-bit region number; two of the eight patterns are logically impossible, so exactly six regions can appear (the test sees all six). The region selects a 32-entry band of the palette and `a` shades it. Where two of the expressions are equal, a boundary runs; as `t` moves, the hyperbola fans slide across the line grid and regions fold, collide and swap. No sine, square root, table or FPU.
+All three are 8-bit and wrap. Three comparisons (`a<b`, `b<c`, `a<c`) are collected into AH with `cmp` / `rcl ah,1`, so the carry flag carries each answer straight into a 3-bit region number; two of the eight patterns are logically impossible, so exactly six regions can appear (the test sees all six). The region selects a 32-entry band of the palette and `a` shades it. Where two of the expressions are equal, a boundary runs; as `t` moves, the hyperbola fans slide across the line grid and regions fold, collide and swap. No sine, square root, table or FPU. Time lives in BP and every expression is computed in a 16-bit register and compared by its low byte, which brought the program from 123 to 108 bytes with identical pixels.
 
 Tried from the same list and not shipped: **EUCLID** (#2, colour = the number of subtractions in Euclid's GCD algorithm on the pixel coordinates) shows the expected bright rays at rational slopes, but the background between them is irregular counts that read as noise rather than the promised "crystal city"; **ORBIT** (#47, plotting a full-period 16-bit linear congruential generator as a trajectory) covers the screen uniformly, as a full-period permutation must, so there is nothing to see but noise.
 
@@ -422,7 +424,7 @@ Every push and pull request builds the demos, enforces the 256-byte limit and ru
 add a section to `CHANGELOG.md` and push a tag:
 
 ```sh
-git tag v1.9.0 && git push origin v1.9.0
+git tag v1.10.0 && git push origin v1.10.0
 ```
 
 The release workflow rebuilds, re-tests, and attaches the `.COM` files, `SHA256SUMS` and the gallery image, with that section as the notes.

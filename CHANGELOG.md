@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.9.0]
+- **ROOTS** expanded and recoloured (232 -> 251 B): a second, slower coefficient S tilts the cubic so crossings happen in new places each sweep; the two linear terms are folded into one per-frame constant; roots drawn in the brightest shade of their own side (no special white palette branch); column 0 and row 0 no longer draw false roots.
+- **ORDER** shrunk 123 -> 108 B with pixel-identical output (time in BP, expressions in 16-bit registers compared by their low bytes).
+
 ## [1.8.0]
 - **ROOTS** (232 B): polynomial root migration, the sign changes of a cubic as white curves that cross and reconnect. 10 new checks (111 in all). Rendered GIF and DOSBox still.
 - README: the twenty mechanisms prototyped from the 100-effects list and why only two were built.

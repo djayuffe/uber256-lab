@@ -1,6 +1,8 @@
-; ROOTS - polynomial root migration. For each pixel, v = X^3/64 - 6*X*(Y+T) + Y*Y*T/16 (X, Y centred, T moving).
+; ROOTS - polynomial root migration. For each pixel, v = X^3/64 + X*(16S - 6T - 6Y) + Y*Y*T/16 (X, Y centred;
+; T and S are two triangle waves, S four times slower).
 ; The picture is v's SIGN: where it changes against the pixel to the left or above, the pixel is a root and
-; turns white; elsewhere |v| draws faint contour bands, warm where v > 0 and cool where v < 0. As T sweeps,
+; is drawn at full brightness (orange on the positive side, blue on the negative); elsewhere |v| draws faint
+; contour bands, warm where v > 0 and cool where v < 0. As T sweeps,
 ; the roots migrate, pinch together and split.
 BITS 16
 CPU 386
@@ -10,49 +12,34 @@ ORG 100h
     push word 0A000h
     pop es
     mov dx,3C9h
-.pal:                         ; index = sign*128 + shade: 0..63 warm shades, 128..191 cool, 127 and 255 white
+.pal:                         ; index = sign*128 + shade; shade 63 (index 127/255) is a root: the brightest of its ramp
     mov al,bl
-    and al,127
-    cmp al,127
-    jne .shade
-    mov al,63
-    out dx,al
-    out dx,al
-    out dx,al
-    jmp short .next
-.shade:
-    and al,63
-    shr al,1                  ; 0..31
+    and al,63                 ; s = 0..63
+    mov cl,al
+    shr cl,1                  ; G = s/2
     mov ah,al
-    shr ah,1
+    shr ah,2                  ; s/4
     test bl,bl
-    js .cool
-    out dx,al                 ; warm: R = s, G = s/2, B = s/4
+    jns .warm
+    xchg al,ah                ; negative side: cool (R and B swap)
+.warm:
+    out dx,al                 ; R
+    mov al,cl
+    out dx,al                 ; G
     mov al,ah
-    out dx,al
-    shr al,1
-    out dx,al
-    jmp short .next
-.cool:
-    shr al,2                  ; cool: R = s/4, G = s/2, B = s
-    out dx,al
-    mov al,ah
-    out dx,al
-    shl al,1
-    out dx,al
-.next:
+    out dx,al                 ; B
     inc bl
     jnz .pal
 frame:
-    mov al,[t]                ; T = triangle wave -32..+31
-    test al,64
-    jz .up
-    not al
-.up:
-    and al,63
-    sub al,32
-    cbw
-    movsx ebp,ax
+    mov al,[t]                ; T = a triangle wave -32..+31
+    call tri
+    mov [tt],eax
+    imul ebp,eax,-6           ; K = 16 S - 6 T: both linear coefficients folded into one per frame
+    mov al,[t]                ; S = a four-times-slower triangle
+    shr al,2
+    call tri
+    shl eax,4
+    add ebp,eax
     xor di,di
 .px:
     mov ax,di
@@ -67,25 +54,28 @@ frame:
     imul eax,ecx
     imul eax,ecx
     sar eax,6                 ; X^3/64
-    lea ebx,[esi+ebp]
+    imul ebx,esi,-6
+    add ebx,ebp
     imul ebx,ecx
-    imul ebx,ebx,6
-    sub eax,ebx               ; - 6X(Y+T)
+    add eax,ebx               ; + X (16 S - 6 T - 6 Y)
     mov ebx,esi
     imul ebx,esi
-    imul ebx,ebp
+    imul ebx,[tt]
     sar ebx,4
     add eax,ebx               ; + Y*Y*T/16
     cdq                       ; edx = sign mask
     xor eax,edx
     sub eax,edx               ; |v|
-    shr eax,8
-    and al,63
+    shr eax,9                 ; the field uses the dim half of each ramp (0..31)
+    and al,31
     and dl,128                ; sign bit as bit 7 of the colour
     or al,dl
+    cmp cx,-160               ; column 0 has no left neighbour
+    je .above
     mov ah,al                 ; root if the sign differs from the left or the upper neighbour
     xor ah,[es:di-1]
     js .root
+.above:
     cmp di,320                ; row 0 has no row above
     jb .put
     mov ah,al
@@ -109,4 +99,14 @@ frame:
     mov ax,3
     int 10h
     ret
+tri:                          ; al -> eax = triangle(al) - 32, i.e. -32..+31 and back
+    test al,64
+    jz .up
+    not al
+.up:
+    and al,63
+    sub al,32
+    movsx eax,al
+    ret
 t: db 0
+tt: dd 0

@@ -29,29 +29,27 @@ frame:
     mov bx,ax                 ; a = (x*y)/64 + t
     imul bx,dx
     sar bx,6
-    add bl,byte [t]
-    mov cl,dl                 ; b = x - 2t
-    sub cl,byte [t]
-    sub cl,byte [t]
-    mov ch,al                 ; c = 3y + t
-    add ch,al
-    add ch,al
-    add ch,byte [t]
-    xor al,al                 ; region = ordering of (a, b, c): three comparisons -> 3 bits
+    add bx,bp
+    mov cx,dx                 ; b = x - 2t
+    sub cx,bp
+    sub cx,bp
+    imul ax,ax,3              ; c = 3y + t
+    add ax,bp
+    xor ah,ah                 ; which of the six orderings of (a, b, c)? three comparisons -> 3 bits in AH
     cmp bl,cl
-    rcl al,1
-    cmp cl,ch
-    rcl al,1
-    cmp bl,ch
-    rcl al,1
-    shl al,5                  ; region picks a band of the palette...
-    mov ah,bl
-    shr ah,3
+    rcl ah,1
+    cmp cl,al
+    rcl ah,1
+    cmp bl,al
+    rcl ah,1
+    shl ah,5                  ; the ordering picks a band of the palette...
+    mov al,bl
+    shr al,3
     add al,ah                 ; ...and a shades it
     stosb
     cmp di,64000
     jb .px
-    inc byte [t]
+    inc bp
     mov dx,3DAh
 .vs:
     in al,dx
@@ -63,4 +61,3 @@ frame:
     mov ax,3
     int 10h
     ret
-t: db 0
