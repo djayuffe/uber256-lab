@@ -384,12 +384,12 @@ r = mega_run()
 seq = []
 for ch, p in r.programs():
     if not seq or seq[-1] != p: seq.append(p)
-order = [46, 108, 9, 45, 11, 14, 11, 12, 24, 114, 8, 10, 4]
-check(seq == order, f"MEGA: all thirteen parts play, in order: FLOWTEX, SELFTEX, GOLDTEX, ORDER, ESCHER, CHLADNI, GALAXY, CLIFF, FIRE, ROOTS, JULIA, LATCH, WARP (programs {seq})")
+order = [46, 108, 9, 45, 11, 12, 24, 114, 8, 10, 4]
+check(seq == order, f"MEGA: its eleven parts play, in order: FLOWTEX, SELFTEX, GOLDTEX, ORDER, GALAXY, CLIFF, FIRE, ROOTS, JULIA, LATCH, WARP (programs {seq})")
 modes = [a for n, a in r.ints if n == 0x10 and a >> 8 == 0]
-check(modes.count(0x13) >= 15 and 0x0D in modes and modes[-3:] == [3, 0x13, 3], "MEGA: a mode-13h title card before every part, LATCH's mode 0Dh, text mode for the credits, the closing card, text mode at the end")
+check(modes.count(0x13) >= 13 and 0x0D in modes and modes[-3:] == [3, 0x13, 3], "MEGA: a mode-13h title card before every part, LATCH's mode 0Dh, text mode for the credits, the closing card, text mode at the end")
 hooks = [v for v in r.vec_sets if v[0] == 0x1C]
-check(len(hooks) == 26 and r.vector(0x1C) == BIOS_1C, "MEGA: each part hooks the timer and puts it back (13 hooks, 13 unhooks); the BIOS handler is in place at the end")
+check(len(hooks) == 22 and r.vector(0x1C) == BIOS_1C, "MEGA: each part hooks the timer and puts it back (11 hooks, 11 unhooks); the BIOS handler is in place at the end")
 text = bytes(r.uc.mem_read(0xB8000, 4000))[0::2]
 check(b"M E G A D E M O" in text and b"djayuffe" in text, "MEGA: WARP bends the credits, which the megademo wrote to the text screen")
 check(r.exited and not r.unmapped, "MEGA: returns to DOS at the end, touching only its segments and video RAM")

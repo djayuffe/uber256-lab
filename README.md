@@ -13,7 +13,7 @@ libraries, and no DOS calls except setting the video mode, hooking the timer tic
 palette colour and every note is computed by a few hundred bytes of code. The music goes out as General MIDI through an
 MPU-401, which DOSBox provides out of the box (and plays through the system's synthesizer on macOS and Windows).
 
-**The megademo:** [`MEGA.COM`](src/mega/mega.asm) plays all thirteen in one show, about four and a half minutes, with
+**The megademo:** [`MEGA.COM`](src/mega/mega.asm) plays eleven of them in one show, about four minutes, with
 a golden title card before each part, a fade after it, and WARP bending the credits at the end:
 [`docs/mega.mp4`](docs/mega.mp4) is a DOSBox recording of it with its music. `./run-dosbox.sh mega` runs it.
 
@@ -90,7 +90,7 @@ Or build from source (needs [NASM](https://www.nasm.us/); on macOS `brew install
 ./build.sh              # assembles src/*.asm, enforces the 256-byte limit, writes SHA256SUMS
 ./run-dosbox.sh galaxy  # any of: galaxy cliff chladni fire escher julia latch order roots selftex goldtex flowtex warp
 ./run-dosbox.sh '*tex'  # several in a row (here SELFTEX, GOLDTEX, FLOWTEX); also names, or 'all'
-./run-dosbox.sh mega    # the megademo: all thirteen in one program, with titles, fades and credits
+./run-dosbox.sh mega    # the megademo: eleven of them in one program, with titles, fades and credits
 ```
 
 **Esc** quits each demo cleanly (with several, it starts the next one, each in a fresh DOSBox so a held Esc cannot skip one): it restores text mode 3, puts the timer vector back and returns to DOS (JULIA draws
@@ -616,9 +616,11 @@ The music: every other tick a harp plays one of the four code bytes now entering
 
 ## The megademo
 
-[`MEGA.COM`](src/mega/mega.asm) (about 5.8 KB) is all thirteen intros as one show, in an order chosen to flow: the three
-code textures (FLOWTEX, SELFTEX, GOLDTEX), then ORDER and ESCHER, the plate, the two attractors, FIRE, ROOTS, JULIA,
-LATCH, and WARP last, bending the credits. About four and a half minutes; Esc ends it at any point.
+[`MEGA.COM`](src/mega/mega.asm) (about 5 KB) is eleven of the intros as one show, in an order chosen to flow: the three
+code textures (FLOWTEX, SELFTEX, GOLDTEX), then ORDER, the two attractors, FIRE, ROOTS, JULIA, LATCH, and WARP last,
+bending the credits. About four minutes; Esc ends it at any point. ESCHER and CHLADNI are left out of the show (2.8.1);
+they are still in the collection as standalone intros. The programme is the `ENTRY` list in the source: `build.sh`
+reads it for the part count and total size on the closing card.
 
 ![The megademo, a frame every five seconds](docs/mega-sheet.jpg)
 
@@ -642,9 +644,9 @@ WARP's text mode. Then a title card: the part's name in the BIOS 8x8 font (INT 1
 glyph row its own gradient step from ivory to deep gold, with the size of the 256-byte build and a line on what it is
 and what plays it. A band of white light runs down the letters while the card fades in, holds and fades out. Before
 WARP the megademo writes the credits to the text screen, and WARP, which bends whatever text is there, bends them. The
-show ends on a card with the total: the thirteen intros come to 3,218 bytes.
+show ends on a card with the total: the eleven intros in it come to 2,724 bytes.
 
-**Tests.** The emulator runs the whole show, advancing the clock as it goes: all thirteen parts play in order (their
+**Tests.** The emulator runs the whole show, advancing the clock as it goes: all eleven parts play in order (their
 General MIDI programs, in sequence), every part hooks and unhooks the timer, LATCH gets its mode 0Dh and WARP its
 credits, Esc during a part ends everything cleanly, and the program returns to DOS.
 
@@ -680,6 +682,8 @@ times a second, so 39 frames a second shows every change at least twice. JULIA i
 flows 18 times a second in the tick handler whatever the frame rate. The music never depends on the frame rate.
 
 ## Version 2.8: the megademo
+
+2.8.1 takes ESCHER and CHLADNI out of the show (eleven parts, about four minutes); both stay as standalone intros.
 
 All thirteen intros in one program, `MEGA.COM`, with title cards, fades and credits; see [The megademo](#the-megademo).
 `build.sh` builds it from the same sources (with `-DMEGA`) after the 256-byte binaries, which are unchanged.
@@ -887,7 +891,7 @@ so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it 
 - **SELFTEX:** a sky ramp above the horizon; every ground pixel is a code byte (water, fields) or the shore; water in
   every row, wide in front and narrow far away; the river bends; it moves with the clock; the melody is the program's
   bytes in order.
-- **MEGA:** all thirteen parts in order (by their MIDI programs); a title card before each, LATCH's mode, the credits
+- **MEGA:** all eleven parts in order (by their MIDI programs); a title card before each, LATCH's mode, the credits
   for WARP, the closing card; 13 timer hooks and 13 unhooks; Esc ends the show; a clean return to DOS.
 - **The groove** (FIRE, GOLDTEX, LATCH, ORDER, WARP): drums every fourth tick in the kick, hat, snare, hat order, and a
   bass with every kick on the descending pentatonic walk.

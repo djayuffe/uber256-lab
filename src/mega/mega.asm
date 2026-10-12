@@ -1,4 +1,4 @@
-; MEGA - the uber256-lab megademo: all thirteen intros in one program, each introduced by a title card and closed by
+; MEGA - the uber256-lab megademo: eleven of the intros in one program, each introduced by a title card and closed by
 ; a fade, with its own live music, ending on WARP bending the credits.
 ;
 ; Each part is its own source assembled with -DMEGA (build.sh): the same code as the 256-byte release, except that its
@@ -436,16 +436,14 @@ PT_SIZE  equ 80
 %endmacro
 
 intro:
-    db "UBER256", 0, "LAB  MEGADEMO", 0, "13 INTROS, 256 BYTES EACH, MUSIC LIVE", 0
+    db "UBER256", 0, "LAB  MEGADEMO", 0, SZ_COUNT, " INTROS, 256 BYTES EACH, MUSIC LIVE", 0
 outro:
-    db "THE END", 0, "13 INTROS", 0, "ALL OF THEM TOGETHER: ", SZ_TOTAL, " BYTES", 0
+    db "THE END", 0, SZ_COUNT, " INTROS", 0, "ALL OF THEM TOGETHER: ", SZ_TOTAL, " BYTES", 0
 parts:
     ENTRY flowtex, SZ_FLOWTEX, 16, "FLOWTEX", "ITS OWN MACHINE CODE, AS SATIN - HARP"
     ENTRY selftex, SZ_SELFTEX, 16, "SELFTEX", "A RIVER OF MACHINE CODE - KALIMBA"
     ENTRY goldtex, SZ_GOLDTEX, 16, "GOLDTEX", "POLISHED GOLD ON CODE - GLOCKENSPIEL"
     ENTRY order,   SZ_ORDER,   16, "ORDER",   "SHAPES FROM ORDERINGS - PIZZICATO"
-    ENTRY escher,  SZ_ESCHER,  16, "ESCHER",  "NEVER REDRAWN, ONLY MOVED - SHEPARD"
-    ENTRY chladni, SZ_CHLADNI, 16, "CHLADNI", "SAND WHERE THE PLATE IS STILL - BELLS"
     ENTRY galaxy,  SZ_GALAXY,  20, "GALAXY",  "A DE JONG ATTRACTOR - VIBRAPHONE"
     ENTRY cliff,   SZ_CLIFF,   16, "CLIFF",   "A CLIFFORD ATTRACTOR - MARIMBA"
     ENTRY fire,    SZ_FIRE,    16, "FIRE",    "FEEDBACK AND HEAT - GUITAR"
@@ -457,16 +455,16 @@ parts_end:
 
 credit_lines:
     db "U B E R 2 5 6 - L A B   M E G A D E M O", 0
-    db "thirteen intros of 256 bytes or less, each playing its own music", 0
-    db "FLOWTEX  SELFTEX  GOLDTEX  ORDER  ESCHER  CHLADNI  GALAXY", 0
-    db "CLIFF  FIRE  ROOTS  JULIA  LATCH  WARP", 0
+    db "eleven intros of 256 bytes or less, each playing its own music", 0
+    db "FLOWTEX  SELFTEX  GOLDTEX  ORDER  GALAXY  CLIFF", 0
+    db "FIRE  ROOTS  JULIA  LATCH  WARP", 0
     db "code and music: djayuffe & Claude", 0
     db "NASM - 16-bit real mode - VGA - x87 - MPU-401 General MIDI", 0
     db "github.com/djayuffe/uber256-lab", 0
     db "thanks for watching", 0
     db 0FFh
 bye:
-    db "uber256-lab megademo - thirteen intros, 256 bytes each. Thanks for watching.", 13, 10, "$"
+    db "uber256-lab megademo - eleven intros, 256 bytes each. Thanks for watching.", 13, 10, "$"
 
 %macro BIN 2
 %1_bin:
@@ -477,8 +475,6 @@ bye:
     BIN selftex, "build/SELFTEX.MEG"
     BIN goldtex, "build/GOLDTEX.MEG"
     BIN order,   "build/ORDER.MEG"
-    BIN escher,  "build/ESCHER.MEG"
-    BIN chladni, "build/CHLADNI.MEG"
     BIN galaxy,  "build/GALAXY.MEG"
     BIN cliff,   "build/CLIFF.MEG"
     BIN fire,    "build/FIRE.MEG"
