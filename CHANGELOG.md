@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.6.0]
+- **GOLDTEX: polished gold.** Gold blocks are smooth diagonal ramps (colour 132 + 4(u + v)) instead of code texture, and colours 129..255 are a triangle wave one tile-diagonal long, R = s (32..63), G = s - 8, B = s - 32: a band of white-gold light sweeps over every tile from corner to corner every 1.8 s, over deep gold. Gold runs are three instructions a pixel (440,788 instructions a frame, was 555,123). 253 bytes.
+- Tests: the gold-tile formula, the gold palette (R >= 32, G = R - 8, B = R - 32, a smooth band), the sweeping light. 246 checks.
+- New GOLDTEX recording, GIF, MIDI, gallery tile and showreel.
+
 ## [2.5.0]
 - **Speed.** Every demo that missed 70 frames a second at DOSBox `cycles=fixed 60000` now reaches it; instructions per frame (counted by the new `tools/cost.py`) and DOSBox frames per second at 60000 cycles, 2.4 -> 2.5:
   - CHLADNI 965,431 -> 548,810, 35 -> 70: the lattice is centred between pixels, so the left half is computed and each value written twice (at x and 319 - x); the table holds only the 260 entries used (520 FSINs). The mode number runs on a per-frame phase kept on the FPU stack (same 30 s period) instead of the 18.2 Hz clock, so the figure changes every frame. 251 bytes.

@@ -1,11 +1,12 @@
-; GOLDTEX - the classic SELFTEX effect with golden blocks. Each pixel is a byte of the program's own machine
+; GOLDTEX - the classic SELFTEX effect with polished gold blocks. Each pixel is a byte of the program's own machine
 ; code, picked by x*y/64 + t: hyperbolic bands of code, sliding as t grows, in a flowing palette. On top, the
 ; screen is a grid of 16x16 blocks, and the program's bytes decide which are gold: block (bx, by) is gold when
-; the code byte at (16 by + bx + t/16) is a multiple of 16, so the golden blocks hop across the grid as t
-; moves. A gold block shows the same code texture in the bright half of a gold ramp whose palette cycles, so it
-; glitters. The screen is drawn in 16-pixel runs, each inside one block, so the block test is made once per run and
-; a pixel is seven instructions: 70 frames a second. Music: the code bytes in order on a glockenspiel, doubled an
-; octave up, over a drum kit and a walking bass (groove.inc).
+; the code byte at (16 by + bx + t/16) is a multiple of 16, so the golden blocks hop across the grid as t moves.
+; A gold block is a smooth diagonal ramp, colour 132 + 4(u + v), and the palette turns the ramp into polished
+; metal: a band of light, a triangle wave one tile-diagonal long, sweeps over every tile from corner to corner,
+; deep gold in the troughs and white-gold in the glint. The screen is drawn in 16-pixel runs, each inside one
+; block, so the block test is made once per run: 70 frames a second. Music: the code bytes in order on a
+; glockenspiel, doubled an octave up, over a drum kit and a walking bass (groove.inc).
 BITS 16
 CPU 386
 ORG 100h
@@ -15,8 +16,7 @@ ORG 100h
     HOOK_TICK isr                 ; the timer tick drives the music
     push word 0A000h
     pop es
-    mov bx,100h               ; XLAT table = the program itself
-    xor bp,bp                 ; time
+    mov bx,100h               ; XLAT table = the program itself; time is BP, from wherever DOS left it
 frame:
     xor di,di
 .blk:                         ; a 16-pixel run of one block, set up from its screen offset
@@ -25,31 +25,35 @@ frame:
     mov cx,320
     div cx                    ; AX = y, DX = x
     imul si,ax,4              ; SI = 4y
-    and al,-16                ; the block key: 16 (y/16) + x/16 + t/16
-    mov cx,dx
-    shr cx,4
-    add al,cl
-    mov cx,bp
+    and al,-16                ; the block key: 16 (y/16) + (x + t)/16, which at a block's left edge
+    mov cx,dx                 ; is x/16 + t/16
+    add cx,bp
     shr cx,4
     add al,cl
     xlat                      ; the code byte that rules this block
-    mov ah,0C0h               ; a multiple of 16: AH = C0h, gold (colours 192..255)
-    test al,15
-    jz .gold
-    mov ah,0                  ; otherwise AH = 0
-.gold:
-    imul dx,si                ; DX = 256t + 4xy: its high byte is x*y/64 + t
-    mov cx,bp
-    add dh,cl
     mov cx,16
+    test al,15
+    jnz .tex
+    mov ax,si                 ; gold: no texture, a smooth diagonal ramp across the tile,
+    and al,60                 ; colour 132 + 4 (u + v), u and v the pixel's place in it
+    add al,132
+.gold:
+    stosb
+    add al,4
+    loop .gold
+    jmp short .next
+.tex:
+    imul dx,si                ; DX = 256t + 4xy: its high byte is x*y/64 + t
+    mov ax,bp
+    add dh,al
 .px:
     mov al,dh
     xlat                      ; the program's own byte: the texture
-    and al,127                ; the flowing colours 0..127, or gold
-    or al,ah
+    and al,127                ; in the flowing colours 0..127
     stosb
     add dx,si
     loop .px
+.next:
     test di,di                ; on to the 64 KB wrap (the last 1536 bytes are past the screen)
     jnz .blk
     inc bp
@@ -59,21 +63,21 @@ frame:
     test al,8
     jz .vs
     mov dl,0C9h               ; the palette (768 values, so the DAC index comes back to 0 each frame):
-    mov cx,256                ; entry k = (k + t) as i, 2i, 4i for 0..191, a cycling gold ramp for 192..255
+    mov ch,1                  ; (CX is 0 here) entry k = (k + t) as i, 2i, 4i for 0..128; polished gold for 129..255
 .flow:
     mov ax,cx
     add ax,bp
-    cmp cx,64
+    cmp cx,127
     ja .col
-    add ax,bp                 ; gold, cycling twice as fast: it glitters
-    and al,63
-    or al,32                  ; and kept in the bright half of the ramp
-    out dx,al                 ; R = s
-    mov ah,al
-    shr ah,2
-    sub al,ah
-    out dx,al                 ; G = 3s/4
-    mov al,ah
+    add al,al                 ; gold: a triangle wave of (t - k) with one period per tile diagonal, so a band
+    cbw                       ; of light sweeps over every tile, corner to corner: the shine
+    xor al,ah
+    shr al,2
+    or al,32                  ; R = s, 32..63: never dark
+    out dx,al
+    sub al,8
+    out dx,al                 ; G = s - 8
+    sub al,24                 ; B = s - 32: from deep gold (32, 24, 0) to a white-gold glint (63, 55, 31)
     jmp short .b
 .col:
     out dx,al

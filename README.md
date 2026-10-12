@@ -29,7 +29,7 @@ in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General
 | [`LATCH.COM`](src/latch.asm) | 245 B | 386, EGA/VGA, MPU-401 | A rule-60 cellular automaton (Sierpinski waterfalls) computed by the VGA graphics controller: each byte read loads 8 pixels x 4 planes into the latches, each write puts them back one row up with an XOR colour applied by the hardware. Its 15 colours run through a flowing rainbow and the picture shimmers. | A music box plays the ruler sequence (0 1 0 2 0 1 0 3 ...), the Sierpinski triangle's rhythm, over drums and a walking bass. |
 | [`JULIA.COM`](src/julia.asm) | 254 B | 386, VGA, MPU-401 | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape, and its escape bands flow 18 times a second. No FPU, no sine table. | Each tick, the escape time of the pixel just drawn is a celesta note; the set itself is silence. A low C pedal every 16 ticks. |
 | [`SELFTEX.COM`](src/selftex.asm) | 254 B | 386, VGA, MPU-401 | A river made of the program's own machine code: a perspective floor with a river winding across it into the distance, its water code bytes stretched into streaks that flow towards you, its banks fields of code-byte blocks, under a sky ramp. Every texel is a byte of the program. | The same bytes in order, on a kalimba: the score is the program. |
-| [`GOLDTEX.COM`](src/goldtex.asm) | 255 B | 386, VGA, MPU-401 | The classic SELFTEX effect, `code[x*y/64 + t]` (hyperbolic bands of machine code in a flowing palette), with golden blocks: the screen is a 16x16 grid and the program's own bytes decide which blocks are gold; they hop across the grid, and their gold ramp cycles so they glitter. | The program's bytes in order on a glockenspiel, doubled an octave up, over drums and a walking bass. |
+| [`GOLDTEX.COM`](src/goldtex.asm) | 253 B | 386, VGA, MPU-401 | The classic SELFTEX effect, `code[x*y/64 + t]` (hyperbolic bands of machine code in a flowing palette), with polished gold blocks: the screen is a 16x16 grid and the program's own bytes decide which blocks are gold; they hop across the grid, and a band of white-gold light sweeps over every tile. | The program's bytes in order on a glockenspiel, doubled an octave up, over drums and a walking bass. |
 
 ## Contents
 
@@ -49,6 +49,7 @@ in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General
 - [SELFTEX in detail](#selftex-in-detail)
 - [GOLDTEX in detail](#goldtex-in-detail)
 - [Speed](#speed)
+- [Version 2.6: polished gold](#version-26-polished-gold)
 - [Version 2.5: speed](#version-25-speed)
 - [Version 2.3: golden blocks](#version-23-golden-blocks)
 - [Version 2.2: the river](#version-22-the-river)
@@ -177,7 +178,7 @@ The GIFs are silent; each has an MP4 with its music next to it.
 | ![WARP](docs/warp.gif) | ![ORDER](docs/order.gif) |
 | **WARP**, 9 s ([with sound](docs/warp.mp4)): the DOS screen squashing, stretching and shearing. | **ORDER**, 9 s ([with sound](docs/order.mp4)): the regions folding as the three expressions move. |
 | ![ROOTS](docs/roots.gif) | ![GOLDTEX](docs/goldtex.gif) |
-| **ROOTS**, 9 s ([with sound](docs/roots.mp4)): the root curves migrating, crossing and reconnecting. | **GOLDTEX**, 6 s at 15 fps ([with sound](docs/goldtex.mp4)): golden blocks hopping over bands of machine code. |
+| **ROOTS**, 9 s ([with sound](docs/roots.mp4)): the root curves migrating, crossing and reconnecting. | **GOLDTEX**, 6 s at 15 fps ([with sound](docs/goldtex.mp4)): polished gold blocks hopping over bands of machine code, the light sweeping across them. |
 
 *How they were made: DOSBox ran under a virtual X display with its MIDI output sent to a pipe; the window was captured
 losslessly at 35 frames per second while the MIDI bytes were time-stamped as they arrived; the GIFs are 25 fps at the
@@ -535,23 +536,33 @@ Earlier versions (73 to 223 bytes) drew `code[(x*y >> 6) + t]`, hyperbolic bands
 ## GOLDTEX in detail
 
 ```
-pixel(x, y) = code[(x*y >> 6) + t] AND 127                      the classic SELFTEX bands
-            = 192 + (code[(x*y >> 6) + t] AND 63)               if code[x/16 + 16(y/16) + t/16] is a multiple of 16
+pixel(x, y) = code[(x*y >> 6) + t] AND 127                    the classic SELFTEX bands
+            = 132 + 4 (u + v)                                 if code[x/16 + 16(y/16) + t/16] is a multiple of 16
 ```
 
 The first line is SELFTEX as it was: `xlat` with BX = 100h reads the program's own byte at `x*y/64 + t`, and the
 palette flows (entry k = k + t, streamed as i, 2i, 4i). The second line is the gold. The screen is cut into 16x16
 blocks, and block (bx, by) asks the program itself whether it is gold: the code byte at `bx + 16 by + t/16` (16 by is
-just `y AND -16`, so the key costs one AND and two ADDs). About one block in six says yes, and as t moves the key
-slides, so the golden blocks hop to new places every 16 frames. A gold pixel keeps its code texel but moves it into
-colours 192..255, a gold ramp (R = s, G = 3s/4, B = s/4, s in the bright half) that cycles twice as fast as the rest,
-so each block glitters with the texture of the code under it.
+just `y AND -16`, and since a run starts at a block's left edge, `x/16 + t/16` is `(x + t)/16`). About one block in six
+says yes, and as t moves the key slides, so the golden blocks hop to new places every 16 frames.
 
-Since version 2.5 the screen is drawn as 4,096 runs of 16 pixels, each inside one block (the last 96 runs are past
-the screen, up to the 64 KB wrap). A run divides its offset by 320 once, looks up its block's code byte once and sets
-AH to C0h (gold) or 0; then every pixel is `mov al,dh / xlat / and al,127 / or al,ah / stosb / add dx,si / loop`, with
-DX = `256t + 4xy` growing by 4y (SI), so DH is the texel index with no shift, and `(b AND 127) OR C0h` is `b OR C0h`.
-Seven instructions a pixel instead of nineteen: 70 frames a second.
+**Polished gold (2.6).** A gold block has no texture: it is a smooth diagonal ramp, colour `132 + 4 (u + v)` with
+(u, v) the pixel's place in the tile, and the palette makes it metal. Entries 129..255 are a triangle wave of
+`(t - k)`, one period per tile diagonal, mapped to
+
+```
+R = s            32..63     (s = 32 + triangle / 4: never dark)
+G = s - 8        24..55
+B = s - 32        0..31     deep gold (32, 24, 0) in the troughs, white-gold (63, 55, 31) in the glint
+```
+
+so a band of light sweeps over every tile from corner to corner, once every 1.8 seconds, like a reflection crossing a
+polished surface. The triangle is `add al,al` / `cbw` / `xor al,ah`, and G and B are one `sub` each.
+
+The screen is drawn as 4,096 runs of 16 pixels, each inside one block (the last 96 runs are past the screen, up to the
+64 KB wrap). A run divides its offset by 320 once and looks up its block's code byte once. A gold run is
+`stosb / add al,4 / loop`; a code run is `mov al,dh / xlat / and al,127 / stosb / add dx,si / loop`, with DX =
+`256t + 4xy` growing by 4y (SI), so DH is the texel index with no shift. 70 frames a second from 31,000 DOSBox cycles.
 
 The palette is rewritten every frame without touching port 3C8h: 768 values bring the DAC's write index back to 0.
 The music is SELFTEX's riff (the program's bytes in order) on a glockenspiel, doubled an octave up, over the groove.
@@ -569,7 +580,7 @@ every run.
 | Demo | Instructions a frame, 2.4 -> 2.5 | `cycles` for 70 fps | DOSBox fps at 60000 cycles, 2.4 -> 2.5 | How |
 |---|---:|---:|---:|---|
 | CHLADNI | 965,431 -> 548,810 | 38,500 | 35 -> 70 | the left half is computed and mirrored; a 260-entry table |
-| GOLDTEX | 1,168,736 -> 555,123 | 38,900 | 35 -> 70 | 16-pixel runs, one block lookup each: 7 instructions a pixel |
+| GOLDTEX | 1,168,736 -> 440,788 | 30,900 | 35 -> 70 | 16-pixel runs, one block lookup each; gold runs are 3 instructions a pixel (2.6) |
 | ORDER | 1,029,147 -> 709,347 | 49,700 | 35 -> 70 | `a` is DH of one accumulator; carries rotated into the colour: 11 a pixel |
 | FIRE | 831,697 -> 768,018 | 53,800 | 70 -> 70 | the average as halves of halves with `rcr`; `loop` |
 | GALAXY | 692,315 -> 626,779 | 43,900 | 70 -> 70 | the fade's `v - v/16` is `aam 16` / `aad 15` |
@@ -585,6 +596,14 @@ every run.
 first frames, DOSBox averages over seven seconds.) ROOTS does not need 70: its picture changes with the BIOS clock, 18.2
 times a second, so 39 frames a second shows every change at least twice. JULIA is a slow-motion piece, and its palette
 flows 18 times a second in the tick handler whatever the frame rate. The music never depends on the frame rate.
+
+## Version 2.6: polished gold
+
+GOLDTEX's blocks become polished gold (253 bytes, see [GOLDTEX in detail](#goldtex-in-detail)): each gold tile is a
+smooth diagonal ramp instead of code texture, and its palette is a band of white-gold light that sweeps over every tile
+from corner to corner, over deep gold. Paid for by cheaper gold colours (G and B are one `sub` each from R), the block
+key as `(x + t)/16`, time starting wherever DOS leaves BP, and `mov ch,1` for the palette count (CX is 0 after the
+frame). It is also faster: 440,788 instructions a frame.
 
 ## Version 2.5: speed
 
