@@ -28,7 +28,7 @@ in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General
 | [`WARP.COM`](src/warp.asm) | 248 B | 386, VGA, MPU-401 | No video mode, no drawing: the DOS screen you launched it from is squashed, stretched, sheared and bobbed by four CRT-controller and attribute registers, shimmers sideways, and every colour on it runs through a flowing rainbow (black stays black). | An electric piano plays the character height: the arpeggio rises as the text stretches. Drums and a walking bass underneath. |
 | [`LATCH.COM`](src/latch.asm) | 245 B | 386, EGA/VGA, MPU-401 | A rule-60 cellular automaton (Sierpinski waterfalls) computed by the VGA graphics controller: each byte read loads 8 pixels x 4 planes into the latches, each write puts them back one row up with an XOR colour applied by the hardware. Its 15 colours run through a flowing rainbow and the picture shimmers. | A music box plays the ruler sequence (0 1 0 2 0 1 0 3 ...), the Sierpinski triangle's rhythm, over drums and a walking bass. |
 | [`JULIA.COM`](src/julia.asm) | 252 B | 386, VGA, MPU-401 | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape, and its escape bands flow 18 times a second. No FPU, no sine table. | Each tick, the escape time of the pixel just drawn is a celesta note; the set itself is silence. A low C pedal every 16 ticks. |
-| [`SELFTEX.COM`](src/selftex.asm) | 223 B | 386, VGA, MPU-401 | Each pixel is the sum of two bytes of the program's own machine code, one picked by `x*y/64 + time`, the other by `(y-x)/8 - 2*time`; the palette flows and the picture shivers. The bands you see are the code. | The program's bytes in order, on a kalimba doubled an octave up, over drums and a walking bass: the score is the program. |
+| [`SELFTEX.COM`](src/selftex.asm) | 254 B | 386, VGA, MPU-401 | A river made of the program's own machine code: a perspective floor with a river winding across it into the distance, its water code bytes stretched into streaks that flow towards you, its banks fields of code-byte blocks, under a sky ramp. Every texel is a byte of the program. | The same bytes in order, on a kalimba: the score is the program. |
 
 ## Contents
 
@@ -46,6 +46,7 @@ in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General
 - [LATCH in detail](#latch-in-detail)
 - [JULIA in detail](#julia-in-detail)
 - [SELFTEX in detail](#selftex-in-detail)
+- [Version 2.2: the river](#version-22-the-river)
 - [Version 2.1: every byte spent](#version-21-every-byte-spent)
 - [Version 2: music, fixes and speed](#version-2-music-fixes-and-speed)
 - [Size passes](#size-passes)
@@ -97,7 +98,7 @@ Every demo plays its own score, and every score is computed from what the demo i
 - **The scale.** Every note is in C major pentatonic, so any sequence the demo produces is consonant. The mapping costs
   four bytes: for an even number 2d in AL, `aam 5` / `aad 6` gives 6*(2d div 5) + (2d mod 5) = 2d + (2d div 5) = floor(12d/5),
   which runs 0 2 4 7 9 12 14 16 ... Adding 50 first starts the scale on middle C (d = 25 gives 60).
-- **The groove** ([`src/groove.inc`](src/groove.inc), in FIRE, LATCH, ORDER, SELFTEX and WARP): every fourth tick a GM drum
+- **The groove** ([`src/groove.inc`](src/groove.inc), in FIRE, LATCH, ORDER and WARP): every fourth tick a GM drum
   on channel 10 (kick, closed hi-hat, snare, hi-hat), and with each kick a bass note on channel 2 whose pentatonic degree
   is the bar number times 4, mod 5 (`shr al,2` / `aam 5`): A, G, E, D, C, walking down for ever. 52 bytes.
 - **Velocity = note.** The note byte is sent twice: higher notes are a little louder, and it costs one byte.
@@ -120,7 +121,7 @@ What each one plays:
 | LATCH | music box (10) | the ruler sequence of the step number (its trailing zero bits: 0 1 0 2 0 1 0 3 ...), the same self-similarity as the Sierpinski triangle on the screen |
 | ORDER | pizzicato strings (45) | a four-note arpeggio whose root is the ordering under a probe walking down a diagonal |
 | ROOTS | steel drums (114) | T, the coefficient the main loop patches into its own code each frame |
-| SELFTEX | kalimba (108) | the program's own first 128 bytes, in order, one per step: a riff that repeats every 14 seconds |
+| SELFTEX | kalimba (108) | the program's own bytes, in order, one per step: a riff that repeats every 28 seconds |
 | WARP | electric piano (4) | the same triangle wave that sets the character height (BL, the frame counter) |
 
 The MIDI each demo sent in a 15-second DOSBox run is in [`docs/music/`](docs/music), and the recordings with sound are
@@ -139,7 +140,7 @@ All captured from the real binaries in DOSBox (version 1 stills; version 2 draws
 | ![FIRE](docs/fire.jpg) | ![CLIFF](docs/cliff.jpg) |
 | **FIRE.** Heat rises, diffuses and cools. The bright speckle at the very bottom is the injected noise; the swirling plumes above come only from the feedback. | **CLIFF.** A Clifford attractor: two wings, with bright caustic edges where the orbit piles up. |
 | ![SELFTEX](docs/selftex.jpg) | ![JULIA](docs/julia-a.jpg) |
-| **SELFTEX.** The program's own bytes as a texture. The curves are where `x*y/64 + time` keeps landing on similar code bytes. | **JULIA, one moment.** The black region is the set; the colour bands are how many iterations a point survives before escaping. |
+| **SELFTEX** (version 1). The program's own bytes as a texture. The curves are where `x*y/64 + time` keeps landing on similar code bytes; version 2.2 makes them a river (see below). | **JULIA, one moment.** The black region is the set; the colour bands are how many iterations a point survives before escaping. |
 | ![JULIA later](docs/julia-b.jpg) | ![ESCHER](docs/escher.jpg) |
 | **JULIA, later.** As c moves, the set pinches, twists and breaks into dust, and tiny copies of the whole appear along the spirals. | **ESCHER.** One hyperbolic texture, shown through a moving start address and a line-compare split: the bands meet themselves at seams that cannot be real. |
 | ![CHLADNI](docs/chladni-a.jpg) | ![CHLADNI later](docs/chladni-b.jpg) |
@@ -163,7 +164,7 @@ The GIFs are silent; each has an MP4 with its music next to it.
 | ![FIRE](docs/fire.gif) | ![JULIA](docs/julia.gif) |
 | **FIRE**, 9 s ([with sound](docs/fire.mp4)): the flames rise from the hot rows at the bottom. | **JULIA**, 9 s ([with sound](docs/julia.mp4)): each frame is drawn top to bottom and mirrored, and the set changes as c moves. |
 | ![SELFTEX](docs/selftex.gif) | ![ESCHER](docs/escher.gif) |
-| **SELFTEX**, 9 s ([with sound](docs/selftex.mp4)): the bands slide as the frame counter is added to the lookup index. | **ESCHER**, 9 s ([with sound](docs/escher.mp4)): the blocks slide and the seam moves; only CRTC registers change. |
+| **SELFTEX**, 9 s ([with sound](docs/selftex.mp4)): a river of machine code winding into the distance, flowing towards you. | **ESCHER**, 9 s ([with sound](docs/escher.mp4)): the blocks slide and the seam moves; only CRTC registers change. |
 | ![CHLADNI](docs/chladni.gif) | ![LATCH](docs/latch.gif) |
 | **CHLADNI**, 9 s ([with sound](docs/chladni.mp4)): the nodal lines reconnect as the mode number sweeps. | **LATCH**, 9 s ([with sound](docs/latch.mp4)): the Sierpinski waterfalls rising, one generation per frame. |
 | ![WARP](docs/warp.gif) | ![ORDER](docs/order.gif) |
@@ -460,23 +461,39 @@ test renders only a handful of frames.
 
 ## SELFTEX in detail
 
+Version 2.2 turns the program-as-texture into a river. Below the horizon (row 60) each row is a floor seen in
+perspective, with depth `z = 8192 / (y - 60)`, which is also the world step per pixel: `u` (the coordinate across
+the view, times 256) starts at `-160 z` and grows by `z` per pixel, in a 32-bit register. Per row:
+
 ```
-pixel(x, y) = the byte at offset  ((x*y >> 6) + t) & 255  from 100h      ; the program's own bytes
+F      = z/4 + t                   distance along the river; t is the BIOS tick, so the camera drifts forward
+centre = triangle(F) / 2 - 32      the river bends left and right as it recedes (cbw / xor al,ah is the triangle)
+fields = (F >> 4)                  the banks' texture row
+water  = (F >> 4) + t              the water's: t further on, so it flows towards you, much faster than the drift
 ```
 
-The 73-byte program gets `x` and `y` from one `div` by 320 in a DI loop that wraps the 64 KB segment, multiplies
-them, shifts, adds a frame counter, and uses the result as an index into its **own code**, which sits at
-offset 100h: a single `xlat` with BX = 100h does the lookup. The "texture" is the machine code itself: runs of similar opcodes show up as flat areas and the
-rest as a coloured scatter. `x*y` is a hyperbola, so the constant-index contours are the curves in the screenshot,
-and adding the frame counter slides the whole pattern.
+and per pixel, with `r = |u - centre|`:
 
-The palette is streamed to the DAC as `i`, `2i`, `4i` (the DAC keeps the low 6 bits), so each byte value is a distinct,
-fairly saturated colour. It is the smallest idea in the repo, and the one that most directly asks what the
-program looks like when you view it as an image.
+```
+r < 24    water:  64 + (code[(r >> 1) + water] AND 63)      streaks along the flow
+r < 30    shore:  136, dark
+else      fields: 128 + code[(r >> 4) XOR fields]           blocks, mirrored about the river
+```
 
-With music the program is 130 bytes, and the music is the code too: every other tick the handler steps through the
-program's first 128 bytes with `cs xlat` (BX is still 100h from the main loop) and plays each one as a pentatonic degree on
-a kalimba. The riff repeats every 14 seconds, and it is the same bytes you see on the screen.
+`code[]` is the program itself (`xlat` with BX = 100h), so every texel on the ground is one of its bytes; the sky is
+colour y. The palette is one loop: entries 0..127 are a blue ramp (s/4, s/2, s) for the sky and the water, 128..255 a
+green one (s/4, s/2, s/8) for the fields, s = i AND 63. The perspective needs two divisions per row and none per pixel.
+Time is the BIOS clock, so there is no retrace wait and the river flows at the same speed on any machine.
+
+The music is the code too: every other tick the handler reads the program byte at the step number with `cs xlat`
+(BX is still 100h from the main loop) and plays it as a pentatonic degree on a kalimba. Version 2.2 drops the drums
+and the second texture layer of 2.1 to make room: the river is 254 bytes.
+
+Earlier versions (73 to 223 bytes) drew `code[(x*y >> 6) + t]`, hyperbolic bands of machine code.
+
+## Version 2.2: the river
+
+SELFTEX becomes a river in perspective made of its own machine code (254 bytes; see [SELFTEX in detail](#selftex-in-detail)).
 
 ## Version 2.1: every byte spent
 
@@ -626,9 +643,10 @@ so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it 
   loop; the rainbow and the panning every frame; the melody is exactly the ruler sequence.
 - **JULIA:** colour bands, a black set, exact point symmetry, no FPU, the picture changes as c moves, and each tick plays
   the pixel just drawn.
-- **SELFTEX:** a rich texture whose every pixel value is the sum of two program bytes; the palette moves; it scrolls;
-  the melody is the program's bytes in order, doubled an octave up.
-- **The groove** (FIRE, LATCH, ORDER, SELFTEX, WARP): drums every fourth tick in the kick, hat, snare, hat order, and a
+- **SELFTEX:** a sky ramp above the horizon; every ground pixel is a code byte (water, fields) or the shore; water in
+  every row, wide in front and narrow far away; the river bends; it moves with the clock; the melody is the program's
+  bytes in order.
+- **The groove** (FIRE, LATCH, ORDER, WARP): drums every fourth tick in the kick, hat, snare, hat order, and a
   bass with every kick on the descending pentatonic walk.
 
 [`tools/equiv.py`](tools/equiv.py) runs two builds side by side and compares the screen, the DAC stream and every CRTC,
@@ -677,8 +695,8 @@ src/order.asm       regions from the ordering of three expressions + ordering ar
 src/warp.asm        DOS screen warped by CRTC character height and row stride + height arpeggio
 src/latch.asm       cellular automaton computed by the VGA graphics controller + ruler-sequence music box
 src/julia.asm       integer Julia set with an orbiting constant, mirrored + the pixels as they are drawn
-src/selftex.asm     self-code texture + the code as a riff
-src/groove.inc      the rhythm section shared by FIRE, LATCH, ORDER, SELFTEX and WARP: GM drums + walking bass
+src/selftex.asm     a river made of the program's own code + the code as a riff
+src/groove.inc      the rhythm section shared by FIRE, LATCH, ORDER and WARP: GM drums + walking bass
 build.sh            NASM build + 256-byte gate + SHA256SUMS
 run-dosbox.sh       DOSBox launcher
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)

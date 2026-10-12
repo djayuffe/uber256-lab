@@ -1,5 +1,8 @@
 # Changelog
 
+## [2.2.0]
+- **SELFTEX is a river** (254 bytes): a perspective floor (depth = 8192 / (y - horizon), two divisions per row, none per pixel) with a river winding into the distance; the water is code bytes stretched into streaks flowing towards you, the banks are fields of code-byte blocks with a dark shore, under a sky ramp. Every texel is a byte of the program, the music is still the program's bytes on a kalimba, and time is the BIOS clock (no retrace wait). The 2.1 diagonal layer, palette flow, panning, octave doubling and drums are dropped to make room.
+
 ## [2.1.0]
 - Every spare byte spent on eye candy and music (all eleven still <= 256 bytes; CLIFF and ROOTS exactly 256).
 - New `src/groove.inc`, a 52-byte rhythm section for the tick handler: GM drums on channel 10 every fourth tick (kick, hi-hat, snare, hi-hat) and a bass on channel 2 with every kick, walking down the pentatonic scale. Used by FIRE, LATCH, ORDER, SELFTEX and WARP. `build.sh` passes `-Isrc/`.

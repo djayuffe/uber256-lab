@@ -89,20 +89,25 @@ attractor("GALAXY", 11, False)
 attractor("CLIFF", 12, True)
 
 print("\n== SELFTEX ==")
-r = Run("SELFTEX.COM").frames(2); common("SELFTEX", r)
-s = r.screen()
-check(lit(s) > 5000 and len(set(s)) > 30, f"SELFTEX: the screen is textured by the program's own bytes ({len(set(s))} colours, {lit(s)} lit)")
+r = Run("SELFTEX.COM"); r.uc.mem_write(0x46C, bytes(4)); r.polls(2); common("SELFTEX", r)
+s = r.screen()[:64000]
 code = r.com + bytes(256 - len(r.com))
-check(set(s) <= {(a + b) & 255 for a in code for b in code}, "SELFTEX: every pixel value is the sum of two bytes of the program (two layers of code)")
-r.frames(3); s2 = r.screen()
-dac = r.dac()
-check(len(dac) >= 2 * 768 and dac[-768:] != dac[-1536:-768], "SELFTEX: the whole palette is rewritten every frame, and it moves")
-check(sum(1 for a, b in zip(s, s2) if a != b) > 5000, "SELFTEX: the texture scrolls (time is added to the lookup index)")
-notes = music("SELFTEX", r, 108)
-m = mel(notes)
-check([n[2] for n in m[0::2]] == [((r.com[(t >> 1) & 127] & 30) + 46) * 6 // 5 for t, _, _, _ in m[0::2]] and all(b[2] == a[2] + 12 for a, b in zip(m[0::2], m[1::2])),
-      "SELFTEX: the melody is the program's own bytes, one per step, in order, doubled an octave up")
-groove("SELFTEX", notes)
+check(all(s[y * 320:(y + 1) * 320] == bytes([y]) * 320 for y in range(61)), "SELFTEX: above the horizon each row is one colour, a sky ramp")
+ground = s[61 * 320:]
+water = [b for b in ground if 64 <= b < 128]; fields = [b for b in ground if b >= 128 and b != 136]
+check(set(water) <= {64 | (c & 63) for c in code} and set(fields) <= {128 | c for c in code} and not any(b < 64 for b in ground),
+      "SELFTEX: every ground pixel is a code byte: water (64 + byte AND 63), fields (128 + byte) or the dark shore")
+rows = [s[y * 320:(y + 1) * 320] for y in range(61, 200)]
+cols = [[x for x, b in enumerate(row) if 64 <= b < 128] for row in rows]
+check(all(c for c in cols) and len(cols[-1]) > 60 and len(cols[2]) < 30, f"SELFTEX: a river in perspective: water in every row below the horizon, wide in front ({len(cols[-1])} px), narrow far away ({len(cols[2])} px)")
+centres = [sum(c) / len(c) for c in cols]
+check(max(centres) - min(centres) > 40, f"SELFTEX: the river bends (its centre moves {max(centres) - min(centres):.0f} pixels across the rows)")
+r2 = Run("SELFTEX.COM"); r2.uc.mem_write(0x46C, (60).to_bytes(4, 'little')); r2.polls(2); s2 = r2.screen()[:64000]
+check(sum(1 for a, b in zip(s, s2) if a != b) > 5000, "SELFTEX: three seconds later the river has moved and the water has flowed (time is the BIOS clock)")
+check(b"\x0f\x31" not in r.com, "SELFTEX: integer only")
+notes = mel(music("SELFTEX", r, 108))
+check(notes and all(t % 2 == 0 and n == ((code[(t >> 1) & 255] & 30) + 46) * 6 // 5 for t, _, n, _ in notes),
+      "SELFTEX: the melody is the program's own bytes, one per step, in order")
 leaves("SELFTEX", Run("SELFTEX.COM"), 2)
 
 print("\n== FIRE ==")
