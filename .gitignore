@@ -2,3 +2,4 @@
 *.COM
 SHA256SUMS
 __pycache__/
+build/

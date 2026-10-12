@@ -13,6 +13,10 @@ libraries, and no DOS calls except setting the video mode, hooking the timer tic
 palette colour and every note is computed by a few hundred bytes of code. The music goes out as General MIDI through an
 MPU-401, which DOSBox provides out of the box (and plays through the system's synthesizer on macOS and Windows).
 
+**The megademo:** [`MEGA.COM`](src/mega/mega.asm) plays all thirteen in one show, about four and a half minutes, with
+a golden title card before each part, a fade after it, and WARP bending the credits at the end:
+[`docs/mega.mp4`](docs/mega.mp4) is a DOSBox recording of it with its music. `./run-dosbox.sh mega` runs it.
+
 **Watch and listen:** [`docs/uber256-lab-showreel.mp4`](docs/uber256-lab-showreel.mp4) is 91 seconds of all thirteen, recorded
 in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General MIDI soundfont.
 
@@ -50,7 +54,9 @@ in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General
 - [SELFTEX in detail](#selftex-in-detail)
 - [GOLDTEX in detail](#goldtex-in-detail)
 - [FLOWTEX in detail](#flowtex-in-detail)
+- [The megademo](#the-megademo)
 - [Speed](#speed)
+- [Version 2.8: the megademo](#version-28-the-megademo)
 - [Version 2.7: FLOWTEX](#version-27-flowtex)
 - [Version 2.6: polished gold](#version-26-polished-gold)
 - [Version 2.5: speed](#version-25-speed)
@@ -84,6 +90,7 @@ Or build from source (needs [NASM](https://www.nasm.us/); on macOS `brew install
 ./build.sh              # assembles src/*.asm, enforces the 256-byte limit, writes SHA256SUMS
 ./run-dosbox.sh galaxy  # any of: galaxy cliff chladni fire escher julia latch order roots selftex goldtex flowtex warp
 ./run-dosbox.sh '*tex'  # several in a row (here SELFTEX, GOLDTEX, FLOWTEX); also names, or 'all'
+./run-dosbox.sh mega    # the megademo: all thirteen in one program, with titles, fades and credits
 ```
 
 **Esc** quits each demo cleanly (with several, it starts the next one, each in a fresh DOSBox so a held Esc cannot skip one): it restores text mode 3, puts the timer vector back and returns to DOS (JULIA draws
@@ -607,6 +614,40 @@ ivory, `(s, s - s/8, s - s/4)` with s = i/4.
 The music: every other tick a harp plays one of the four code bytes now entering at the top-left corner (`t/32`, plus
 0 to 3), so the arpeggio changes as the field flows, each note doubled two octaves down. No drums: it is a calm piece.
 
+## The megademo
+
+[`MEGA.COM`](src/mega/mega.asm) (about 5.8 KB) is all thirteen intros as one show, in an order chosen to flow: the three
+code textures (FLOWTEX, SELFTEX, GOLDTEX), then ORDER and ESCHER, the plate, the two attractors, FIRE, ROOTS, JULIA,
+LATCH, and WARP last, bending the credits. About four and a half minutes; Esc ends it at any point.
+
+![The megademo, a frame every five seconds](docs/mega-sheet.jpg)
+
+*A frame every five seconds of the DOSBox recording ([`docs/mega.mp4`](docs/mega.mp4), with sound).*
+
+**The parts are the intros themselves.** `build.sh` assembles every source a second time with `-DMEGA`. The only
+difference is the exit macro in [`src/dos.inc`](src/dos.inc): besides Esc, it also ends the part when the BIOS tick
+count reaches a word the megademo leaves at PSP:5Ch, records Esc at PSP:5Eh, and leaves the screen alone (so it can be
+faded). Everything else, the picture and the music, is the 256-byte program. (SELFTEX, GOLDTEX and FLOWTEX draw their
+own code, which is a few bytes longer in this build, so their textures differ a little from the release.)
+
+**Running a part the way DOS runs a .COM.** For each part the megademo clears the 64 KB segment above itself, copies the
+part to offset 100h, puts a far jump back to itself at offset 0 (a .COM's final `ret` lands there, where DOS would have
+`int 20h`), writes the end tick at 5Ch, gives it its own stack at FFFEh with a zero on it, the registers DOS starts a
+program with (CX = 00FFh, SI = 0100h, DI = FFFEh, BP = 091Ch, BX = 0, FS = 0), and jumps in with `retf`. The part hooks
+the timer, plays, unhooks and returns; FLOWTEX builds its 64 KB table in the segment above that.
+
+**Between parts.** The picture fades to black over 32 frames: the program reads the 768 DAC values back (port 3C7h,
+`rep insb`) and writes them scaled down each retrace, which works the same in mode 13h, LATCH's planar mode 0Dh and
+WARP's text mode. Then a title card: the part's name in the BIOS 8x8 font (INT 10h AX = 1130h) scaled five times, each
+glyph row its own gradient step from ivory to deep gold, with the size of the 256-byte build and a line on what it is
+and what plays it. A band of white light runs down the letters while the card fades in, holds and fades out. Before
+WARP the megademo writes the credits to the text screen, and WARP, which bends whatever text is there, bends them. The
+show ends on a card with the total: the thirteen intros come to 3,218 bytes.
+
+**Tests.** The emulator runs the whole show, advancing the clock as it goes: all thirteen parts play in order (their
+General MIDI programs, in sequence), every part hooks and unhooks the timer, LATCH gets its mode 0Dh and WARP its
+credits, Esc during a part ends everything cleanly, and the program returns to DOS.
+
 ## Speed
 
 A frame that takes even slightly longer than one 70 Hz refresh (14.3 ms) misses the retrace and waits for the next:
@@ -637,6 +678,11 @@ every run.
 first frames, DOSBox averages over seven seconds.) ROOTS does not need 70: its picture changes with the BIOS clock, 18.2
 times a second, so 39 frames a second shows every change at least twice. JULIA is a slow-motion piece, and its palette
 flows 18 times a second in the tick handler whatever the frame rate. The music never depends on the frame rate.
+
+## Version 2.8: the megademo
+
+All thirteen intros in one program, `MEGA.COM`, with title cards, fades and credits; see [The megademo](#the-megademo).
+`build.sh` builds it from the same sources (with `-DMEGA`) after the 256-byte binaries, which are unchanged.
 
 ## Version 2.7: FLOWTEX
 
@@ -800,7 +846,7 @@ program (`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OU
 what the demos lean on: a real interrupt-vector table with DOS functions 35h and 25h; the BIOS timer, whose `tick()`
 advances 0040:006Ch and enters the installed INT 1Ch handler as an IBM BIOS does (with DS = 0040h and AX, DX clobbered,
 so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it is in UART mode and decoded as MIDI
-(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 266 checks:
+(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 272 checks:
 
 - **All demos:** at most 256 bytes; the first call sets the video mode; all 768 DAC values are written and the palette is
   not black; no memory is touched outside video RAM and the program's own segment; the PC speaker and PIT channel 2 are
@@ -841,6 +887,8 @@ so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it 
 - **SELFTEX:** a sky ramp above the horizon; every ground pixel is a code byte (water, fields) or the shore; water in
   every row, wide in front and narrow far away; the river bends; it moves with the clock; the melody is the program's
   bytes in order.
+- **MEGA:** all thirteen parts in order (by their MIDI programs); a title card before each, LATCH's mode, the credits
+  for WARP, the closing card; 13 timer hooks and 13 unhooks; Esc ends the show; a clean return to DOS.
 - **The groove** (FIRE, GOLDTEX, LATCH, ORDER, WARP): drums every fourth tick in the kick, hat, snare, hat order, and a
   bass with every kick on the descending pentatonic walk.
 
@@ -894,13 +942,14 @@ src/julia.asm       integer Julia set with an orbiting constant, mirrored + the 
 src/selftex.asm     a river made of the program's own code + the code as a riff
 src/goldtex.asm     classic SELFTEX code bands + golden blocks chosen by the code
 src/flowtex.asm     classic SELFTEX code bands, interpolated, big and sepia + a harp on the code
-src/dos.inc         shared macros: HOOK_TICK, ESC_OR_LOOP, MIDI_START, PENTA
+src/mega/mega.asm   the megademo: runs every part (built with -DMEGA) with title cards, fades and credits
+src/dos.inc         shared macros: HOOK_TICK, ESC_OR_LOOP (and its megademo variant), MIDI_START, PENTA
 src/groove.inc      the rhythm section shared by FIRE, GOLDTEX, LATCH, ORDER and WARP: GM drums + walking bass
-build.sh            NASM build + 256-byte gate + SHA256SUMS
+build.sh            NASM build + 256-byte gate + the megademo + SHA256SUMS
 run-dosbox.sh       DOSBox launcher: one demo, several, a pattern or all, in order
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
 tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture
-tests/test_lab.py   the 266 checks
+tests/test_lab.py   the 272 checks
 tools/equiv.py      frame-by-frame comparison of two builds
 tools/cost.py       instructions per frame and the DOSBox cycles each demo needs for 70 fps
 tools/synth13.py    the mode-13h kernel search (no demo shipped)

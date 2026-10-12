@@ -4,6 +4,7 @@
 #   ./run-dosbox.sh selftex goldtex    several, in the order given
 #   ./run-dosbox.sh '*tex'             a pattern (quoted), matched in the order below: SELFTEX, GOLDTEX, FLOWTEX
 #   ./run-dosbox.sh all                all thirteen
+#   ./run-dosbox.sh mega               the megademo (MEGA.COM): all thirteen with title cards, fades and credits
 set -eu
 ORDER="galaxy cliff chladni fire escher julia latch order roots selftex goldtex flowtex warp"
 DOSBOX_BIN=dosbox
@@ -16,6 +17,7 @@ DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 LIST=""
 for arg in "$@"; do
     pat=$(echo "$arg" | tr 'A-Z' 'a-z'); [ "$pat" = all ] && pat='*'
+    [ "$pat" = mega ] && { LIST="$LIST mega"; continue; }   # the megademo: all of them in one program
     hit=""
     for n in $ORDER; do
         case $n in $pat) LIST="$LIST $n"; hit=1 ;; esac

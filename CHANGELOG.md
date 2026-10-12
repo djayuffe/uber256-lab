@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.8.0]
+- **MEGA.COM, the megademo**: all thirteen intros in one 5.8 KB program, about four and a half minutes. Each part is the intro itself, assembled again with `-DMEGA` so its exit macro also ends it at a tick count the megademo sets (and flags Esc, and leaves the screen to be faded); the megademo runs each one the way DOS runs a .COM, in a fresh segment with a far jump home at PSP:0. Between parts: a DAC fade to black (any video mode), then a title card in the BIOS font scaled five times in a gold gradient with a band of light running down it, the part's size and a line on what it is and what plays. WARP comes last and bends the credits; a closing card gives the total, 3,218 bytes. Esc ends the show at any point.
+- `./run-dosbox.sh mega` runs it; `build.sh` builds it after the 256-byte binaries (unchanged).
+- Tests: 6 new checks (272): the thirteen parts in order, cards and modes, timer hooks, credits, Esc, exit.
+- `docs/mega.mp4` (a DOSBox recording with its music), `docs/mega-sheet.jpg`, `docs/music/mega.mid`.
+
 ## [2.7.0]
 - **FLOWTEX** (219 bytes), a new demo cloned from the classic SELFTEX with fewer colours and bigger flows: `code[x*y/1024 + t]`, sixteen times the area per code byte, linearly interpolated in 32 steps between neighbouring bytes (a 64 KB table built at start-up in the segment above the program), in one sepia-to-ivory ramp, so the machine code flows past as smooth satin ridges. Five instructions a pixel, 70 fps from 22,600 DOSBox cycles. Music: a harp arpeggio of the four code bytes flowing in at the corner, doubled two octaves down.
 - `run-dosbox.sh '*tex'` runs SELFTEX, GOLDTEX, FLOWTEX; `all` runs thirteen.
