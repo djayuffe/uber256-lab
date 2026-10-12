@@ -15,8 +15,8 @@
 
 ; Once per frame: loop back to %1 unless Esc (scan code 1) is down; on Esc set text mode 3, put the timer vector
 ; back and return to DOS. "cbw / dec ax" leaves AX = 0 on Esc, so "mov al,3" is mode 3.
-; Built with -DMEGA (as a part of MEGA.COM) it also ends when the BIOS tick count reaches the word the megademo put at
-; PSP:5Ch, flags Esc in PSP:5Eh, and leaves the video mode alone (the megademo fades the picture out itself).
+; Built with -DMEGA (as a part of MEGA.COM) the check is a far call to the megademo through PSP:50h (time up, or Esc),
+; and the video mode is left alone (the megademo fades the picture out itself).
 %ifndef MEGA
 %macro ESC_OR_LOOP 1
     in al,60h
@@ -33,15 +33,9 @@
 %endmacro
 %else
 %macro ESC_OR_LOOP 1
-    in al,60h
-    dec al
-    jz %%esc
-    mov ax,[fs:46Ch]
-    sub ax,[cs:5Ch]
-    jns %%out                 ; the part's time is up
+    call far [cs:50h]         ; the megademo's check: CF = 1 when the part's time is up or Esc is down
+    jc %%out
     jmp %1
-%%esc:
-    mov byte [cs:5Eh],1
 %%out:
     pop ax
     pop dx
@@ -54,6 +48,7 @@
 ; Start of a tick handler's MIDI: DX = 330h; one OUT DX,AX sends C0h (program change) to the MPU-401 data port and
 ; 3Fh (enter UART mode; ignored once in it) to its command port 331h; then the program number and 90h (note on,
 ; channel 1). Clobbers AX, DX.
+%ifndef MEGA
 %macro MIDI_START 1
     mov dx,330h
     mov ax,3FC0h
@@ -63,6 +58,12 @@
     mov al,90h                ; note on, channel 1
     out dx,al
 %endmacro
+%else                         ; in the megademo: the same bytes, sent by one shared routine (PSP:54h), AL = program
+%macro MIDI_START 1
+    mov al,%1
+    call far [cs:54h]
+%endmacro
+%endif
 
 ; AL = 2d (even) -> floor(12d/5): 6*(2d div 5) + (2d mod 5) = 2d + floor(2d/5), degree d of C major pentatonic.
 %macro PENTA 0

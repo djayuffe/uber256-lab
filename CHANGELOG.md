@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.8.2]
+- MEGA.COM 5,133 -> 4,389 bytes, and better. The code every intro repeats is shared: in the `-DMEGA` build the frame check, the MIDI header and the groove are far calls into the megademo through vectors in each part's PSP (50h, 54h, 58h), so one copy serves all eleven (the groove alone was five copies). The programme is packed (no 80-byte padding), the credits read the list of parts from it, and the cards share one frame routine. Each title card rings a chime (tubular bells, a fifth). The MPU-401 is put in UART mode before the first note, so the first chime's instrument is not lost.
+- Fixed while rewriting it: a card could return with the carry flag left by the palette code and end the show.
+- The 256-byte intros are byte-for-byte unchanged. Tests: 273 (the chimes). New recording, contact sheet, MIDI.
+
 ## [2.8.1]
 - The megademo drops ESCHER and CHLADNI: eleven parts (FLOWTEX, SELFTEX, GOLDTEX, ORDER, GALAXY, CLIFF, FIRE, ROOTS, JULIA, LATCH, WARP), about four minutes, 5.1 KB. Both stay in the collection as standalone 256-byte intros. The intro and closing cards and the credits count the parts; `build.sh` takes the count and the total (2,724 bytes) from the `ENTRY` list in `src/mega/mega.asm`.
 - New megademo recording, contact sheet and MIDI.

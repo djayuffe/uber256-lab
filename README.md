@@ -616,7 +616,7 @@ The music: every other tick a harp plays one of the four code bytes now entering
 
 ## The megademo
 
-[`MEGA.COM`](src/mega/mega.asm) (about 5 KB) is eleven of the intros as one show, in an order chosen to flow: the three
+[`MEGA.COM`](src/mega/mega.asm) (4.4 KB) is eleven of the intros as one show, in an order chosen to flow: the three
 code textures (FLOWTEX, SELFTEX, GOLDTEX), then ORDER, the two attractors, FIRE, ROOTS, JULIA, LATCH, and WARP last,
 bending the credits. About four minutes; Esc ends it at any point. ESCHER and CHLADNI are left out of the show (2.8.1);
 they are still in the collection as standalone intros. The programme is the `ENTRY` list in the source: `build.sh`
@@ -626,15 +626,17 @@ reads it for the part count and total size on the closing card.
 
 *A frame every five seconds of the DOSBox recording ([`docs/mega.mp4`](docs/mega.mp4), with sound).*
 
-**The parts are the intros themselves.** `build.sh` assembles every source a second time with `-DMEGA`. The only
-difference is the exit macro in [`src/dos.inc`](src/dos.inc): besides Esc, it also ends the part when the BIOS tick
-count reaches a word the megademo leaves at PSP:5Ch, records Esc at PSP:5Eh, and leaves the screen alone (so it can be
-faded). Everything else, the picture and the music, is the 256-byte program. (SELFTEX, GOLDTEX and FLOWTEX draw their
-own code, which is a few bytes longer in this build, so their textures differ a little from the release.)
+**The parts are the intros themselves, sharing what they repeat.** `build.sh` assembles every source a second time
+with `-DMEGA`. Three pieces of code that every intro carries become far calls into the megademo, through vectors it
+leaves in each part's PSP: the once-a-frame check (`call far [cs:50h]`, which also ends the part when its time is up
+and records Esc), the MIDI header (`mov al,program` / `call far [cs:54h]`) and the 52-byte groove (`call far [cs:58h]`,
+one copy for the five parts that play it). Each routine leaves the registers exactly as the inline code did. Everything
+else, the picture and the music, is the 256-byte program. (SELFTEX, GOLDTEX and FLOWTEX draw their own code, which is
+different in this build, so their textures differ from the release: GOLDTEX's gold falls on other blocks.)
 
 **Running a part the way DOS runs a .COM.** For each part the megademo clears the 64 KB segment above itself, copies the
 part to offset 100h, puts a far jump back to itself at offset 0 (a .COM's final `ret` lands there, where DOS would have
-`int 20h`), writes the end tick at 5Ch, gives it its own stack at FFFEh with a zero on it, the registers DOS starts a
+`int 20h`), the three vectors at 50h, the end tick at 5Ch, gives it its own stack at FFFEh with a zero on it, the registers DOS starts a
 program with (CX = 00FFh, SI = 0100h, DI = FFFEh, BP = 091Ch, BX = 0, FS = 0), and jumps in with `retf`. The part hooks
 the timer, plays, unhooks and returns; FLOWTEX builds its 64 KB table in the segment above that.
 
@@ -642,12 +644,13 @@ the timer, plays, unhooks and returns; FLOWTEX builds its 64 KB table in the seg
 `rep insb`) and writes them scaled down each retrace, which works the same in mode 13h, LATCH's planar mode 0Dh and
 WARP's text mode. Then a title card: the part's name in the BIOS 8x8 font (INT 10h AX = 1130h) scaled five times, each
 glyph row its own gradient step from ivory to deep gold, with the size of the 256-byte build and a line on what it is
-and what plays it. A band of white light runs down the letters while the card fades in, holds and fades out. Before
-WARP the megademo writes the credits to the text screen, and WARP, which bends whatever text is there, bends them. The
+and what plays it, rung in by a chime (tubular bells, a fifth). A band of white light runs down the letters while the
+card fades in, holds and fades out. Before WARP the megademo writes the credits to the text screen, the list of parts
+read from the programme itself, and WARP, which bends whatever text is there, bends them. The
 show ends on a card with the total: the eleven intros in it come to 2,724 bytes.
 
 **Tests.** The emulator runs the whole show, advancing the clock as it goes: all eleven parts play in order (their
-General MIDI programs, in sequence), every part hooks and unhooks the timer, LATCH gets its mode 0Dh and WARP its
+General MIDI programs, in sequence), every card rings its chime, every part hooks and unhooks the timer, LATCH gets its mode 0Dh and WARP its
 credits, Esc during a part ends everything cleanly, and the program returns to DOS.
 
 ## Speed
@@ -684,6 +687,9 @@ flows 18 times a second in the tick handler whatever the frame rate. The music n
 ## Version 2.8: the megademo
 
 2.8.1 takes ESCHER and CHLADNI out of the show (eleven parts, about four minutes); both stay as standalone intros.
+2.8.2 shrinks it from 5,133 to 4,389 bytes: the parts share one copy of the frame check, the MIDI header and the groove
+through far calls, the programme is packed (no padding), and the credits list the parts from it; each card now rings
+a chime.
 
 All thirteen intros in one program, `MEGA.COM`, with title cards, fades and credits; see [The megademo](#the-megademo).
 `build.sh` builds it from the same sources (with `-DMEGA`) after the 256-byte binaries, which are unchanged.
@@ -850,7 +856,7 @@ program (`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OU
 what the demos lean on: a real interrupt-vector table with DOS functions 35h and 25h; the BIOS timer, whose `tick()`
 advances 0040:006Ch and enters the installed INT 1Ch handler as an IBM BIOS does (with DS = 0040h and AX, DX clobbered,
 so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it is in UART mode and decoded as MIDI
-(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 272 checks:
+(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 273 checks:
 
 - **All demos:** at most 256 bytes; the first call sets the video mode; all 768 DAC values are written and the palette is
   not black; no memory is touched outside video RAM and the program's own segment; the PC speaker and PIT channel 2 are
@@ -891,7 +897,7 @@ so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it 
 - **SELFTEX:** a sky ramp above the horizon; every ground pixel is a code byte (water, fields) or the shore; water in
   every row, wide in front and narrow far away; the river bends; it moves with the clock; the melody is the program's
   bytes in order.
-- **MEGA:** all eleven parts in order (by their MIDI programs); a title card before each, LATCH's mode, the credits
+- **MEGA:** all eleven parts in order (by their MIDI programs); a title card with a chime before each, LATCH's mode, the credits
   for WARP, the closing card; 13 timer hooks and 13 unhooks; Esc ends the show; a clean return to DOS.
 - **The groove** (FIRE, GOLDTEX, LATCH, ORDER, WARP): drums every fourth tick in the kick, hat, snare, hat order, and a
   bass with every kick on the descending pentatonic walk.
@@ -947,13 +953,13 @@ src/selftex.asm     a river made of the program's own code + the code as a riff
 src/goldtex.asm     classic SELFTEX code bands + golden blocks chosen by the code
 src/flowtex.asm     classic SELFTEX code bands, interpolated, big and sepia + a harp on the code
 src/mega/mega.asm   the megademo: runs every part (built with -DMEGA) with title cards, fades and credits
-src/dos.inc         shared macros: HOOK_TICK, ESC_OR_LOOP (and its megademo variant), MIDI_START, PENTA
+src/dos.inc         shared macros: HOOK_TICK, ESC_OR_LOOP, MIDI_START (the last two as far calls in the megademo), PENTA
 src/groove.inc      the rhythm section shared by FIRE, GOLDTEX, LATCH, ORDER and WARP: GM drums + walking bass
 build.sh            NASM build + 256-byte gate + the megademo + SHA256SUMS
 run-dosbox.sh       DOSBox launcher: one demo, several, a pattern or all, in order
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
 tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture
-tests/test_lab.py   the 272 checks
+tests/test_lab.py   the 273 checks
 tools/equiv.py      frame-by-frame comparison of two builds
 tools/cost.py       instructions per frame and the DOSBox cycles each demo needs for 70 fps
 tools/synth13.py    the mode-13h kernel search (no demo shipped)

@@ -3,6 +3,9 @@
 ; 4/4 with 16th-note melodies) it plays GM percussion on channel 10: kick, closed hi-hat, snare, hi-hat. On each
 ; kick a bass note sounds on channel 2 (program 0, piano), walking down C - A - G - E - D: the bar number times 4, mod 5,
 ; is the pentatonic degree 0, 4, 3, 2.
+%ifdef MEGA
+    call far [cs:58h]         ; in the megademo: one shared copy (PSP:58h)
+%else
     mov ax,[fs:46Ch]
     test al,3
     jnz .g_end
@@ -34,3 +37,4 @@
     add al,60                 ; velocity 96..102
     out dx,al
 .g_end:
+%endif

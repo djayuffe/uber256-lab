@@ -385,6 +385,9 @@ seq = []
 for ch, p in r.programs():
     if not seq or seq[-1] != p: seq.append(p)
 order = [46, 108, 9, 45, 11, 12, 24, 114, 8, 10, 4]
+chimes = sum(1 for ch, p in r.programs() if p == 14)
+check(chimes == 13, f"MEGA: a chime (tubular bells) on each of the 13 title cards ({chimes})")
+seq = [p for p in seq if p != 14]
 check(seq == order, f"MEGA: its eleven parts play, in order: FLOWTEX, SELFTEX, GOLDTEX, ORDER, GALAXY, CLIFF, FIRE, ROOTS, JULIA, LATCH, WARP (programs {seq})")
 modes = [a for n, a in r.ints if n == 0x10 and a >> 8 == 0]
 check(modes.count(0x13) >= 13 and 0x0D in modes and modes[-3:] == [3, 0x13, 3], "MEGA: a mode-13h title card before every part, LATCH's mode 0Dh, text mode for the credits, the closing card, text mode at the end")

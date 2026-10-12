@@ -1,13 +1,14 @@
 ; MEGA - the uber256-lab megademo: eleven of the intros in one program, each introduced by a title card and closed by
 ; a fade, with its own live music, ending on WARP bending the credits.
 ;
-; Each part is its own source assembled with -DMEGA (build.sh): the same code as the 256-byte release, except that its
-; exit macro also ends the part when the BIOS tick count reaches the word at PSP:5Ch, flags Esc at PSP:5Eh and leaves
-; the screen as it is. The megademo runs a part the way DOS runs a .COM: it clears a 64 KB segment above itself, puts
-; the part at offset 100h, a far jump back to itself at offset 0 (where the part's final RET lands), the end tick at
-; 5Ch, gives it its own stack and the registers DOS gives a program, and jumps in. Between parts it reads the DAC and
-; fades the picture to black, then draws the next title in the BIOS 8x8 font, scaled up, in a gold gradient that fades
-; in and out. Esc at any moment ends the show.
+; Each part is its own source assembled with -DMEGA (build.sh): the same program as the 256-byte release, except that
+; the code every intro repeats is shared. Its frame check, its MIDI header and the groove are far calls through three
+; vectors the megademo puts in the part's PSP (50h, 54h, 58h), so one copy of each serves all eleven parts. The
+; megademo runs a part the way DOS runs a .COM: it clears a 64 KB segment above itself, puts the part at offset 100h,
+; a far jump back to itself at offset 0 (where the part's final RET lands), the vectors and the end tick in the PSP,
+; gives it its own stack and the registers DOS gives a program, and jumps in. Between parts it reads the DAC and fades
+; the picture to black, then shows the next title: the BIOS 8x8 font scaled up in a gold gradient with a band of light
+; running down it, a chime, a fade in and out. Esc at any moment ends the show.
 BITS 16
 CPU 386
 ORG 100h
@@ -19,13 +20,16 @@ ORG 100h
     mov ax,cs
     add ax,1000h
     mov [pseg],ax             ; the parts run in the 64 KB segment above the megademo
-    mov ax,1130h              ; the BIOS 8x8 font (characters 0..127)
+    mov ax,1130h              ; the BIOS 8x8 font (characters 0..127) -> [font]
     mov bh,3
     push es
     int 10h
     mov [font],bp
     mov [font+2],es
     pop es
+    mov dx,331h               ; the MPU-401 into UART mode before the first note (the parts' own header sends its
+    mov al,3Fh                ; 3Fh after the program change, so the very first one would be lost)
+    out dx,al
     mov ax,13h
     int 10h
     mov cx,90                 ; a moment of black before the show
@@ -33,39 +37,36 @@ ORG 100h
     call vsync
     jc quit
     loop .dark
-    mov word [hold],200
     mov si,intro
+    mov cl,200                ; held longer
     call card
     jc quit
-    mov word [hold],80
     mov bx,parts
-.next:
-    lea si,[bx+PT_TITLE]
+.next:                        ; BX -> a part: dw code, dw length, db seconds, then the card's three lines
     push bx
-    call card
+    lea si,[bx+5]
+    mov cl,80
+    call card                 ; leaves SI at the next part
     pop bx
     jc quit
-    cmp word [bx+PT_BIN],warp_bin
+    push si
+    cmp word [bx],warp_bin
     jne .run
     push bx
     call credits              ; WARP bends whatever is on the text screen: give it the credits
     pop bx
 .run:
-    push bx
     call run_part
-    pop bx
     mov es,[pseg]
     cmp byte [es:5Eh],0
     jne quit                  ; Esc during the part
-    push bx
     call fade_out
     pop bx
     jc quit
-    add bx,PT_SIZE
     cmp bx,parts_end
     jb .next
-    mov word [hold],240
     mov si,outro
+    mov cl,240
     call card                 ; the end
 quit:
     mov ax,3
@@ -73,25 +74,39 @@ quit:
     mov dx,bye
     mov ah,9
     int 21h
-    ret
+    int 20h
 
-; ---- one part: a fresh segment, DOS's entry conditions, a far jump home at PSP:0, the end tick at PSP:5Ch
+; ---- one part: a fresh segment, DOS's entry conditions, a far jump home at PSP:0, the shared routines' vectors at
+;      PSP:50h, 54h, 58h, the end tick at PSP:5Ch (and PSP:5Eh, set to 1 on Esc)
 run_part:
     mov es,[pseg]
     xor di,di
     xor ax,ax
     mov cx,8000h
-    rep stosw                 ; a clean 64 KB, as a freshly loaded program would mostly see
-    mov byte [es:0],0EAh      ; jmp far back
-    mov word [es:1],back
+    rep stosw                 ; a clean 64 KB
+    mov al,0EAh               ; jmp far back
+    stosb
+    mov si,psp_far
+    movsw
     mov [es:3],cs
-    mov si,[bx+PT_BIN]
-    mov cx,[bx+PT_LEN]
+    mov di,50h
+    mov cl,3
+.vec:
+    movsw                     ; the three vectors: offset, then this segment
+    mov ax,cs
+    stosw
+    loop .vec
+    movzx ax,byte [bx+4]      ; seconds -> the end tick: 18.2 ticks a second
+    imul ax,ax,182
+    cwd
+    mov cx,10
+    div cx
+    add ax,[fs:46Ch]
+    stosw
+    mov si,[bx]
+    mov cx,[bx+2]
     mov di,100h
     rep movsb
-    mov ax,[fs:46Ch]
-    add ax,[bx+PT_TICKS]
-    mov [es:5Ch],ax
     mov [save_sp],sp
     mov ax,es
     cli
@@ -119,6 +134,37 @@ back:
     mov ds,ax
     cld
     ret
+psp_far:
+    dw back, svc_check, svc_midi, svc_groove
+
+; ---- the routines the parts share (far calls through their PSP; only AX and the flags change, as in the originals)
+svc_check:                    ; once per frame: CF = 1 when the part's time is up or Esc is down
+    push ds
+    mov ds,[cs:pseg]
+    in al,60h
+    cmp al,1
+    jne .t
+    mov [5Eh],al              ; Esc: tell the megademo
+    stc
+    jmp short .x
+.t: mov ax,[fs:46Ch]
+    sub ax,[5Ch]
+    cmp ax,8000h              ; CF = 1 once the tick count has reached the end (the difference is not negative)
+.x: pop ds
+    retf
+svc_midi:                     ; the MIDI header: UART mode, program AL on channel 1, note on (DX = 330h, AX = 3F90h)
+    mov dx,330h
+    push ax
+    mov ax,3FC0h
+    out dx,ax
+    pop ax
+    out dx,al
+    mov ax,3F90h
+    out dx,al
+    retf
+svc_groove:                   ; the rhythm section, one copy for FIRE, GOLDTEX, LATCH, ORDER and WARP
+%include "groove.inc"
+    retf
 
 ; ---- the frame clock: wait for the end of one retrace and the start of the next; CF = 1 if Esc is down
 vsync:
@@ -154,7 +200,7 @@ fade_out:
     mov bl,31
 .f: call vsync
     jc .x
-    mov dx,3C8h
+    mov dl,0C8h
     xor al,al
     out dx,al
     inc dx
@@ -170,59 +216,75 @@ fade_out:
     clc
 .x: ret
 
-; ---- a title card: SI -> big title, then a byte-count line, then a tagline (each zero-terminated)
+; ---- a title card: SI -> the big title, a size line and a tagline (zero-terminated), CL = frames to hold. A chime,
+;      then it fades in over 32 frames, holds, and fades out; a band of white light runs down the letters all along.
+;      Returns SI after the third line, CF = 1 on Esc.
 card:
+    push cx
     mov ax,13h
     int 10h
     xor bl,bl
     call card_pal             ; everything black while drawing
     push word 0A000h
     pop es
-    mov byte [scale],5
-    mov byte [ty],44
-    mov byte [solid],0
-    call text                 ; the name, 40 pixels high, in a gold gradient
-    mov byte [scale],2
-    mov byte [ty],108
+    mov ax,44 * 256 + 5       ; the name, 40 pixels high, in the gold gradient
+    call text
+    mov ax,108 * 256 + 2      ; the size, solid (colour 200)
     mov byte [solid],200
-    call text                 ; the size
-    mov byte [scale],1
-    mov byte [ty],140
-    mov byte [solid],201
-    call text                 ; the tagline
-    mov bl,0
-.in:                          ; fade in over 32 frames
-    call vsync
+    call text
+    mov ax,140 * 256 + 1      ; the tagline (201)
+    inc byte [solid]
+    call text
+    mov byte [solid],0
+    mov al,14                 ; the chime: tubular bells, a fifth (C6 and G6)
+    push cs
+    call svc_midi
+    mov al,84
+    out dx,al
+    mov al,70
+    out dx,al
+    mov al,91
+    out dx,al
+    mov al,60
+    out dx,al
+    pop cx
+    xor bl,bl
+.in:
+    call .frame
     jc .x
-    call card_pal
-    inc bl
+    inc bx
     cmp bl,33
     jb .in
-    mov cx,[hold]             ; hold
-.h: call vsync
+    movzx cx,cl
+    dec bx
+.h: call .frame
     jc .x
     loop .h
-    mov bl,32
 .out:
-    call vsync
+    call .frame
     jc .x
-    call card_pal
     dec bl
     jns .out
     clc
 .x: ret
+.frame:                       ; one frame of the card: CF = 1 on Esc
+    call vsync
+    jc .r
+    call card_pal
+    clc
+.r: ret
 
-; card palette at brightness BL/32: colours 64..127 a gradient from ivory (top of the letters) to deep gold (bottom),
-; 200 and 201 two warm greys for the small lines
+; card palette at brightness BL/32: colours 64..127 a gradient from ivory (top of the letters) to deep gold (bottom)
+; with a band of white light at row [phase] that moves one step a call; 200 and 201 two warm greys
 card_pal:
-    push cx
-    inc byte [phase]          ; a band of white light runs down the letters, one gradient step a frame
+    pusha
+    inc byte [phase]
     mov dx,3C8h
     mov al,64
     out dx,al
     inc dx
     xor cx,cx
-.p: mov al,cl                 ; the band: 5 x (6 - d) where d = (k - phase) mod 64 is below 6
+.p: mov al,cl                 ; the band: 5 (6 - d), d = (k - phase) mod 64, where d < 6
     sub al,[phase]
     and al,63
     sub al,6
@@ -232,7 +294,7 @@ card_pal:
 .band:
     mov ah,5
     mul ah
-    mov [boost],al
+    mov bh,al                 ; BH = the boost
     mov al,cl                 ; R = 63 - k/4
     shr al,2
     neg al
@@ -251,29 +313,22 @@ card_pal:
     add al,50
     call .out
     inc cx
-    cmp cx,64
+    cmp cl,64
     jb .p
     dec dx
     mov al,200
     out dx,al
     inc dx
-    mov byte [boost],0
-    mov al,58
+    mov bh,0
+    mov si,greys
+    mov cl,6
+.g: lodsb
     call .out
-    mov al,54
-    call .out
-    mov al,46
-    call .out
-    mov al,34
-    call .out
-    mov al,30
-    call .out
-    mov al,24
-    call .out
-    pop cx
+    loop .g
+    popa
     ret
-.out:
-    add al,[boost]
+.out:                         ; out (AL + BH, at most 63) * BL / 32
+    add al,bh
     cmp al,63
     jbe .o
     mov al,63
@@ -281,159 +336,165 @@ card_pal:
     shr ax,5
     out dx,al
     ret
+greys: db 58, 54, 46, 34, 30, 24
 
-; draw the zero-terminated string at SI, centred, BIOS font scaled by [scale], top row [ty]; [solid] = 0 for the
-; gold gradient (colour 64 + 8 x glyph row + sub-row), else that colour. SI is left after the terminator.
+; draw the zero-terminated string at SI, centred, in the BIOS font scaled by AL, top row AH; [solid] = 0 for the gold
+; gradient (colour 64 + 8 x line / scale), else that colour. Returns SI after the terminator.
 text:
-    push si
-    xor cx,cx
-.len:
-    lodsb
-    test al,al
-    jz .gotlen
-    inc cx
-    jmp .len
-.gotlen:
-    pop si
-    movzx ax,byte [scale]
-    shl ax,3
-    mul cx                    ; width in pixels
+    mov [scale],al
+    movzx bp,ah
+    imul bp,bp,320            ; BP -> the start of the top row
+    mov bx,si                 ; the length
+    call skipz
+    xchg si,bx                ; SI = the string, BX = past it
+    mov ax,bx
+    sub ax,si
+    dec ax
+    movzx cx,byte [scale]
+    shl cx,3
+    mul cx                    ; the width in pixels
     neg ax
     add ax,320
     shr ax,1
-    mov [tx],ax
+    add bp,ax                 ; BP -> the first glyph's top left corner
 .ch:
     lodsb
     test al,al
     jz .done
-    push si
+    pusha
     movzx si,al
     shl si,3
-    add si,[font]             ; the glyph, in the BIOS font segment
-    xor dx,dx                 ; DL = glyph row, DH = sub-row
-.row:
-    push ds
-    mov ds,[cs:font+2]
-    mov ah,[si]
-    pop ds
-    xor dh,dh
-.sub:
-    movzx di,byte [ty]        ; y = ty + row * scale + sub
-    movzx bx,dl
-    movzx cx,byte [scale]
-    imul bx,cx
-    add di,bx
-    movzx bx,dh
-    add di,bx
-    imul di,di,320
-    add di,[tx]
-    mov al,[solid]            ; colour
+    add si,[font]             ; SI -> the glyph in the BIOS font
+    xor dx,dx                 ; DX = the line, 0 .. 8 x scale - 1
+.line:
+    mov al,[solid]
     test al,al
     jnz .c
-    movzx ax,dh
+    mov ax,dx                 ; the gradient: 64 + 8 x line / scale
     shl ax,3
-    div byte [scale]          ; 8 x sub / scale (AH is clobbered: reload the glyph row)
-    mov bl,dl
-    shl bl,3
-    add al,bl
+    div byte [scale]
     add al,64
-.c:
-    push si
+.c: push ax
+    mov ax,dx                 ; glyph row = line / scale
+    div byte [scale]
+    movzx bx,al
     push ds
     mov ds,[cs:font+2]
-    mov ah,[si]
+    mov ah,[si+bx]            ; its eight pixels
     pop ds
-    pop si
-    mov bh,8                  ; eight columns
+    pop bx
+    mov al,bl                 ; AL = colour, AH = pixels
+    mov di,bp
+    mov bh,8
 .col:
     movzx cx,byte [scale]
     shl ah,1
     jnc .skip
     rep stosb
-    jmp short .nx
+    db 3Dh                    ; (cmp ax,imm16: swallows the add)
 .skip:
     add di,cx
-.nx:
     dec bh
     jnz .col
-    inc dh
-    cmp dh,[scale]
-    jb .sub
-    inc si
-    inc dl
-    cmp dl,8
-    jb .row
-    pop si
+    add bp,320
+    inc dx
     movzx ax,byte [scale]
     shl ax,3
-    add [tx],ax
+    cmp dx,ax
+    jb .line
+    popa
+    movzx ax,byte [scale]
+    shl ax,3
+    add bp,ax                 ; the next glyph
     jmp .ch
 .done:
     ret
 
-; ---- the credits that WARP bends: text mode 3, centred lines in colours 1..15
+; ---- the credits that WARP bends: text mode 3, centred lines in colours 9..15; a 1 stands for the list of parts,
+;      which is read from the programme itself
 credits:
     mov ax,3
     int 10h
     mov ah,1
     mov cx,2000h
     int 10h                   ; no cursor
+    push ds
+    pop es
+    mov di,linebuf
+    mov bx,parts
+.pl:
+    lea si,[bx+5]
+.pc:
+    lodsb
+    stosb
+    test al,al
+    jnz .pc
+    mov byte [di-1],' '
+    call skipz                ; past the size line and the tagline
+    call skipz
+    mov bx,si
+    cmp bx,parts_end
+    jb .pl
+    mov byte [di-1],0
     push word 0B800h
     pop es
     mov si,credit_lines
     mov di,3 * 160
     mov bl,9                  ; colour
 .line:
-    cmp byte [si],0FFh
-    je .done
-    push di
-    push si                   ; centre it: (80 - length) / 2
-    xor cx,cx
-.l: lodsb
-    test al,al
-    jz .ll
-    inc cx
-    jmp .l
-.ll:
-    pop si
-    mov ax,80
-    sub ax,cx
-    and ax,-2
-    add di,ax
-.put:
     lodsb
-    test al,al
-    jz .eol
-    mov ah,bl
-    stosw
-    jmp .put
-.eol:
-    pop di
-    add di,160 * 2
-    inc bl
+    cmp al,0FFh
+    je .done
+    cmp al,1
+    jne .own
+    push si
+    mov si,linebuf
+    call putline
+    pop si
+    jmp short .adv
+.own:
+    dec si
+    call putline
+.adv:
+    add di,2 * 160
+    inc bx
     cmp bl,16
     jb .line
     mov bl,9
     jmp .line
 .done:
     ret
+putline:                      ; SI -> a line, centred on the row at DI in colour BL; SI is left past it
+    push di
+    mov dx,si
+    call skipz
+    mov ax,si
+    sub ax,dx                 ; length + 1
+    neg ax
+    add ax,81
+    and ax,-2                 ; (80 - length) / 2 characters, two bytes each
+    add di,ax
+    mov si,dx
+.p: lodsb
+    test al,al
+    jz .e
+    mov ah,bl
+    stosw
+    jmp .p
+.e: pop di
+    ret
+skipz:                        ; SI past the next zero byte
+    lodsb
+    test al,al
+    jnz skipz
+    ret
 
-; ---- the programme
-PT_BIN   equ 0
-PT_LEN   equ 2
-PT_TICKS equ 4
-PT_TITLE equ 6
-%macro PART 5                 ; label, file, seconds, title, tagline
-    dw %1_bin, %1_end - %1_bin, %3 * 182 / 10
-    db %4, 0, %2, " BYTES", 0, %5, 0
+; ---- the programme: dw code, dw length, db seconds, the title, its size, a tagline
+%macro PART 5                 ; label, size, seconds, title, tagline
+    dw %1_bin, %1_end - %1_bin
+    db %3, %4, 0, %2, " BYTES", 0, %5, 0
 %endmacro
-; (every entry is padded to the same size so the table can be walked)
-PT_SIZE  equ 80
-%macro ENTRY 5
-%%e:
-    PART %1, %2, %3, %4, %5
-    times PT_SIZE - ($ - %%e) db 0
-%endmacro
+%define ENTRY PART
 
 intro:
     db "UBER256", 0, "LAB  MEGADEMO", 0, SZ_COUNT, " INTROS, 256 BYTES EACH, MUSIC LIVE", 0
@@ -455,16 +516,15 @@ parts_end:
 
 credit_lines:
     db "U B E R 2 5 6 - L A B   M E G A D E M O", 0
-    db "eleven intros of 256 bytes or less, each playing its own music", 0
-    db "FLOWTEX  SELFTEX  GOLDTEX  ORDER  GALAXY  CLIFF", 0
-    db "FIRE  ROOTS  JULIA  LATCH  WARP", 0
+    db SZ_COUNT, " intros of 256 bytes or less, each playing its own music", 0
+    db 1                      ; the parts, read from the programme above
     db "code and music: djayuffe & Claude", 0
     db "NASM - 16-bit real mode - VGA - x87 - MPU-401 General MIDI", 0
     db "github.com/djayuffe/uber256-lab", 0
     db "thanks for watching", 0
     db 0FFh
 bye:
-    db "uber256-lab megademo - eleven intros, 256 bytes each. Thanks for watching.", 13, 10, "$"
+    db "uber256-lab megademo. Thanks for watching.", 13, 10, "$"
 
 %macro BIN 2
 %1_bin:
@@ -487,11 +547,8 @@ section .bss
 pseg:    resw 1
 font:    resw 2
 save_sp: resw 1
-tx:      resw 1
-hold:    resw 1
-phase:   resb 1
-boost:   resb 1
 scale:   resb 1
-ty:      resb 1
 solid:   resb 1
+phase:   resb 1
+linebuf: resb 100
 dac:     resb 768
