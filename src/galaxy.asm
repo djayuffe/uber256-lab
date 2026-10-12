@@ -75,9 +75,8 @@ frame:
     jz .vs
 .dec:                         ; fade: every pixel loses 1/16 of itself, plus 1, floored at 0
     mov al,[es:di]
-    mov ah,al
-    shr ah,4
-    sub al,ah
+    aam 16                    ; AH = v/16, AL = v mod 16
+    aad 15                    ; AL = 15 AH + AL = v - v/16
     sub al,1
     adc al,0
     stosb

@@ -3,7 +3,9 @@
 ; with T and S two triangle waves of the BIOS clock, S four times slower. The picture is v's SIGN: where it
 ; changes against the pixel to the left or above, the pixel is a root and is drawn at full brightness (orange on
 ; the positive side, blue on the negative); elsewhere |v| draws faint contour bands, warm where v > 0 and cool
-; where v < 0. As T sweeps, the roots migrate, pinch together and split. T is patched into the code each frame.
+; where v < 0. As T sweeps, the roots migrate, pinch together and split. T is patched into the code each frame. Rows
+; and columns are nested loops, with what depends only on Y worked out once per row; the row above the screen is drawn
+; too, into the 320 bytes past its end, so that the top row has an upper neighbour.
 ; The music is T: steel drums play it as a pentatonic line that climbs and falls with the sweep.
 BITS 16
 CPU 386
@@ -17,8 +19,8 @@ ORG 100h
     and al,63                 ; s = 0..63
     mov cl,al
     shr cl,1                  ; G = s/2
-    mov ah,al
-    shr ah,2                  ; s/4
+    mov ah,cl
+    shr ah,1                  ; s/4
     test bl,bl
     jns .warm
     xchg al,ah                ; negative side: cool (R and B swap)
@@ -37,34 +39,31 @@ frame:
     mov al,[fs:46Ch]          ; t = the BIOS tick count: the animation runs on the clock, not the frame rate
     push ax
     call tri                  ; T
-    mov [.T-1],al             ; patched into  imul ebx,esi,T  below
-    imul ebp,eax,-96
+    mov [.T-1],al             ; patched into  imul ebp,esi,T  below
+    sub eax,102
+    imul ebx,eax,-96          ; -96T + 9792
     pop ax
     shr al,2
     call tri                  ; S
     shl eax,8                 ; 256 S
-    add ebp,eax               ; EBP = 16K = 256S - 96T
-    xor di,di
+    add ebx,eax               ; EBX = 16K + 9792, K = 16S - 6T
+    mov di,-320               ; from row -1, drawn into the 320 bytes past the screen, so that row 0 has a row
+    push dword -101           ; above it to compare with
+    pop esi                   ; Y
+.row:                         ; per row: EBX = 16K - 96Y, EBP = Y^2 T
+    sub ebx,96
+    imul ebp,esi,0
+.T:
+    imul ebp,esi
+    push dword -160
+    pop ecx                   ; X
 .px:
-    mov ax,di
-    xor dx,dx
-    mov cx,320
-    div cx                    ; ax = y, dx = x
-    sub dx,160
-    sub ax,100
-    movsx ecx,dx              ; X
-    movsx esi,ax              ; Y
     mov eax,ecx
     imul eax,ecx
     sar eax,2
-    add eax,ebp
-    imul ebx,esi,-96
     add eax,ebx
     imul eax,ecx              ; X (X^2/4 + 16K - 96Y)
-    imul ebx,esi,0
-.T:
-    imul ebx,esi
-    add eax,ebx               ; + Y^2 T
+    add eax,ebp               ; + Y^2 T
     cdq                       ; edx = sign mask
     xor eax,edx               ; |v| (to within one)
     shr eax,12
@@ -77,8 +76,6 @@ frame:
     xor ah,[es:di-1]
     js .root
 .above:
-    cmp si,-100               ; row 0 has no row above
-    je .put
     mov ah,al
     xor ah,[es:di-320]
     jns .put
@@ -86,8 +83,12 @@ frame:
     or al,127
 .put:
     stosb
-    test di,di                ; to the 64 KB wrap: the last 1536 pixels are off screen
-    jnz .px
+    inc ecx
+    cmp cx,160
+    jl .px
+    inc esi
+    cmp si,100
+    jl .row
     ESC_OR_LOOP frame
 tri:                          ; al -> eax = a triangle wave of period 128, -32..+31
     add al,al

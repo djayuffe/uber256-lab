@@ -121,6 +121,8 @@ def gold_px(x, y, t):
     return 0xC0 | tex & 63 if gold else tex & 127
 check(all(s[y * 320 + x] == gold_px(x, y, t) for y in range(0, 200, 3) for x in range(0, 320, 3)),
       "GOLDTEX: every pixel is code[x*y/64 + t] (the classic SELFTEX bands), in gold where the code byte for its 16x16 block is a multiple of 16")
+r3 = Run("GOLDTEX.COM").frames(2); r3.uc.reg_write(UC_X86_REG_BP, 0x1234); r3.frames(1); s3 = r3.screen()[:64000]
+check(all(s3[y * 320 + x] == gold_px(x, y, 0x1234) for y in range(0, 200, 3) for x in range(0, 320, 3)), "GOLDTEX: the same at t = 1234h (time past 8 bits)")
 gold = sum(1 for b in s if b >= 0xC0) / 64000
 check(0.04 < gold < 0.35, f"GOLDTEX: golden blocks cover part of the screen ({gold:.0%})")
 check(all((s[y * 320 + x] >= 0xC0) == (s[(y | 15) * 320 + (x | 15)] >= 0xC0) for y in range(0, 192, 5) for x in range(0, 320, 5)), "GOLDTEX: gold comes in whole 16x16 blocks")
@@ -165,7 +167,7 @@ groove("FIRE", m)
 leaves("FIRE", Run("FIRE.COM"))
 
 print("\n== JULIA ==")
-r = Run("JULIA.COM").frames(1); r.tick(1); common("JULIA", r, colours=255)
+r = Run("JULIA.COM").polls(1); r.tick(1); common("JULIA", r, colours=255)
 check(r.dac() and all(p != 0x3C8 or v == 1 for p, v in r.outs), "JULIA: the tick handler rewrites the palette from colour 1: the bands flow, the set (colour 0) stays black")
 s = r.screen()[:64000]
 black = s.count(0)
@@ -173,7 +175,7 @@ check(len(set(s)) > 6, f"JULIA: escape-time colour bands ({len(set(s))} distinct
 check(5000 < black < 55000, f"JULIA: the set itself (never escapes) is black and fills part of the screen ({black} of 64000 pixels)")
 check(s == s[::-1], "JULIA: the image is exactly point-symmetric (z -> -z): the bottom half is the top half mirrored")
 check(not any(b in (0xD9, 0xDB, 0xDD) for b in r.com[:60]), "JULIA: no FPU: pure 8.8 fixed-point integer maths")
-r.frames(3); s2 = r.screen()[:64000]
+r.polls(3); s2 = r.screen()[:64000]
 check(sum(1 for a, b in zip(s, s2) if a != b) > 500, "JULIA: the constant c circles, so the picture changes frame to frame")
 r2 = Run("JULIA.COM"); r2.uc.emu_start(0x100, 0xFFFFF, count=400_000)       # stop part-way through a frame
 di = r2.uc.reg_read(UC_X86_REG_DI); pix = r2.screen()[di - 1]
@@ -217,24 +219,24 @@ check(all(v == 127 - 3 * abs(n - 54) for c in st for n, v in c), "ESCHER: loudne
 leaves("ESCHER", Run("ESCHER.COM"))
 
 print("\n== CHLADNI ==")
-r = Run("CHLADNI.COM"); r.uc.mem_write(0x46C, bytes(4)); r.frames(1); common("CHLADNI", r)
+r = Run("CHLADNI.COM").frames(1); common("CHLADNI", r)
 s = r.screen()[:64000]
 bright = sum(1 for b in s if b > 200)
 check(r.com.count(b"\xD9\xFE") == 3, "CHLADNI: three FSINs in the code: the mode number, and the sin(aX), sin(bX) table")
 check(2000 < bright < 40000 and len(set(s)) > 100, f"CHLADNI: bright nodal lines on a dark plate with smooth falloff ({bright} bright pixels, {len(set(s))} levels)")
 def plate(a, x, y):
-    X, Y = (x - 160) * 0.02, (y - 100) * 0.02
+    X, Y = (x - 159.5) * 0.02, (y - 99.5) * 0.02
     f = abs(math.sin(a * X) * math.sin(6 * Y) - math.sin(6 * X) * math.sin(a * Y)) * 600
     return 255 - min(255, round(f))
 ok = sum(1 for y in range(0, 200, 7) for x in range(0, 320, 7) if abs(plate(3.0, x, y) - s[y * 320 + x]) <= 1)
 check(ok > 0.99 * 29 * 46, f"CHLADNI: the pixels are the plate equation for a = 3 at t = 0 ({ok} of {29 * 46} samples within 1)")
-mirror = sum(1 for y in range(200) for x in range(1, 320) if s[y * 320 + x] == s[y * 320 + 320 - x])
-flip = sum(1 for y in range(1, 200) for x in range(320) if s[y * 320 + x] == s[(200 - y) * 320 + x])
-check(mirror > 0.97 * 200 * 319 and flip > 0.97 * 199 * 320, f"CHLADNI: |f| is symmetric left-right and top-bottom ({mirror / (200 * 319):.1%} / {flip / (199 * 320):.1%})")
-r.uc.mem_write(0x46C, (137).to_bytes(4, 'little')); r.frames(1); s2 = r.screen()[:64000]
-a = 3 + math.sin(0.0115 * 137)
+mirror = sum(1 for y in range(200) for x in range(320) if s[y * 320 + x] == s[y * 320 + 319 - x])
+flip = sum(1 for y in range(200) for x in range(320) if s[y * 320 + x] == s[(199 - y) * 320 + x])
+check(mirror == 64000 and flip > 0.97 * 64000, f"CHLADNI: |f| is drawn mirrored left-right, and is symmetric top-bottom ({flip / 64000:.1%})")
+[r.frames(105) for _ in range(3)]; s2 = r.screen()[:64000]
+a = 3 + math.sin(0.0029874 * 315)
 ok = sum(1 for y in range(0, 200, 7) for x in range(0, 320, 7) if abs(plate(a, x, y) - s2[y * 320 + x]) <= 1)
-check(ok > 0.99 * 29 * 46 and sum(1 for p, q in zip(s, s2) if p != q) > 1000, f"CHLADNI: 7.5 s later the mode number is 3 + sin(0.0115 t) = {a:.2f}, and the figure has changed")
+check(ok > 0.99 * 29 * 46 and sum(1 for p, q in zip(s, s2) if p != q) > 1000, f"CHLADNI: 315 frames (4.5 s) later the mode number is 3 + sin(0.0029874 frames) = {a:.2f}, and the figure has changed")
 notes = []
 for k in range(60):
     t = int.from_bytes(r.uc.mem_read(0x46C, 4), 'little') + 1
@@ -317,10 +319,12 @@ white = [i for i in range(320, 64000) if s1[i] & 127 == 127 and i % 320]
 pos = sum(1 for b in s1 if not b & 128) / 64000
 check(300 < len(white) < 6000 and 0.1 < pos < 0.9, f"ROOTS: thin root curves ({len(white)} white pixels) between positive and negative regions ({pos:.0%} positive)")
 check(all((s1[i] ^ s1[i-1]) & 128 or (s1[i] ^ s1[i-320]) & 128 for i in white), "ROOTS: every white pixel is a real sign change against its left or upper neighbour")
-check(all((s1[i] ^ s1[i - 1]) & 128 for i in range(1, 320) if s1[i] & 127 == 127) and s1[0] & 127 != 127
-      and all((s1[y * 320] ^ s1[y * 320 - 320]) & 128 for y in range(1, 200) if s1[y * 320] & 127 == 127), "ROOTS: no false roots along the top row or the left column (they have no upper / left neighbour)")
 def v(X, Y, T, S): return (X * X >> 2) * X + X * (256 * S - 96 * T - 96 * Y) + Y * Y * T
 T = S = -32
+check(all((s1[i] ^ s1[i - 1]) & 128 or (s1[i] >> 7) != (v(i - 160, -101, T, S) < 0) for i in range(1, 320) if s1[i] & 127 == 127)
+      and all((s1[y * 320] ^ s1[y * 320 - 320]) & 128 for y in range(1, 200) if s1[y * 320] & 127 == 127)
+      and (s1[0] & 127 != 127 or (s1[0] >> 7) != (v(-160, -101, T, S) < 0)),
+      "ROOTS: no false roots along the top row (its upper neighbour is the row above the screen, drawn off screen) or the left column (no left neighbour)")
 ok = sum(1 for y in range(1, 200, 5) for x in range(1, 320, 5) if (s1[y * 320 + x] >> 7) == (v(x - 160, y - 100, T, S) < 0))
 check(ok > 0.995 * 40 * 64, f"ROOTS: the sign of every pixel is the sign of the cubic at t = 0 ({ok} of {40 * 64} samples)")
 check(not any(op in r.com for op in (b"\xDB\xE3", b"\xD9\xFE", b"\xD9\xFF")), "ROOTS: 32-bit integer maths only (no FPU)")

@@ -2,9 +2,10 @@
 ; code, picked by x*y/64 + t: hyperbolic bands of code, sliding as t grows, in a flowing palette. On top, the
 ; screen is a grid of 16x16 blocks, and the program's bytes decide which are gold: block (bx, by) is gold when
 ; the code byte at (16 by + bx + t/16) is a multiple of 16, so the golden blocks hop across the grid as t
-; moves. A gold block shows the same code texture
-; in the bright half of a gold ramp whose palette cycles, so it glitters. Music: the code bytes in order on a
-; glockenspiel, doubled an octave up, over a drum kit and a walking bass (groove.inc).
+; moves. A gold block shows the same code texture in the bright half of a gold ramp whose palette cycles, so it
+; glitters. The screen is drawn in 16-pixel runs, each inside one block, so the block test is made once per run and
+; a pixel is seven instructions: 70 frames a second. Music: the code bytes in order on a glockenspiel, doubled an
+; octave up, over a drum kit and a walking bass (groove.inc).
 BITS 16
 CPU 386
 ORG 100h
@@ -18,40 +19,39 @@ ORG 100h
     xor bp,bp                 ; time
 frame:
     xor di,di
-    xor si,si                 ; y
-.row:
-    mov ax,si                 ; per row: CH = 16 (y/16) + t/16, the row's part of the block key
-    and al,-16
-    mov ch,al
-    mov ax,bp
-    shr ax,4
-    add ch,al
-    xor dx,dx                 ; x
-.px:
-    mov ax,si
-    imul ax,dx                ; x*y
-    shr ax,6
-    add ax,bp                 ; + time
-    xlat                      ; the program's own byte: the texture
-    mov cl,al
-    mov ax,dx
-    shr ax,4                  ; the block: x/16 + the row's key
-    add al,ch
+.blk:                         ; a 16-pixel run of one block, set up from its screen offset
+    mov ax,di
+    xor dx,dx
+    mov cx,320
+    div cx                    ; AX = y, DX = x
+    imul si,ax,4              ; SI = 4y
+    and al,-16                ; the block key: 16 (y/16) + x/16 + t/16
+    mov cx,dx
+    shr cx,4
+    add al,cl
+    mov cx,bp
+    shr cx,4
+    add al,cl
     xlat                      ; the code byte that rules this block
+    mov ah,0C0h               ; a multiple of 16: AH = C0h, gold (colours 192..255)
     test al,15
-    mov al,cl                 ; (MOV keeps the flags)
-    jnz .plain
-    or al,0C0h                ; gold: colours 192..255
-    db 3Dh                    ; (cmp ax,imm16: swallows the two-byte and below)
-.plain:
-    and al,127                ; the flowing colours 0..127
+    jz .gold
+    mov ah,0                  ; otherwise AH = 0
+.gold:
+    imul dx,si                ; DX = 256t + 4xy: its high byte is x*y/64 + t
+    mov cx,bp
+    add dh,cl
+    mov cx,16
+.px:
+    mov al,dh
+    xlat                      ; the program's own byte: the texture
+    and al,127                ; the flowing colours 0..127, or gold
+    or al,ah
     stosb
-    inc dx
-    cmp dx,320
-    jb .px
-    inc si
-    cmp si,200
-    jb .row
+    add dx,si
+    loop .px
+    test di,di                ; on to the 64 KB wrap (the last 1536 bytes are past the screen)
+    jnz .blk
     inc bp
     mov dx,3DAh
 .vs:

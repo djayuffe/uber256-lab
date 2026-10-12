@@ -2,7 +2,8 @@
 ;   a = (x*y)/64 + t   (hyperbolas)     b = x - 2t   (vertical lines)     c = 3y + t   (horizontal lines)
 ; are never drawn. Only their ORDER is: three comparisons give one of the six orderings (as 3 bits, via the
 ; carry flag), which picks a band of the palette, and a shades it. As t moves, regions fold, collide and swap.
-; All three are kept incrementally (x*y grows by y per pixel, b by 1, c by 3 per row): no division, no multiply.
+; All three are kept incrementally (4xy grows by 4y per pixel, b by 1, c is set per row): no division or multiply
+; per pixel, eleven instructions each, 70 frames a second.
 ; The music is read off the picture: a probe walks down the screen and the ordering under it is the root of a
 ; four-note pizzicato arpeggio, so the harmony moves each time the probe crosses a boundary; a drum kit and a
 ; walking bass (groove.inc) play under it, and the palette flows with time.
@@ -17,33 +18,29 @@ ORG 100h
     pop es
 frame:
     xor di,di
-    xor dx,dx                 ; y
+    xor si,si                 ; 4y
 .row:
-    xor si,si                 ; x*y
+    imul dx,bp,256            ; DX = 256t + 4xy: DH is a = (x*y)/64 + t, with no add or shift per pixel
     imul bx,bp,-2             ; BL = b = x - 2t at x = 0
-    imul ax,dx,3
+    imul ax,si,3
+    shr ax,2
     add ax,bp
     mov bh,al                 ; BH = c = 3y + t
     mov cx,320
 .px:
-    mov ax,si
-    shr ax,6
-    add ax,bp                 ; AL = a = (x*y)/64 + t
-    cmp al,bl                 ; which of the six orderings of (a, b, c)? three comparisons -> 3 bits in AH
-    rcl ah,1
-    cmp bl,bh
-    rcl ah,1
-    cmp al,bh
-    rcl ah,1
-    shl ah,5                  ; the ordering picks a band of the palette...
-    shr al,3
-    add al,ah                 ; ...and a shades it
+    mov al,dh                 ; AL = a
+    cmp dh,bh                 ; which of the six orderings of (a, b, c)? Each comparison's carry is rotated
+    rcr al,1                  ; in at the top of AL: after three, AL = (a<b, b<c, a<c, a >> 3): the ordering
+    cmp bl,bh                 ; picks a band of the palette and a shades it
+    rcr al,1
+    cmp dh,bl
+    rcr al,1
     stosb
-    add si,dx
+    add dx,si
     inc bl
     loop .px
-    inc dx
-    cmp dl,200
+    add si,4
+    cmp si,800
     jb .row
     inc bp
     mov dx,3DAh

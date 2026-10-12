@@ -1,5 +1,5 @@
-; FIRE - framebuffer feedback: every pixel becomes the average of the four pixels below it, minus a
-; little. Two random rows of heat at the bottom keep the energy up (the thing NEBULA lacked).
+; FIRE - framebuffer feedback: every pixel becomes the average of the four pixels below it (as halves of halves),
+; minus a little. Two random rows of heat at the bottom keep the energy up (the thing NEBULA lacked).
 ; The music is read off the fire: every other tick a probe drifting through the flames reads the heat
 ; under it; a hot pixel plays a nylon-guitar note, higher and louder the hotter it is. A drum kit and a walking
 ; bass (groove.inc) play under it, and one white-hot ember (two pixels) a frame is dropped into the lower half to
@@ -45,20 +45,20 @@ frame:
     shr di,1                  ; averaging then lifts and spreads into a rising spark
     mov word [di+32000],0FFFFh ; two pixels wide, so they read as sparks
     xor di,di
-.p:
-    movzx ax,byte [di+319]
-    movzx cx,byte [di+320]
-    add ax,cx
-    movzx cx,byte [di+321]
-    add ax,cx
-    movzx cx,byte [di+640]
-    add ax,cx
-    shr ax,2
+    mov cx,63680
+.p:                           ; the average of the four, as halves of halves (each RCR takes the carry back in)
+    mov al,[di+319]
+    add al,[di+321]
+    rcr al,1
+    mov ah,[di+320]
+    add ah,[di+640]
+    rcr ah,1
+    add al,ah
+    rcr al,1
     sub al,1                  ; cool by one, but never below zero
     adc al,0
     stosb
-    cmp di,63680
-    jb .p
+    loop .p
     mov dx,3DAh
 .vs:
     in al,dx

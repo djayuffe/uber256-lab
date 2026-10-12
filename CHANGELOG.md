@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.5.0]
+- **Speed.** Every demo that missed 70 frames a second at DOSBox `cycles=fixed 60000` now reaches it; instructions per frame (counted by the new `tools/cost.py`) and DOSBox frames per second at 60000 cycles, 2.4 -> 2.5:
+  - CHLADNI 965,431 -> 548,810, 35 -> 70: the lattice is centred between pixels, so the left half is computed and each value written twice (at x and 319 - x); the table holds only the 260 entries used (520 FSINs). The mode number runs on a per-frame phase kept on the FPU stack (same 30 s period) instead of the 18.2 Hz clock, so the figure changes every frame. 251 bytes.
+  - GOLDTEX 1,168,736 -> 555,123, 35 -> 70: 16-pixel runs, each inside one block, set up once (block test, gold mask, texel accumulator); seven instructions a pixel. Same formula. 255 bytes.
+  - ORDER 1,029,147 -> 709,347, 35 -> 70: `a` is the high byte of one accumulator (256t + 4xy), and the comparison carries are rotated straight into the colour; eleven instructions a pixel. Pixel-identical. 240 bytes.
+  - ROOTS 2,421,665 -> 1,543,942, 25 -> 39: nested loops instead of a division per pixel, per-row terms out of the pixel loop, and the row above the screen drawn past its end instead of a row-0 test (the top row now has a real upper neighbour). Identical below row 0. 252 bytes.
+  - JULIA 14.2M -> 9.8M, 5.6 -> 13.7: 32-bit products with no shifts until they are combined (15 instructions an iteration instead of 22); no retrace wait. About 2% of pixels change band (one rounding instead of two). 254 bytes.
+  - FIRE 831,697 -> 768,018: the four-pixel average as halves of halves with `rcr`, and `loop`. The flames are a few rows shorter. 250 bytes.
+  - GALAXY 692,315 -> 626,779 and CLIFF 704,315 -> 638,779: the fade's `v - v/16` is `aam 16` / `aad 15`. Pixel-identical. 248 and 253 bytes.
+- **Fixed before release:** the first fast GOLDTEX left CH holding the frame counter's high byte, so after 256 frames its runs became thousands of pixels long; found in DOSBox. A test now draws a frame at t = 1234h.
+- Tests: 246 checks (CHLADNI's mirror and per-frame phase, ROOTS's top row against the row above the screen, GOLDTEX past 8-bit time; JULIA now counts frames by keyboard polls, having no retrace wait).
+- New DOSBox recordings, GIFs, stills and MIDI of the eight changed demos, and a new showreel. README: a [Speed](README.md#speed) section and each demo's 2.5 changes.
+
 ## [2.4.0]
 - CHLADNI: the sine table is 16-bit integers scaled by K = 6271 (K^2 = 600 x 65536), so each pixel is two 16-bit `imul`s whose high words are already 600 sin sin: no FPU in the pixel loop. Same picture (12% of pixels differ by one brightness step, none by more). 250 bytes.
 - WARP: the electric piano plays every other tick (16th notes over the groove) instead of every tick; it was 10 dB louder than the other melodies. 256 bytes.
