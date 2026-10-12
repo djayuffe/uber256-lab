@@ -2,7 +2,8 @@
 ; Sand collects where the plate does not move, so the picture is bright where |f| is small. The mode number a
 ; swings through [2, 4] with the BIOS clock. f is separable, so each frame first tabulates sin(aX) and sin(bX)
 ; for the 320 values of X (the 200 values of Y are a subset): 640 FSINs a frame instead of four per pixel.
-; A probe crosses the plate in time with the music: where it meets a nodal line, a tubular bell rings.
+; A probe crosses the plate in time with the music: where it meets a nodal line, a tubular bell rings, doubled
+; an octave below.
 BITS 16
 CPU 386
 ORG 100h
@@ -118,6 +119,9 @@ isr:                          ; INT 1Ch, 18.2 Hz
     aad 6
     out dx,al                 ; note
     out dx,al                 ; velocity = note
+    sub al,12                 ; and the same bell an octave lower
+    out dx,al
+    out dx,al
 .r:
     popa
     iret

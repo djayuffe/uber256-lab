@@ -1,6 +1,7 @@
 ; ESCHER - the picture is drawn once. After that only the CRTC moves: the display start address drifts,
 ; and the line-compare register restarts the scan-out from address 0 part-way down the screen, so the top
-; slides while the bottom is a second copy of the same texture. Nothing is redrawn.
+; slides while the bottom is a second copy of the same texture. Nothing is redrawn: pixel panning makes the
+; drift pixel-smooth and the palette streams colour through the bands.
 ; The music is a Shepard scale: five octave-spaced notes step up a semitone at a time under a fixed bell of
 ; loudness, so the scale climbs for ever without getting higher - Escher's staircase, heard.
 BITS 16
@@ -8,16 +9,6 @@ CPU 386
 ORG 100h
     mov al,13h
     int 10h
-    mov dx,3C9h
-.pal:                         ; R = i, G = 2i, B = 4i
-    mov al,bl
-    out dx,al
-    add al,al
-    out dx,al
-    add al,al
-    out dx,al
-    inc bl
-    jnz .pal
     mov ax,351Ch              ; hook the timer tick (INT 1Ch), keeping the old vector on the stack
     int 21h
     push es
@@ -77,6 +68,27 @@ frame:
     mov ah,al
     mov al,18h
     out dx,ax
+    mov dl,0C0h               ; attribute controller 13h, pixel panning: the start address moves in steps of
+    mov al,33h                ; 4 pixels; panning by 0, 1, 2 or 3 more (written as 0, 2, 4, 6 in 256-colour
+    out dx,al                 ; mode) makes the horizontal drift pixel-smooth (the retrace wait's reads of
+    mov al,bl                 ; 3DAh reset the flip-flop)
+    shr al,2
+    and al,6
+    out dx,al
+    mov dl,0C8h               ; and the palette flows: entry k = (k + frame) streamed as i, 2i, 4i, so the
+    mov al,0                  ; bands stream through the texture although no pixel is ever redrawn
+    out dx,al
+    inc dx
+    mov cx,256
+.flow:
+    mov ax,cx
+    add ax,si
+    out dx,al
+    add al,al
+    out dx,al
+    add al,al
+    out dx,al
+    loop .flow
     mov ax,bp                 ; the oscillator: bx += bp>>5, bp -= bx>>5
     sar ax,5
     add bx,ax

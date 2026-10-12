@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.1.0]
+- Every spare byte spent on eye candy and music (all eleven still <= 256 bytes; CLIFF and ROOTS exactly 256).
+- New `src/groove.inc`, a 52-byte rhythm section for the tick handler: GM drums on channel 10 every fourth tick (kick, hi-hat, snare, hi-hat) and a bass on channel 2 with every kick, walking down the pentatonic scale. Used by FIRE, LATCH, ORDER, SELFTEX and WARP. `build.sh` passes `-Isrc/`.
+- WARP: CR08 bob, pixel-panning shimmer, a flowing rainbow over all 63 text colours above black.
+- LATCH: the same rainbow over its 15 colours and the panning shimmer.
+- SELFTEX: a second, diagonal layer of code bytes added to the first; flowing palette; panning shiver; the kalimba doubled an octave up.
+- ORDER: the shading flows inside each region's palette band.
+- ESCHER: pixel panning makes the start-address drift pixel-smooth; the palette streams through the texture (still no pixel redrawn).
+- JULIA: the tick handler rotates the palette (black set kept), so the bands flow 18 times a second; a low C pedal every 16 ticks.
+- FIRE: a white-hot ember a frame that rises as a spark.
+- CHLADNI: bells doubled an octave below. CLIFF: the orbit's x position is the marimba's velocity.
+- Tests: 223 checks (the groove, the new registers, the palettes, two-layer SELFTEX).
+
 ## [2.0.0]
 - **Music in every demo.** Each program hooks the 18.2 Hz timer tick (INT 1Ch, through DOS, restored on exit) and plays General MIDI through an MPU-401 in UART mode, so the tempo is the clock's, whatever the frame rate. Every score is generated from the demo's own state and quantised to C major pentatonic by `aam 5` / `aad 6` (an even number 2d becomes floor(12d/5)): GALAXY and CLIFF play their orbit (vibraphone, marimba), CHLADNI rings a tubular bell where a probe crosses a nodal line, FIRE plucks a nylon guitar when its probe is in a flame, ESCHER is a Shepard scale (an endless staircase in sound), JULIA plays each pixel as it is drawn (celesta), LATCH plays the ruler sequence of the Sierpinski triangle (music box), ORDER arpeggiates the ordering under a probe (pizzicato), ROOTS plays its coefficient T (steel drums), SELFTEX plays its own code bytes (kalimba), WARP plays the character-height wave that stretches the screen (electric piano).
 - **Fixed:** GALAXY, CLIFF and CHLADNI left the PC speaker droning after Esc; the speaker is no longer used at all.

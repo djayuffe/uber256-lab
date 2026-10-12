@@ -4,22 +4,13 @@
 ; carry flag), which picks a band of the palette, and a shades it. As t moves, regions fold, collide and swap.
 ; All three are kept incrementally (x*y grows by y per pixel, b by 1, c by 3 per row): no division, no multiply.
 ; The music is read off the picture: a probe walks down the screen and the ordering under it is the root of a
-; four-note pizzicato arpeggio, so the harmony moves each time the probe crosses a boundary.
+; four-note pizzicato arpeggio, so the harmony moves each time the probe crosses a boundary; a drum kit and a
+; walking bass (groove.inc) play under it, and the palette flows with time.
 BITS 16
 CPU 386
 ORG 100h
     mov al,13h
     int 10h
-    mov dx,3C9h
-.pal:
-    mov al,bl
-    out dx,al
-    add al,al
-    out dx,al
-    add al,al
-    out dx,al
-    inc bl
-    jnz .pal
     mov ax,351Ch              ; hook the timer tick (INT 1Ch), keeping the old vector on the stack
     int 21h
     push es
@@ -66,6 +57,25 @@ frame:
     in al,dx
     test al,8
     jz .vs
+    mov dl,0C8h               ; the palette flows inside each band: entry k = (k AND E0h) + ((k + 2t) AND 1Fh),
+    mov al,0                  ; streamed as i, 2i, 4i, so every region keeps its hue while its shading streams
+    out dx,al
+    inc dx
+    mov cx,256
+.flow:
+    mov ax,bp
+    add ax,ax
+    add ax,cx
+    and al,1Fh
+    mov ah,cl
+    and ah,0E0h
+    or al,ah
+    out dx,al
+    add al,al
+    out dx,al
+    add al,al
+    out dx,al
+    loop .flow
     in al,60h
     cbw
     dec ax
@@ -102,5 +112,6 @@ isr:                          ; INT 1Ch, 18.2 Hz
     out dx,al                 ; note
     out dx,al                 ; velocity = note
 .q:
+%include "groove.inc"
     popa
     iret

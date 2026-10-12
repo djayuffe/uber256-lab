@@ -1,5 +1,6 @@
 ; CLIFF - the GALAXY engine with the Clifford map: x' = sin(a*y) + c*cos(a*x), y' = sin(b*x) + d*cos(b*y).
-; It plays itself too: on every timer tick the orbit's current y position picks a pentatonic note on a marimba.
+; It plays itself too: on every timer tick the orbit's current y position picks a pentatonic note on a marimba,
+; and its x position how hard it is struck.
 ; The pixel position words live just past the end of the file, inside the program's own segment.
 BITS 16
 CPU 386
@@ -116,7 +117,9 @@ isr:                          ; INT 1Ch, 18.2 times a second (DS is not ours her
     aam 5                     ; AL = 2d -> 2d + floor(2d/5) = floor(12d/5): a major-pentatonic degree d
     aad 6
     out dx,al                 ; note (C4..E5)
-    out dx,al                 ; velocity = note
+    mov al,[cs:bx+22]         ; velocity: the orbit's x position, halved: accents and ghost notes
+    shr al,1
+    out dx,al
 .r:
     popa
     iret

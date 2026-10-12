@@ -14,11 +14,11 @@ PENTA = {0, 2, 4, 7, 9}                     # C major pentatonic, the scale ever
 
 def lit(scr): return sum(1 for b in scr if b)
 
-def common(name, r, mode=0x13):
+def common(name, r, mode=0x13, colours=256):
     check(len(r.com) <= 256, f"{name}: {len(r.com)} bytes (limit 256)")
     check(r.ints[0] == (0x10, mode), f"{name}: first call is INT 10h, AX = {mode:04X}h")
     if mode == 0x13:
-        check(len(r.dac()) >= 768, f"{name}: programs all 256 DAC colours ({len(r.dac())} values)")
+        check(len(r.dac()) >= 3 * colours, f"{name}: programs {colours} DAC colours ({len(r.dac())} values)")
         check(max(r.dac()[:768]) > 20, f"{name}: palette is not black")
     check(not r.unmapped, f"{name}: touches no memory outside video RAM and its segment {r.unmapped[:3]}")
     check(not any(p in (0x42, 0x43, 0x61) for p, v in r.outs), f"{name}: never touches the PC speaker or PIT channel 2")
@@ -39,10 +39,21 @@ def music(name, r, program, ticks=64, lo=12, hi=None, between=0, scale=PENTA):
     notes = [n for n in r.note_ons() if n[0] > 1]
     hi = hi if hi is not None else ticks
     check(lo <= len(notes) <= hi * 5, f"{name}: {len(notes)} notes in {ticks} ticks ({ticks / 18.2:.1f} s)")
-    pcs = sorted({n[2] for n in notes})
-    check(notes and all(n[2] % 12 in scale and 24 <= n[2] <= 100 and 0 < n[3] < 128 for n in notes),
-          f"{name}: every note is in {'C major pentatonic' if scale == PENTA else 'the chromatic scale'}, inside 24..100, with a valid velocity ({pcs})")
+    pcs = sorted({n[2] for n in notes if n[1] != 9})
+    check(notes and all(n[2] % 12 in scale and 24 <= n[2] <= 103 and 0 < n[3] < 128 for n in notes if n[1] != 9),
+          f"{name}: every pitched note is in {'C major pentatonic' if scale == PENTA else 'the chromatic scale'}, inside 24..103, with a valid velocity ({pcs})")
     return notes
+
+def groove(name, notes):
+    """groove.inc: GM drums on channel 10 every 4 ticks (kick, hat, snare, hat) and a bass on channel 2 with each kick."""
+    drums = [(t, n) for t, ch, n, v in notes if ch == 9]
+    want = {0: 36, 4: 42, 8: 38, 12: 42}
+    check(len(drums) >= 8 and all(t % 4 == 0 and n == want[t % 16] for t, n in drums),
+          f"{name}: drums on channel 10 every fourth tick: kick, hi-hat, snare, hi-hat ({len(drums)} hits)")
+    bass = [(t, n) for t, ch, n, v in notes if ch == 1]
+    check(len(bass) >= 3 and all(t % 16 == 0 and n == 36 + [0, 2, 4, 7, 9][(t // 16 * 4) % 256 % 5] for t, n in bass),
+          f"{name}: a bass note on channel 2 with every kick, walking down the pentatonic scale ({[n for t, n in bass]})")
+def mel(notes): return [n for n in notes if n[1] == 0]
 
 def leaves(name, r, polls=1):
     r.run_until_exit(polls)
@@ -81,11 +92,17 @@ print("\n== SELFTEX ==")
 r = Run("SELFTEX.COM").frames(2); common("SELFTEX", r)
 s = r.screen()
 check(lit(s) > 5000 and len(set(s)) > 30, f"SELFTEX: the screen is textured by the program's own bytes ({len(set(s))} colours, {lit(s)} lit)")
-check(set(s) <= set(r.com) | {0}, "SELFTEX: every pixel value is a byte of the program")
+code = r.com + bytes(256 - len(r.com))
+check(set(s) <= {(a + b) & 255 for a in code for b in code}, "SELFTEX: every pixel value is the sum of two bytes of the program (two layers of code)")
 r.frames(3); s2 = r.screen()
+dac = r.dac()
+check(len(dac) >= 2 * 768 and dac[-768:] != dac[-1536:-768], "SELFTEX: the whole palette is rewritten every frame, and it moves")
 check(sum(1 for a, b in zip(s, s2) if a != b) > 5000, "SELFTEX: the texture scrolls (time is added to the lookup index)")
 notes = music("SELFTEX", r, 108)
-check([n[2] for n in notes] == [((r.com[(t >> 1) & 127] & 30) + 46) * 6 // 5 for t, _, _, _ in notes], "SELFTEX: the melody is the program's own bytes, one per step, in order")
+m = mel(notes)
+check([n[2] for n in m[0::2]] == [((r.com[(t >> 1) & 127] & 30) + 46) * 6 // 5 for t, _, _, _ in m[0::2]] and all(b[2] == a[2] + 12 for a, b in zip(m[0::2], m[1::2])),
+      "SELFTEX: the melody is the program's own bytes, one per step, in order, doubled an octave up")
+groove("SELFTEX", notes)
 leaves("SELFTEX", Run("SELFTEX.COM"), 2)
 
 print("\n== FIRE ==")
@@ -105,16 +122,18 @@ for k in range(40):
     r.frames(1); before = len(r.note_ons()); t = int.from_bytes(r.uc.mem_read(0x46C, 4), 'little') + 1
     probe = ((((t >> 1) * 1283) & 0xFFFF) | 0xB000) if not t & 1 else None
     heat = r.screen()[probe] if probe is not None else None
-    r.tick(1); new = r.note_ons()[before:]
+    r.tick(1); new = mel(r.note_ons()[before:])
     if probe is not None: notes.append((heat, [n[2] for n in new]))
 check(all((h >= 40) == bool(n) for h, n in notes) and sum(1 for h, n in notes if n) >= 3,
       f"FIRE: a guitar note exactly when the probe is in a flame ({sum(1 for h, n in notes if n)} of {len(notes)} steps)")
 check(all(n[0] == ((h >> 3 & 30) + 40) * 6 // 5 for h, n in notes if n), "FIRE: hotter pixels play higher notes")
 m = music("FIRE", r, 24, ticks=200, lo=1)
+groove("FIRE", m)
 leaves("FIRE", Run("FIRE.COM"))
 
 print("\n== JULIA ==")
-r = Run("JULIA.COM").frames(1); common("JULIA", r)
+r = Run("JULIA.COM").frames(1); r.tick(1); common("JULIA", r, colours=255)
+check(r.dac() and all(p != 0x3C8 or v == 1 for p, v in r.outs), "JULIA: the tick handler rewrites the palette from colour 1: the bands flow, the set (colour 0) stays black")
 s = r.screen()[:64000]
 black = s.count(0)
 check(len(set(s)) > 6, f"JULIA: escape-time colour bands ({len(set(s))} distinct colours)")
@@ -125,13 +144,15 @@ r.frames(3); s2 = r.screen()[:64000]
 check(sum(1 for a, b in zip(s, s2) if a != b) > 500, "JULIA: the constant c circles, so the picture changes frame to frame")
 r2 = Run("JULIA.COM"); r2.uc.emu_start(0x100, 0xFFFFF, count=400_000)       # stop part-way through a frame
 di = r2.uc.reg_read(UC_X86_REG_DI); pix = r2.screen()[di - 1]
-r2.tick(1); got = [n[2] for n in r2.note_ons()]
+r2.tick(1); got = [n[2] for n in mel(r2.note_ons())]
 check(got == ([] if pix == 0 else [(((pix >> 2) & 30) + 44) * 6 // 5]), f"JULIA: each tick plays the pixel just drawn (colour {pix} -> {got})")
 music("JULIA", r, 8, lo=4, between=150_000)
 leaves("JULIA", Run("JULIA.COM"))
 
 print("\n== ESCHER ==")
-r = Run("ESCHER.COM").frames(1); common("ESCHER", r)
+r = Run("ESCHER.COM").frames(4); common("ESCHER", r)
+pan = [v for p, v in r.outs if p == 0x3C0]
+check(pan[0::2] == [0x33] * len(pan[0::2]) and set(pan[1::2]) <= {0, 2, 4, 6}, "ESCHER: pixel panning (0, 2, 4, 6) refines the 4-pixel start-address steps")
 s1 = r.screen()[:64000]
 check(len(set(s1)) > 100 and lit(s1) > 30000, f"ESCHER: the texture is drawn once ({len(set(s1))} distinct colours)")
 r.frames(30); s2 = r.screen()[:64000]
@@ -200,11 +221,14 @@ check(gc[:3] == [0x0F01, 0x1803, 0x0305], "LATCH: graphics controller set up as 
 colours = [v >> 8 for v in gc[3:] if v & 255 == 0]
 check(len(colours) >= 3 and all((b - a) & 255 == 1 for a, b in zip(colours, colours[1:])), f"LATCH: the set/reset colour (GR00) is the frame counter, rewritten every frame")
 check(b"\x26\xAC\xD0\xD8\xAA\xE2" in r.com, "LATCH: the inner loop is es lodsb / rcr al,1 / stosb / loop: each byte read loads the VGA latches from the row below, each write lands one row up")
-check(not any(p == 0x3C9 for p, v in r.outs), "LATCH: no palette writes: the colours are the default EGA 16")
+check(all(v == 1 for p, v in r.outs if p == 0x3C8) and len(r.dac()) >= 2 * 189, "LATCH: the 63 DAC colours above black are rewritten every frame (a flowing rainbow); black stays black")
+pan = [v for p, v in r.outs if p == 0x3C0]
+check(pan[0::2] == [0x33] * len(pan[0::2]) and set(pan[1::2]) <= set(range(8)) and len(pan) >= 4, "LATCH: the attribute controller's pixel panning (13h) is set every frame, 0..7")
 r.uc.mem_write(0x46C, bytes(4))
 notes = music("LATCH", r, 10, ticks=64)
 ruler = [60 + [0, 2, 4, 7, 9, 12, 14][(k & -k).bit_length() - 1] for k in range(1, 32)]
-check([n[2] for n in notes][:31] == ruler, "LATCH: the melody is the ruler sequence (trailing zeros of the step: 0 1 0 2 0 1 0 3 ...), the Sierpinski rhythm")
+groove("LATCH", notes)
+check([n[2] for n in mel(notes)][:31] == ruler, "LATCH: the melody is the ruler sequence (trailing zeros of the step: 0 1 0 2 0 1 0 3 ...), the Sierpinski rhythm")
 leaves("LATCH", Run("LATCH.COM"))
 
 print("\n== WARP ==")
@@ -214,7 +238,11 @@ before = bytes(r.uc.mem_read(0xB8000, 4000)); r.frames(70)
 check(len(r.com) <= 256, f"WARP: {len(r.com)} bytes (limit 256)")
 crtc = [v for p, v in r.outs if p == 0x3D4]
 idx = {v & 255 for v in crtc}
-check(idx == {0x09, 0x13}, f"WARP: writes only CRTC registers 09h and 13h, never the timing registers ({sorted(map(hex, idx))})")
+check(idx == {0x08, 0x09, 0x13}, f"WARP: writes only CRTC registers 08h, 09h and 13h, never the timing registers ({sorted(map(hex, idx))})")
+check({v >> 8 for v in crtc if v & 255 == 8} == set(range(16)), "WARP: CR08 (preset row scan) bobs the screen through 0..15 scan lines")
+pan = [v for p, v in r.outs if p == 0x3C0]
+check(pan[0::2] == [0x33] * len(pan[0::2]) and set(pan[1::2]) == set(range(8)), "WARP: the attribute controller's pixel panning (13h) shimmers through 0..7")
+check(all(v == 1 for p, v in r.outs if p == 0x3C8) and len(r.dac()) >= 189 * 60, "WARP: the 63 DAC colours above black are rewritten every frame (black stays black)")
 h = [v >> 8 for v in crtc if v & 255 == 0x09]
 check(all(x & 0x40 for x in h) and min(x & 31 for x in h) == 3 and max(x & 31 for x in h) == 18 and len({x & 31 for x in h}) == 16, f"WARP: CR09 keeps bit 6 and steps the character height through all 16 values from 4 to 19 scan lines")
 st = [v >> 8 for v in crtc if v & 255 == 0x13]
@@ -225,14 +253,14 @@ notes = []
 for k in range(40):
     r.frames(1); bl = r.uc.reg_read(UC_X86_REG_BX) & 255
     tri = (~bl & 255 if bl & 32 else bl) & 30
-    before = len(r.note_ons()); r.tick(1); new = [n[2] for n in r.note_ons()[before:]]
+    before = len(r.note_ons()); r.tick(1); new = [n[2] for n in mel(r.note_ons()[before:])]
     if k: notes.append((tri, new))
 check(all(n == [(t + 46) * 6 // 5] for t, n in notes), "WARP: every tick plays the current character-height triangle as a pentatonic degree: the arpeggio rises as the text stretches")
-music("WARP", r, 4)
+groove("WARP", music("WARP", r, 4))
 leaves("WARP", Run("WARP.COM"), 2)
 
 print("\n== ORDER ==")
-r = Run("ORDER.COM").frames(1); common("ORDER", r)
+r = Run("ORDER.COM").frames(2); common("ORDER", r)
 s1 = r.screen()[:64000]
 bands = {b >> 5 for b in s1}
 check(len(bands) >= 5, f"ORDER: at least five of the possible orderings appear as regions ({sorted(bands)})")
@@ -246,6 +274,7 @@ check(b"\xF7\xF1" not in r.com and b"\xF7\xF3" not in r.com, "ORDER: no division
 r.frames(2); s2 = r.screen()[:64000]
 check(sum(1 for a, b in zip(s1, s2) if a >> 5 != b >> 5) > 1000, "ORDER: the region boundaries move as t changes")
 notes = music("ORDER", r, 45)
+groove("ORDER", notes)
 leaves("ORDER", Run("ORDER.COM"))
 
 print("\n== ROOTS ==")

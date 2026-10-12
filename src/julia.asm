@@ -2,22 +2,13 @@
 ; No FPU, no sine table. Colour = how fast the point escapes, through a wrapping RGB palette. A Julia set is
 ; symmetric under z -> -z, so only the top half is computed and each pixel is also written to its mirror.
 ; The music is read off the picture as it is drawn: on every timer tick the escape time of the pixel just
-; computed is a celesta note, and the inside of the set is silence.
+; computed is a celesta note, and the inside of the set is silence; a low C pedal sounds every 16 ticks, and
+; the tick handler also rotates the palette, so the bands flow even between the (slow) frames.
 BITS 16
 CPU 386
 ORG 100h
     mov al,13h
     int 10h
-    mov dx,3C9h
-.pal:                         ; R = i, G = 2i, B = 4i (the DAC keeps 6 bits): bands of saturated colour
-    mov al,bl
-    out dx,al
-    add al,al
-    out dx,al
-    add al,al
-    out dx,al
-    inc bl
-    jnz .pal
     mov ax,351Ch              ; hook the timer tick (INT 1Ch), keeping the old vector on the stack
     int 21h
     push es
@@ -116,6 +107,31 @@ isr:                          ; INT 1Ch, 18.2 Hz: the pixel just drawn plays (DI
     out dx,al                 ; note
     out dx,al                 ; velocity = note
 .q:
+    test byte [fs:46Ch],15    ; every 16 ticks a low C on channel 2 (piano): a pedal under the celesta
+    jnz .np
+    mov al,91h
+    out dx,al
+    mov al,36
+    out dx,al
+    mov al,90
+    out dx,al
+.np:
+    mov dx,3C8h               ; and on every tick the palette moves on (a ramp shifted by 2t, streamed as R = i,
+    mov al,1                  ; G = 2i, B = 4i), so the escape bands flow smoothly however slowly the picture
+    out dx,al                 ; is drawn; colour 0, the set itself, stays black
+    inc dx
+    mov bx,[fs:46Ch]
+    add bx,bx
+    mov cx,255
+.flow:
+    mov ax,cx
+    add ax,bx
+    out dx,al
+    add al,al
+    out dx,al
+    add al,al
+    out dx,al
+    loop .flow
     popa
     iret
 ci: dw 0

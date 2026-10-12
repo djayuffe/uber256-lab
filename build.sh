@@ -7,7 +7,7 @@ fail=0
 for src in src/*.asm; do
     name=$(basename "$src" .asm); upper=$(echo "$name" | tr 'a-z' 'A-Z')
     [ "${#name}" -le 8 ] || { echo "ERROR: $upper.COM is not a valid 8.3 DOS file name" >&2; fail=1; }
-    nasm -f bin -Wall -Werror "$src" -o "$upper.COM"
+    nasm -f bin -Wall -Werror -Isrc/ "$src" -o "$upper.COM"
     size=$(wc -c < "$upper.COM" | tr -d ' ')
     printf '%-14s %s bytes (limit 256)\n' "$upper.COM" "$size"
     [ "$size" -le 256 ] || { echo "ERROR: $upper.COM is over 256 bytes" >&2; fail=1; }

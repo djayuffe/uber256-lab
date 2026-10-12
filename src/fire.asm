@@ -1,7 +1,8 @@
 ; FIRE - framebuffer feedback: every pixel becomes the average of the four pixels below it, minus a
 ; little. Two random rows of heat at the bottom keep the energy up (the thing NEBULA lacked).
 ; The music is read off the fire: every other tick a probe drifting through the flames reads the heat
-; under it; a hot pixel plays a nylon-guitar note, higher and louder the hotter it is.
+; under it; a hot pixel plays a nylon-guitar note, higher and louder the hotter it is. A drum kit and a walking
+; bass (groove.inc) play under it, and one white-hot ember a frame is dropped into the lower half to rise as a spark.
 BITS 16
 CPU 386
 ORG 100h
@@ -45,6 +46,9 @@ frame:
     sbb al,al
     stosb
     loop .seed
+    mov di,bx                 ; one ember a frame: a white-hot pixel somewhere in the lower half, which the
+    shr di,1                  ; averaging then lifts and spreads into a rising spark
+    mov byte [di+32000],255
     xor di,di
 .p:
     movzx ax,byte [di+319]
@@ -101,5 +105,6 @@ isr:
     out dx,al
     out dx,al
 .q:
+%include "groove.inc"
     popa
     iret

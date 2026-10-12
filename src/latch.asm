@@ -4,7 +4,9 @@
 ; into every pixel whose LEFT neighbour has plane 0 set. Copying each row from the row below therefore draws the
 ; space-time diagram of rule 60 (Sierpinski) rising up the screen, two one-byte CPU instructions per 8 pixels.
 ; The music is the same fractal in time: a music box plays the ruler sequence (how many times the step number
-; divides by two: 0 1 0 2 0 1 0 3 ...), the Towers-of-Hanoi rhythm that is also the Sierpinski triangle's.
+; divides by two: 0 1 0 2 0 1 0 3 ...), the Towers-of-Hanoi rhythm that is also the Sierpinski triangle's,
+; over a drum kit and a walking bass (groove.inc). The 15 colours run through a flowing rainbow and the
+; attribute controller's pixel panning makes the picture shimmer.
 BITS 16
 CPU 386
 ORG 100h
@@ -50,7 +52,35 @@ frame:
 .vs:
     in al,dx
     test al,8
-    jz .vs
+    jz .vs                    ; (the read also resets the attribute controller's flip-flop)
+    mov dl,0C0h               ; attribute controller 13h, pixel panning: the waterfalls shimmer sideways
+    mov al,33h
+    out dx,al
+    mov al,bl
+    shl al,2
+    test al,32
+    jz .up
+    not al
+.up:
+    shr al,2
+    and al,7
+    out dx,al
+    mov dl,0C8h               ; the DAC from colour 1 (black stays black): a flowing rainbow, each component a
+    mov al,1                  ; triangle of (time + 86 * byte position), so R, G and B are a third of a cycle apart
+    out dx,al
+    inc dx
+    mov cx,63*3
+.pal:
+    mov al,cl
+    imul ax,ax,86
+    add al,bl
+    add al,al
+    jnc .p
+    not al
+.p:
+    shr al,2
+    out dx,al
+    loop .pal
     pop dx
     in al,60h
     cbw
@@ -84,5 +114,6 @@ isr:                          ; INT 1Ch, 18.2 Hz
     out dx,al                 ; note
     out dx,al                 ; velocity = note
 .q:
+%include "groove.inc"
     popa
     iret
