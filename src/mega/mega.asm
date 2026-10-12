@@ -6,9 +6,10 @@
 ; vectors the megademo puts in the part's PSP (50h, 54h, 58h), so one copy of each serves all eleven parts. The
 ; megademo runs a part the way DOS runs a .COM: it clears a 64 KB segment above itself, puts the part at offset 100h,
 ; a far jump back to itself at offset 0 (where the part's final RET lands), the vectors and the end tick in the PSP,
-; gives it its own stack and the registers DOS gives a program, and jumps in. Between parts it reads the DAC and fades
-; the picture to black, then shows the next title: the BIOS 8x8 font scaled up in a gold gradient with a band of light
-; running down it, a chime, a fade in and out. Esc at any moment ends the show.
+; gives it its own stack and the registers DOS gives a program, and jumps in. Each part fades in over its first 32
+; frames (the frame check does it). Between parts it reads the DAC and fades the picture to black, then shows the
+; next title: the BIOS 8x8 font scaled up in a gold gradient with a band of light running down it, a chime, a fade in
+; and out. Esc at any moment ends the show.
 BITS 16
 CPU 386
 ORG 100h
@@ -107,6 +108,16 @@ run_part:
     mov cx,[bx+2]
     mov di,100h
     rep movsb
+    push es                   ; the part fades in over its first 32 frames (svc_check does it): nothing written yet
+    push ds
+    pop es
+    mov di,fadein
+    mov cx,1 + 768 * 2
+    xor al,al
+    rep stosb                 ; fadein, orig, last = 0
+    pop es
+    mov dx,3C6h               ; and until its first frame is done, every pixel shows colour 0: the PEL mask
+    out dx,al
     mov [save_sp],sp
     mov ax,es
     cli
@@ -139,6 +150,10 @@ psp_far:
 
 ; ---- the routines the parts share (far calls through their PSP; only AX and the flags change, as in the originals)
 svc_check:                    ; once per frame: CF = 1 when the part's time is up or Esc is down
+    cmp byte [cs:fadein],32
+    jae .go
+    call fade_in
+.go:
     push ds
     mov ds,[cs:pseg]
     in al,60h
@@ -152,6 +167,56 @@ svc_check:                    ; once per frame: CF = 1 when the part's time is u
     cmp ax,8000h              ; CF = 1 once the tick count has reached the end (the difference is not negative)
 .x: pop ds
     retf
+; one step of a part's fade-in, at the end of its frame: read the DAC; if the part has written a new palette since
+; the last step (anything but what this wrote), that is the palette to fade to; write it at brightness k/32, k = 1..32.
+; The first step also opens the PEL mask again. Works whether a part sets its palette once or every frame.
+fade_in:
+    pusha
+    push ds
+    push es
+    push cs
+    pop ds
+    push cs
+    pop es
+    mov dx,3C7h
+    xor al,al
+    out dx,al
+    mov dl,0C9h
+    mov di,dac
+    mov cx,768
+    rep insb                  ; what is in the DAC now
+    mov si,dac
+    mov di,last
+    mov cx,768
+    repe cmpsb
+    je .same
+    mov si,dac                ; the part wrote a palette: fade to that
+    mov di,orig
+    mov cx,768
+    rep movsb
+.same:
+    inc byte [fadein]
+    mov bl,[fadein]
+    mov dl,0C8h
+    xor al,al
+    out dx,al
+    inc dx
+    mov si,orig
+    mov di,last
+    mov cx,768
+.w: lodsb
+    mul bl
+    shr ax,5
+    out dx,al
+    stosb
+    loop .w
+    mov dl,0C6h               ; the PEL mask open again (from the first step on)
+    mov al,0FFh
+    out dx,al
+    pop es
+    pop ds
+    popa
+    ret
 svc_midi:                     ; the MIDI header: UART mode, program AL on channel 1, note on (DX = 330h, AX = 3F90h)
     mov dx,330h
     push ax
@@ -545,6 +610,9 @@ bye:
 
 section .bss
 pseg:    resw 1
+fadein:  resb 1
+orig:    resb 768
+last:    resb 768
 font:    resw 2
 save_sp: resw 1
 scale:   resb 1

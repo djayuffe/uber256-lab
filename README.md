@@ -616,7 +616,7 @@ The music: every other tick a harp plays one of the four code bytes now entering
 
 ## The megademo
 
-[`MEGA.COM`](src/mega/mega.asm) (4.4 KB) is eleven of the intros as one show, in an order chosen to flow: the three
+[`MEGA.COM`](src/mega/mega.asm) (4.5 KB) is eleven of the intros as one show, in an order chosen to flow: the three
 code textures (FLOWTEX, SELFTEX, GOLDTEX), then ORDER, the two attractors, FIRE, ROOTS, JULIA, LATCH, and WARP last,
 bending the credits. About four minutes; Esc ends it at any point. ESCHER and CHLADNI are left out of the show (2.8.1);
 they are still in the collection as standalone intros. The programme is the `ENTRY` list in the source: `build.sh`
@@ -639,6 +639,12 @@ part to offset 100h, puts a far jump back to itself at offset 0 (a .COM's final 
 `int 20h`), the three vectors at 50h, the end tick at 5Ch, gives it its own stack at FFFEh with a zero on it, the registers DOS starts a
 program with (CX = 00FFh, SI = 0100h, DI = FFFEh, BP = 091Ch, BX = 0, FS = 0), and jumps in with `retf`. The part hooks
 the timer, plays, unhooks and returns; FLOWTEX builds its 64 KB table in the segment above that.
+
+**Fading in.** Each part starts with the DAC's PEL mask at 0, so its first frame is drawn unseen, and then fades in
+over 32 frames, from inside the shared frame check: at the end of each frame it reads the DAC back, and if the part
+has written a palette since the last step (anything but what the fade itself wrote) that becomes the palette to fade
+to; it writes it at k/32 brightness and opens the mask. So it works for parts that set their palette once and for parts
+that rewrite it every frame (ORDER, GOLDTEX, LATCH, WARP) alike.
 
 **Between parts.** The picture fades to black over 32 frames: the program reads the 768 DAC values back (port 3C7h,
 `rep insb`) and writes them scaled down each retrace, which works the same in mode 13h, LATCH's planar mode 0Dh and
@@ -687,6 +693,7 @@ flows 18 times a second in the tick handler whatever the frame rate. The music n
 ## Version 2.8: the megademo
 
 2.8.1 takes ESCHER and CHLADNI out of the show (eleven parts, about four minutes); both stay as standalone intros.
+2.8.3 fades every part in from black (PEL mask, then 32 steps from the shared frame check).
 2.8.2 shrinks it from 5,133 to 4,389 bytes: the parts share one copy of the frame check, the MIDI header and the groove
 through far calls, the programme is packed (no padding), and the credits list the parts from it; each card now rings
 a chime.
@@ -856,7 +863,7 @@ program (`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OU
 what the demos lean on: a real interrupt-vector table with DOS functions 35h and 25h; the BIOS timer, whose `tick()`
 advances 0040:006Ch and enters the installed INT 1Ch handler as an IBM BIOS does (with DS = 0040h and AX, DX clobbered,
 so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it is in UART mode and decoded as MIDI
-(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 273 checks:
+(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 274 checks:
 
 - **All demos:** at most 256 bytes; the first call sets the video mode; all 768 DAC values are written and the palette is
   not black; no memory is touched outside video RAM and the program's own segment; the PC speaker and PIT channel 2 are
@@ -897,7 +904,8 @@ so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it 
 - **SELFTEX:** a sky ramp above the horizon; every ground pixel is a code byte (water, fields) or the shore; water in
   every row, wide in front and narrow far away; the river bends; it moves with the clock; the melody is the program's
   bytes in order.
-- **MEGA:** all eleven parts in order (by their MIDI programs); a title card with a chime before each, LATCH's mode, the credits
+- **MEGA:** all eleven parts in order (by their MIDI programs); a title card with a chime before each; each part fades in
+  from black; LATCH's mode, the credits
   for WARP, the closing card; 13 timer hooks and 13 unhooks; Esc ends the show; a clean return to DOS.
 - **The groove** (FIRE, GOLDTEX, LATCH, ORDER, WARP): drums every fourth tick in the kick, hat, snare, hat order, and a
   bass with every kick on the descending pentatonic walk.
@@ -959,7 +967,7 @@ build.sh            NASM build + 256-byte gate + the megademo + SHA256SUMS
 run-dosbox.sh       DOSBox launcher: one demo, several, a pattern or all, in order
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
 tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture
-tests/test_lab.py   the 273 checks
+tests/test_lab.py   the 274 checks
 tools/equiv.py      frame-by-frame comparison of two builds
 tools/cost.py       instructions per frame and the DOSBox cycles each demo needs for 70 fps
 tools/synth13.py    the mode-13h kernel search (no demo shipped)

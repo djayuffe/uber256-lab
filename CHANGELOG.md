@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.8.3]
+- MEGA.COM: every part fades in from black. The part starts with the PEL mask at 0 (its first frame drawn unseen), then the shared frame check reads the DAC at the end of each of its first 32 frames, takes whatever palette the part has written since the last step, and writes it at k/32 brightness, so it works for parts that set their palette once and for those that rewrite it every frame. 4,507 bytes.
+- Tests: 274 (the fade-in: masked start, first palette at 1/32). New recording, contact sheet, MIDI.
+
 ## [2.8.2]
 - MEGA.COM 5,133 -> 4,389 bytes, and better. The code every intro repeats is shared: in the `-DMEGA` build the frame check, the MIDI header and the groove are far calls into the megademo through vectors in each part's PSP (50h, 54h, 58h), so one copy serves all eleven (the groove alone was five copies). The programme is packed (no 80-byte padding), the credits read the list of parts from it, and the cards share one frame routine. Each title card rings a chime (tubular bells, a fifth). The MPU-401 is put in UART mode before the first note, so the first chime's instrument is not lost.
 - Fixed while rewriting it: a card could return with the carry flag left by the palette code and end the show.
