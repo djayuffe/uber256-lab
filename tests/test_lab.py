@@ -110,6 +110,34 @@ check(notes and all(t % 2 == 0 and n == ((code[(t >> 1) & 255] & 30) + 46) * 6 /
       "SELFTEX: the melody is the program's own bytes, one per step, in order")
 leaves("SELFTEX", Run("SELFTEX.COM"), 2)
 
+print("\n== GOLDTEX ==")
+r = Run("GOLDTEX.COM").frames(3); common("GOLDTEX", r)
+s = r.screen()[:64000]
+code = r.com + bytes(512)
+t = r.uc.reg_read(UC_X86_REG_BP) - 1
+def gold_px(x, y, t):
+    tex = code[((x * y >> 6) + t) & 255]
+    gold = code[((x >> 4) + (y & ~15) + (t >> 4)) & 255] & 15 == 0
+    return 0xC0 | tex & 63 if gold else tex & 127
+check(all(s[y * 320 + x] == gold_px(x, y, t) for y in range(0, 200, 3) for x in range(0, 320, 3)),
+      "GOLDTEX: every pixel is code[x*y/64 + t] (the classic SELFTEX bands), in gold where the code byte for its 16x16 block is a multiple of 16")
+gold = sum(1 for b in s if b >= 0xC0) / 64000
+check(0.04 < gold < 0.35, f"GOLDTEX: golden blocks cover part of the screen ({gold:.0%})")
+check(all((s[y * 320 + x] >= 0xC0) == (s[(y | 15) * 320 + (x | 15)] >= 0xC0) for y in range(0, 192, 5) for x in range(0, 320, 5)), "GOLDTEX: gold comes in whole 16x16 blocks")
+pal = r.dac()[-768:]
+goldpal = [pal[k * 3:k * 3 + 3] for k in range(192, 256)]
+check(all(R >= G >= B and R >= 32 for R, G, B in goldpal), "GOLDTEX: colours 192..255 are a bright gold ramp (R >= G >= B, R in the upper half)")
+r.frames(40); pal2 = r.dac()[-768:]
+check(pal2[576:] != pal[576:] and pal2[:576] != pal[:576], "GOLDTEX: both the code colours and the gold ramp cycle (the gold glitters)")
+s2 = r.screen()[:64000]
+check(sum(1 for a, b in zip(s, s2) if (a >= 0xC0) != (b >= 0xC0)) > 2000, "GOLDTEX: the golden blocks hop across the grid as time moves")
+notes = music("GOLDTEX", r, 9)
+m = mel(notes)
+check([n[2] for n in m[0::2]] == [((code[(t >> 1) & 255] & 30) + 46) * 6 // 5 for t, _, _, _ in m[0::2]] and all(b[2] == a[2] + 12 for a, b in zip(m[0::2], m[1::2])),
+      "GOLDTEX: the melody is the program's own bytes in order, doubled an octave up")
+groove("GOLDTEX", notes)
+leaves("GOLDTEX", Run("GOLDTEX.COM"), 2)
+
 print("\n== FIRE ==")
 r = Run("FIRE.COM").frames(25); common("FIRE", r)
 s = r.screen()

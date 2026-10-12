@@ -1,5 +1,8 @@
 # Changelog
 
+## [2.3.0]
+- **GOLDTEX** (247 bytes), a new demo: the classic SELFTEX picture, `code[x*y/64 + t]` in a flowing palette, with golden blocks. The screen is a 16x16 grid; block (bx, by) is gold when the program's own byte at `bx + 16 by + t/16` is a multiple of 16, so about one block in six turns gold and the gold hops across the grid every 16 frames. Gold pixels keep their code texel in a bright gold ramp that cycles twice as fast, so the blocks glitter. Music: the program's bytes on a glockenspiel, doubled an octave up, over the groove. 22 new checks (245 in all), DOSBox recording, GIF, MIDI; gallery and showreel include it.
+
 ## [2.2.0]
 - **SELFTEX is a river** (254 bytes): a perspective floor (depth = 8192 / (y - horizon), two divisions per row, none per pixel) with a river winding into the distance; the water is code bytes stretched into streaks flowing towards you, the banks are fields of code-byte blocks with a dark shore, under a sky ramp. Every texel is a byte of the program, the music is still the program's bytes on a kalimba, and time is the BIOS clock (no retrace wait). The 2.1 diagonal layer, palette flow, panning, octave doubling and drums are dropped to make room.
 
