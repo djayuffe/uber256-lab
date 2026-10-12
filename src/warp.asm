@@ -3,18 +3,12 @@
 ; that the attribute controller's pixel panning makes it shimmer sideways, and the 64 DAC colours that text
 ; mode uses run through a rainbow, so the text glows and every colour of the screen flows (black stays black).
 ; The music follows the same waves: an electric piano plays the character height as a pentatonic arpeggio that
-; climbs as the text stretches; under it a GM drum kit keeps time and a bass walks C - A - G - E.
+; climbs as the text stretches; under it a GM drum kit keeps time and a bass walks down A - G - E - D - C.
 BITS 16
 CPU 386
 ORG 100h
-    mov ax,351Ch              ; hook the timer tick (INT 1Ch), keeping the old vector on the stack
-    int 21h
-    push es
-    push bx
-    mov ah,25h
-    mov dx,isr
-    int 21h
-    push ax                   ; AX = 251Ch, for the unhook
+%include "dos.inc"
+    HOOK_TICK isr                 ; the timer tick drives the music
 frame:
     mov dx,3D4h
     inc bx                    ; time
@@ -89,26 +83,10 @@ frame:
     shr al,2
     out dx,al
     loop .pal
-    in al,60h
-    cbw
-    dec ax
-    jnz frame                 ; Esc (scan code 1): AX = 0
-    mov al,3
-    int 10h                   ; text mode (and the default palette and panning)
-    pop ax                    ; unhook INT 1Ch: AX = 251Ch, DS:DX = the old vector
-    pop dx
-    pop ds
-    int 21h
-    ret
+    ESC_OR_LOOP frame
 isr:                          ; INT 1Ch, 18.2 Hz; BX is the main loop's frame counter
     pusha
-    mov dx,330h
-    mov ax,3FC0h              ; C0h to the MPU data port, then 3Fh (UART mode) to its command port
-    out dx,ax
-    mov al,4                  ; program 4: electric piano
-    out dx,al
-    mov al,90h                ; note on, channel 1
-    out dx,al
+    MIDI_START 4              ; program 4: electric piano
     mov al,bl                 ; the same triangle wave as the character height
     test al,32
     jz .up
@@ -116,8 +94,7 @@ isr:                          ; INT 1Ch, 18.2 Hz; BX is the main loop's frame co
 .up:
     and al,30
     add al,46
-    aam 5                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic
-    aad 6
+    PENTA                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic
     out dx,al                 ; note
     out dx,al                 ; velocity = note
 %include "groove.inc"

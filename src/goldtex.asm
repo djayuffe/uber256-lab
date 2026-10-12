@@ -8,50 +8,50 @@
 BITS 16
 CPU 386
 ORG 100h
+%include "dos.inc"
     mov al,13h
     int 10h
-    mov ax,351Ch              ; hook the timer tick (INT 1Ch), keeping the old vector on the stack
-    int 21h
-    push es
-    push bx
-    mov ah,25h
-    mov dx,isr
-    int 21h
-    push ax                   ; AX = 251Ch, for the unhook
+    HOOK_TICK isr                 ; the timer tick drives the music
     push word 0A000h
     pop es
-    mov cx,320
     mov bx,100h               ; XLAT table = the program itself
     xor bp,bp                 ; time
-.x:
-    mov ax,di
-    xor dx,dx
-    div cx                    ; ax = y, dx = x
-    mov si,ax                 ; y
-    push dx                   ; x
+frame:
+    xor di,di
+    xor si,si                 ; y
+.row:
+    mov ax,si                 ; per row: CH = 16 (y/16) + t/16, the row's part of the block key
+    and al,-16
+    mov ch,al
+    mov ax,bp
+    shr ax,4
+    add ch,al
+    xor dx,dx                 ; x
+.px:
+    mov ax,si
     imul ax,dx                ; x*y
     shr ax,6
     add ax,bp                 ; + time
-    xlat                      ; AL = [100h + AL]: the program's own bytes are the texture
-    pop dx                    ; x
-    xchg ax,dx                ; DL = the texel, AX = x
-    shr ax,4                  ; the block: x/16 ...
-    and si,-16
-    add ax,si                 ; ... + 16 (y/16) ...
-    mov si,bp
-    shr si,4
-    add ax,si                 ; ... + t/16
+    xlat                      ; the program's own byte: the texture
+    mov cl,al
+    mov ax,dx
+    shr ax,4                  ; the block: x/16 + the row's key
+    add al,ch
     xlat                      ; the code byte that rules this block
     test al,15
-    xchg ax,dx                ; AL = the texel (XCHG keeps the flags)
+    mov al,cl                 ; (MOV keeps the flags)
     jnz .plain
     or al,0C0h                ; gold: colours 192..255
     db 3Dh                    ; (cmp ax,imm16: swallows the two-byte and below)
 .plain:
     and al,127                ; the flowing colours 0..127
     stosb
-    test di,di
-    jnz .x
+    inc dx
+    cmp dx,320
+    jb .px
+    inc si
+    cmp si,200
+    jb .row
     inc bp
     mov dx,3DAh
 .vs:
@@ -83,35 +83,17 @@ ORG 100h
 .b:
     out dx,al
     loop .flow
-    mov cx,320
-    in al,60h
-    cbw
-    dec ax
-    jnz .x                    ; Esc (scan code 1): AX = 0
-    mov al,3
-    int 10h                   ; text mode
-    pop ax                    ; unhook INT 1Ch: AX = 251Ch, DS:DX = the old vector
-    pop dx
-    pop ds
-    int 21h
-    ret
+    ESC_OR_LOOP frame
 isr:                          ; INT 1Ch, 18.2 Hz; BX = 100h in the main loop
     pusha
-    mov dx,330h
-    mov ax,3FC0h              ; C0h to the MPU data port, then 3Fh (UART mode) to its command port
-    out dx,ax
-    mov al,9                  ; program 9: glockenspiel
-    out dx,al
-    mov al,90h                ; note on
-    out dx,al
+    MIDI_START 9              ; program 9: glockenspiel
     mov ax,[fs:46Ch]
     shr ax,1
     jc .q
     cs xlat                   ; the code byte
     and al,30
     add al,46
-    aam 5                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic
-    aad 6
+    PENTA                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic
     out dx,al                 ; note
     out dx,al                 ; velocity = note
     add al,12                 ; doubled an octave up

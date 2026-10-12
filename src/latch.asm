@@ -10,16 +10,10 @@
 BITS 16
 CPU 386
 ORG 100h
+%include "dos.inc"
     mov al,0Dh
     int 10h                   ; 320x200, 16 colours, planar
-    mov ax,351Ch              ; hook the timer tick (INT 1Ch), keeping the old vector on the stack
-    int 21h
-    push es
-    push bx
-    mov ah,25h
-    mov dx,isr
-    int 21h
-    push ax                   ; AX = 251Ch, for the unhook
+    HOOK_TICK isr                 ; the timer tick drives the music
     push word 0A000h
     pop es
     mov dx,3CEh               ; VGA graphics controller
@@ -82,26 +76,10 @@ frame:
     out dx,al
     loop .pal
     pop dx
-    in al,60h
-    cbw
-    dec ax
-    jnz frame                 ; Esc (scan code 1): AX = 0
-    mov al,3
-    int 10h                   ; text mode
-    pop ax                    ; unhook INT 1Ch: AX = 251Ch, DS:DX = the old vector
-    pop dx
-    pop ds
-    int 21h
-    ret
+    ESC_OR_LOOP frame
 isr:                          ; INT 1Ch, 18.2 Hz
     pusha
-    mov dx,330h
-    mov ax,3FC0h              ; C0h to the MPU data port, then 3Fh (UART mode) to its command port
-    out dx,ax
-    mov al,10                 ; program 10: music box
-    out dx,al
-    mov al,90h                ; note on
-    out dx,al
+    MIDI_START 10             ; program 10: music box
     mov ax,[fs:46Ch]          ; BIOS tick count
     shr ax,1
     jc .q                     ; a note every other tick
@@ -109,8 +87,7 @@ isr:                          ; INT 1Ch, 18.2 Hz
     jz .q
     add al,al
     add al,50
-    aam 5                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic, from C4
-    aad 6
+    PENTA                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic, from C4
     out dx,al                 ; note
     out dx,al                 ; velocity = note
 .q:

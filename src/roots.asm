@@ -8,6 +8,7 @@
 BITS 16
 CPU 386
 ORG 100h
+%include "dos.inc"
     mov al,13h
     int 10h
     mov dx,3C9h
@@ -29,14 +30,7 @@ ORG 100h
     out dx,al                 ; B
     inc bl
     jnz .pal
-    mov ax,351Ch              ; hook the timer tick (INT 1Ch), keeping the old vector on the stack
-    int 21h
-    push es
-    push bx
-    mov ah,25h
-    mov dx,isr
-    int 21h
-    push ax
+    HOOK_TICK isr                 ; the timer tick drives the music
     push word 0A000h
     pop es
 frame:
@@ -94,17 +88,7 @@ frame:
     stosb
     test di,di                ; to the 64 KB wrap: the last 1536 pixels are off screen
     jnz .px
-    in al,60h
-    cbw
-    dec ax
-    jnz frame                 ; Esc (scan code 1): AX = 0
-    mov al,3
-    int 10h
-    pop ax                    ; unhook INT 1Ch: AX = 251Ch, DS:DX = the old vector
-    pop dx
-    pop ds
-    int 21h
-    ret
+    ESC_OR_LOOP frame
 tri:                          ; al -> eax = a triangle wave of period 128, -32..+31
     add al,al
     cbw
@@ -116,18 +100,11 @@ tri:                          ; al -> eax = a triangle wave of period 128, -32..
     ret
 isr:                          ; INT 1Ch, 18.2 Hz
     pusha
-    mov dx,330h
-    mov ax,3FC0h              ; C0h (program change) to the MPU-401 data port, then 3Fh (UART mode) to its command port
-    out dx,ax
-    mov al,114                ; program 114: steel drums
-    out dx,al
-    mov al,90h                ; note on
-    out dx,al
+    MIDI_START 114            ; program 114: steel drums
     mov al,[cs:frame.T-1]     ; T, as patched by the main loop
     and al,30
     add al,44
-    aam 5                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic
-    aad 6
+    PENTA                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic
     out dx,al                 ; note
     out dx,al                 ; velocity = note
     popa

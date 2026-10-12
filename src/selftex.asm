@@ -8,6 +8,7 @@
 BITS 16
 CPU 386
 ORG 100h
+%include "dos.inc"
 H   equ 60                    ; horizon row
 fv  equ 0FF00h                ; per-row scratch, high in the program's own segment
 gv  equ 0FF01h
@@ -32,14 +33,7 @@ mv  equ 0FF02h
     out dx,al
     inc bl
     jnz .pal
-    mov ax,351Ch              ; hook the timer tick (INT 1Ch), keeping the old vector on the stack
-    int 21h
-    push es
-    push bx
-    mov ah,25h
-    mov dx,isr
-    int 21h
-    push ax                   ; AX = 251Ch, for the unhook
+    HOOK_TICK isr                 ; the timer tick drives the music
     push word 0A000h
     pop es
     mov bx,100h               ; XLAT table = the program itself
@@ -109,34 +103,17 @@ frame:
 .next:
     cmp di,64000
     jb .row
-    in al,60h
-    cbw
-    dec ax
-    jnz frame                 ; Esc (scan code 1): AX = 0
-    mov al,3
-    int 10h                   ; text mode
-    pop ax                    ; unhook INT 1Ch: AX = 251Ch, DS:DX = the old vector
-    pop dx
-    pop ds
-    int 21h
-    ret
+    ESC_OR_LOOP frame
 isr:                          ; INT 1Ch, 18.2 Hz; BX = 100h in the main loop
     pusha
-    mov dx,330h
-    mov ax,3FC0h              ; C0h to the MPU data port, then 3Fh (UART mode) to its command port
-    out dx,ax
-    mov al,108                ; program 108: kalimba
-    out dx,al
-    mov al,90h                ; note on
-    out dx,al
+    MIDI_START 108            ; program 108: kalimba
     mov ax,[fs:46Ch]
     shr ax,1
     jc .q
     cs xlat                   ; the code byte at the step number
     and al,30
     add al,46
-    aam 5                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic
-    aad 6
+    PENTA                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic
     out dx,al                 ; note
     out dx,al                 ; velocity = note
 .q:

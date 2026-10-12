@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.3.1]
+- Refactor, same effects: the code every demo repeated is now four macros in `src/dos.inc` (`HOOK_TICK`, `ESC_OR_LOOP`, `MIDI_START`, `PENTA`); all eleven binaries that did not otherwise change are byte-identical to 2.3.0.
+- GOLDTEX: x and y are loop counters instead of a division per pixel, and the row's share of the block key is computed once per row; same formula (checked pixel by pixel against it), 256 bytes.
+- Comment fixes: the groove's bass walks C - A - G - E - D.
+
 ## [2.3.0]
 - **GOLDTEX** (247 bytes), a new demo: the classic SELFTEX picture, `code[x*y/64 + t]` in a flowing palette, with golden blocks. The screen is a 16x16 grid; block (bx, by) is gold when the program's own byte at `bx + 16 by + t/16` is a multiple of 16, so about one block in six turns gold and the gold hops across the grid every 16 frames. Gold pixels keep their code texel in a bright gold ramp that cycles twice as fast, so the blocks glitter. Music: the program's bytes on a glockenspiel, doubled an octave up, over the groove. 22 new checks (245 in all), DOSBox recording, GIF, MIDI; gallery and showreel include it.
 

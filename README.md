@@ -502,8 +502,9 @@ pixel(x, y) = code[(x*y >> 6) + t] AND 127                      the classic SELF
             = 192 + (code[(x*y >> 6) + t] AND 63)               if code[x/16 + 16(y/16) + t/16] is a multiple of 16
 ```
 
-The first line is SELFTEX as it was: one `div` by 320 per pixel gives x and y, `xlat` with BX = 100h reads the
-program's own byte at `x*y/64 + t`, and the palette flows (entry k = k + t, streamed as i, 2i, 4i). The second line is
+The first line is SELFTEX as it was: `xlat` with BX = 100h reads the program's own byte at `x*y/64 + t`, and the
+palette flows (entry k = k + t, streamed as i, 2i, 4i). x and y are loop counters (no division per pixel), and the
+row's share of the block key, `16 (y/16) + t/16`, is computed once per row into CH. The second line is
 the gold. The screen is cut into 16x16 blocks, and block (bx, by) asks the program itself whether it is gold: the code
 byte at `bx + 16 by + t/16` (16 by is just `y AND -16`, so the key costs one AND and two ADDs). About one block in six
 says yes, and as t moves the key slides, so the golden blocks hop to new places every 16 frames. A gold pixel keeps
@@ -727,6 +728,7 @@ src/latch.asm       cellular automaton computed by the VGA graphics controller +
 src/julia.asm       integer Julia set with an orbiting constant, mirrored + the pixels as they are drawn
 src/selftex.asm     a river made of the program's own code + the code as a riff
 src/goldtex.asm     classic SELFTEX code bands + golden blocks chosen by the code
+src/dos.inc         shared macros: HOOK_TICK, ESC_OR_LOOP, MIDI_START, PENTA
 src/groove.inc      the rhythm section shared by FIRE, GOLDTEX, LATCH, ORDER and WARP: GM drums + walking bass
 build.sh            NASM build + 256-byte gate + SHA256SUMS
 run-dosbox.sh       DOSBox launcher

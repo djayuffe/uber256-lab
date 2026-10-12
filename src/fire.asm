@@ -6,6 +6,7 @@
 BITS 16
 CPU 386
 ORG 100h
+%include "dos.inc"
     mov al,13h
     int 10h
     mov dx,3C9h
@@ -24,14 +25,7 @@ ORG 100h
     out dx,al
     inc bl
     jnz .pal
-    mov ax,351Ch              ; hook the timer tick (INT 1Ch), keeping the old vector on the stack
-    int 21h
-    push es
-    push bx
-    mov ah,25h
-    mov dx,isr
-    int 21h
-    push ax                   ; AX = 251Ch, for the unhook
+    HOOK_TICK isr                 ; the timer tick drives the music
     push word 0A000h
     pop es
     push es
@@ -69,26 +63,10 @@ frame:
     in al,dx
     test al,8
     jz .vs
-    in al,60h
-    cbw
-    dec ax
-    jnz frame                 ; Esc (scan code 1): AX = 0
-    mov al,3
-    int 10h                   ; text mode
-    pop ax                    ; unhook INT 1Ch: AX = 251Ch, DS:DX = the old vector
-    pop dx
-    pop ds
-    int 21h
-    ret
+    ESC_OR_LOOP frame
 isr:
     pusha
-    mov dx,330h
-    mov ax,3FC0h
-    out dx,ax
-    mov al,24                 ; nylon guitar
-    out dx,al
-    mov al,90h
-    out dx,al
+    MIDI_START 24             ; nylon guitar
     mov ax,[fs:46Ch]
     shr ax,1
     jc .q
@@ -100,8 +78,7 @@ isr:
     shr al,3
     and al,30
     add al,40
-    aam 5
-    aad 6
+    PENTA
     out dx,al
     out dx,al
 .q:
