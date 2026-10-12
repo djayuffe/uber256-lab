@@ -20,12 +20,12 @@ in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General
 |---|---|---|---|---|
 | [`GALAXY.COM`](src/galaxy.asm) | 253 B | 386 + FPU, VGA, MPU-401 | A de Jong strange attractor drawn as a glowing, fading cloud whose shape swings slowly back and forth. | The orbit plays itself: its current x position picks a vibraphone note every other tick. |
 | [`CLIFF.COM`](src/cliff.asm) | 256 B | 386 + FPU, VGA, MPU-401 | The same engine with Clifford-attractor equations and parameters: two curling wings over a web of caustics. | A marimba roll, one note per tick: the orbit's y position picks the note, its x position how hard it is struck. |
-| [`FIRE.COM`](src/fire.asm) | 255 B | 386, VGA, MPU-401 | Framebuffer feedback: each pixel becomes the average of four pixels below it, minus a little, with random heat injected at the bottom and one white-hot ember a frame that rises as a spark. No FPU. | A probe drifts through the flames; when it is in one, a nylon guitar plucks, higher the hotter the pixel. Drums and a walking bass underneath. |
+| [`FIRE.COM`](src/fire.asm) | 256 B | 386, VGA, MPU-401 | Framebuffer feedback: each pixel becomes the average of four pixels below it, minus a little, with random heat injected at the bottom and one white-hot ember a frame that rises as a spark. No FPU. | A probe drifts through the flames; when it is in one, a nylon guitar plucks, higher the hotter the pixel. Drums and a walking bass underneath. |
 | [`ESCHER.COM`](src/escher.asm) | 243 B | 386, VGA, MPU-401 | The picture is drawn once; after that only the CRT controller's start address and line-compare registers, the pixel panning and the palette move, folding a hyperbolic texture into an impossible patchwork with colour streaming through it. No pixel is ever redrawn. | A Shepard scale: it climbs a semitone at a time for ever and never gets higher. Escher's staircase, heard. |
-| [`CHLADNI.COM`](src/chladni.asm) | 249 B | 386 + FPU, VGA, MPU-401 | The nodal lines of a vibrating plate, `sin(ax)sin(by) - sin(bx)sin(ay) = 0`, with a mode number that sweeps with the clock. | A probe crosses the plate; where it meets a nodal line, a tubular bell rings, doubled an octave below. |
+| [`CHLADNI.COM`](src/chladni.asm) | 250 B | 386 + FPU, VGA, MPU-401 | The nodal lines of a vibrating plate, `sin(ax)sin(by) - sin(bx)sin(ay) = 0`, with a mode number that sweeps with the clock. | A probe crosses the plate; where it meets a nodal line, a tubular bell rings, doubled an octave below. |
 | [`ROOTS.COM`](src/roots.asm) | 256 B | 386, VGA, MPU-401 | Polynomial root migration: the bright curves are where a cubic in x and y changes sign; as two coefficients sweep at different speeds, the roots migrate, pinch into crossings and reconnect, in new places each time. Warm and cool contour bands show the sign. | Steel drums play the sweeping coefficient T. |
 | [`ORDER.COM`](src/order.asm) | 245 B | 386, VGA, MPU-401 | Three cheap expressions per pixel (hyperbolas, vertical lines, horizontal lines) are never drawn; only which of the six orderings they are in is, so the screen is a set of regions whose boundaries fold and collide as time moves while the shading streams through each region's colours. | A pizzicato arpeggio whose root is the ordering under a probe walking down the screen, over drums and a walking bass. |
-| [`WARP.COM`](src/warp.asm) | 248 B | 386, VGA, MPU-401 | No video mode, no drawing: the DOS screen you launched it from is squashed, stretched, sheared and bobbed by four CRT-controller and attribute registers, shimmers sideways, and every colour on it runs through a flowing rainbow (black stays black). | An electric piano plays the character height: the arpeggio rises as the text stretches. Drums and a walking bass underneath. |
+| [`WARP.COM`](src/warp.asm) | 256 B | 386, VGA, MPU-401 | No video mode, no drawing: the DOS screen you launched it from is squashed, stretched, sheared and bobbed by four CRT-controller and attribute registers, shimmers sideways, and every colour on it runs through a flowing rainbow (black stays black). | An electric piano plays the character height: the arpeggio rises as the text stretches. Drums and a walking bass underneath. |
 | [`LATCH.COM`](src/latch.asm) | 245 B | 386, EGA/VGA, MPU-401 | A rule-60 cellular automaton (Sierpinski waterfalls) computed by the VGA graphics controller: each byte read loads 8 pixels x 4 planes into the latches, each write puts them back one row up with an XOR colour applied by the hardware. Its 15 colours run through a flowing rainbow and the picture shimmers. | A music box plays the ruler sequence (0 1 0 2 0 1 0 3 ...), the Sierpinski triangle's rhythm, over drums and a walking bass. |
 | [`JULIA.COM`](src/julia.asm) | 252 B | 386, VGA, MPU-401 | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape, and its escape bands flow 18 times a second. No FPU, no sine table. | Each tick, the escape time of the pixel just drawn is a celesta note; the set itself is silence. A low C pedal every 16 ticks. |
 | [`SELFTEX.COM`](src/selftex.asm) | 254 B | 386, VGA, MPU-401 | A river made of the program's own machine code: a perspective floor with a river winding across it into the distance, its water code bytes stretched into streaks that flow towards you, its banks fields of code-byte blocks, under a sky ramp. Every texel is a byte of the program. | The same bytes in order, on a kalimba: the score is the program. |
@@ -126,7 +126,7 @@ What each one plays:
 | ROOTS | steel drums (114) | T, the coefficient the main loop patches into its own code each frame |
 | SELFTEX | kalimba (108) | the program's own bytes, in order, one per step: a riff that repeats every 28 seconds |
 | GOLDTEX | glockenspiel (9) | the same, doubled an octave up, with the groove |
-| WARP | electric piano (4) | the same triangle wave that sets the character height (BL, the frame counter) |
+| WARP | electric piano (4) | the same triangle wave that sets the character height (BL, the frame counter), every other tick |
 
 The MIDI each demo sent in a 15-second DOSBox run is in [`docs/music/`](docs/music), and the recordings with sound are
 `docs/*.mp4`. The note streams are checked by the tests and were captured from real DOSBox; the audio was rendered
@@ -328,6 +328,11 @@ a subtraction and a scale: `|T[x].sa * T[y+60].sb - T[x].sb * T[y+60].sa| * 600`
 For the same mode number the two are pixel-identical (checked in the emulator), and DOSBox draws 34 frames a second
 instead of 19.
 
+Since version 2.4 the table holds 16-bit integers, `K sin(...)` with K = 6271, and the pixel loop has no FPU at all:
+two 16-bit `imul`s give `K^2 sin sin` in DX:AX, and since K^2 = 600 x 65536 their high words are already
+`600 sin sin`, so `|DX1 - DX2|` is the brightness before clamping. Dropping the low words moves 12% of the pixels by
+one step of 255 and none by more.
+
 The mode number `a` now follows the BIOS clock, `a = 3 + sin(0.0115 t)`, so it sweeps smoothly through [2, 4] and back
 every 30 seconds (version 1 drifted it through [1.5, 4.5) and jumped back with `fprem`). `b` is 6, so they never meet
 (when they do, f is zero everywhere). `f` is antisymmetric under `x -> -x` and under `y -> -y`, so `|f|` is symmetric both
@@ -396,7 +401,8 @@ WARP never sets a video mode and never writes a pixel. It runs on top of whateve
 Both writes happen once per frame after the vertical retrace; no timing register is touched. The emulator test checks that only those two registers are written, that the character height steps through all 16 values and the stride stays within 36..43, and that the text in video memory is never modified.
 
 The tick handler reads BL, the frame counter that drives the character height, folds it into the same triangle and
-plays it on an electric piano: the arpeggio climbs as the text stretches and falls as it squashes, 18 notes a second.
+plays it on an electric piano: the arpeggio climbs as the text stretches and falls as it squashes, nine notes a second
+(every other tick, over the groove).
 
 **Tried alongside it and not shipped:**
 - **SHEAR** (the same stride trick in mode 13h): in 256-colour mode one CR13 unit is 8 bytes, so the smallest possible change shifts each row 8 pixels further than the one above. Any stride other than the normal one turned a ring texture into horizontal noise.
@@ -537,7 +543,7 @@ WARP 248, LATCH 245, ORDER 245, ESCHER 243, SELFTEX 223.
 | ORDER | the shading flows inside each region's band: entry k = (k AND E0h) + ((k + 2t) AND 1Fh), so regions keep their hue | drums + walking bass |
 | ESCHER | pixel panning makes the start-address drift pixel-smooth (it moves in 4-pixel units); the palette streams colour through the bands, so the texture moves although no pixel is ever redrawn | - |
 | JULIA | the tick handler rotates the palette (colours 1..255), so the escape bands flow 18 times a second however slowly the frame is drawn | a low C pedal on channel 2 every 16 ticks |
-| FIRE | one white-hot ember a frame dropped at a random point of the lower half, which the averaging lifts into a rising spark | drums + walking bass |
+| FIRE | one white-hot ember (two pixels since 2.4) a frame dropped at a random point of the lower half, which the averaging lifts into a rising spark | drums + walking bass |
 | CHLADNI | - | every bell doubled an octave below |
 | CLIFF | - | the orbit's x position sets each marimba note's velocity: accents and ghost notes |
 

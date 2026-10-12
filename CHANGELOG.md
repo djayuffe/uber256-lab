@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.4.0]
+- CHLADNI: the sine table is 16-bit integers scaled by K = 6271 (K^2 = 600 x 65536), so each pixel is two 16-bit `imul`s whose high words are already 600 sin sin: no FPU in the pixel loop. Same picture (12% of pixels differ by one brightness step, none by more). 250 bytes.
+- WARP: the electric piano plays every other tick (16th notes over the groove) instead of every tick; it was 10 dB louder than the other melodies. 256 bytes.
+- FIRE: the ember is two pixels wide, so the rising sparks are visible. 256 bytes.
+
 ## [2.3.1]
 - Refactor, same effects: the code every demo repeated is now four macros in `src/dos.inc` (`HOOK_TICK`, `ESC_OR_LOOP`, `MIDI_START`, `PENTA`); all eleven binaries that did not otherwise change are byte-identical to 2.3.0.
 - GOLDTEX: x and y are loop counters instead of a division per pixel, and the row's share of the block key is computed once per row; same formula (checked pixel by pixel against it), 256 bytes.

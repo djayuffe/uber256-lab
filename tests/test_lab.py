@@ -287,8 +287,8 @@ for k in range(40):
     r.frames(1); bl = r.uc.reg_read(UC_X86_REG_BX) & 255
     tri = (~bl & 255 if bl & 32 else bl) & 30
     before = len(r.note_ons()); r.tick(1); new = [n[2] for n in mel(r.note_ons()[before:])]
-    if k: notes.append((tri, new))
-check(all(n == [(t + 46) * 6 // 5] for t, n in notes), "WARP: every tick plays the current character-height triangle as a pentatonic degree: the arpeggio rises as the text stretches")
+    if k: notes.append((tri, new, r.ticks_done))
+check(all(n == ([] if tk & 1 else [(t + 46) * 6 // 5]) for t, n, tk in notes), "WARP: every other tick plays the current character-height triangle as a pentatonic degree: the arpeggio rises as the text stretches")
 groove("WARP", music("WARP", r, 4))
 leaves("WARP", Run("WARP.COM"), 2)
 

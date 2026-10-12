@@ -87,6 +87,8 @@ frame:
 isr:                          ; INT 1Ch, 18.2 Hz; BX is the main loop's frame counter
     pusha
     MIDI_START 4              ; program 4: electric piano
+    test byte [fs:46Ch],1     ; the piano on every other tick (16th notes over the groove)
+    jnz .q
     mov al,bl                 ; the same triangle wave as the character height
     test al,32
     jz .up
@@ -97,6 +99,7 @@ isr:                          ; INT 1Ch, 18.2 Hz; BX is the main loop's frame co
     PENTA                     ; AL = 2d -> floor(12d/5): degree d of C major pentatonic
     out dx,al                 ; note
     out dx,al                 ; velocity = note
+.q:
 %include "groove.inc"
     popa
     iret

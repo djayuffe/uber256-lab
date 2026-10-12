@@ -1,7 +1,8 @@
 ; CHLADNI - the nodal lines of a vibrating plate: f(x,y) = sin(a*x)*sin(b*y) - sin(b*x)*sin(a*y) = 0.
 ; Sand collects where the plate does not move, so the picture is bright where |f| is small. The mode number a
 ; swings through [2, 4] with the BIOS clock. f is separable, so each frame first tabulates sin(aX) and sin(bX)
-; for the 320 values of X (the 200 values of Y are a subset): 640 FSINs a frame instead of four per pixel.
+; for the 320 values of X (the 200 values of Y are a subset), as 16-bit integers scaled by K = 6271: 640 FSINs a
+; frame, and each pixel is two integer multiplies whose high words are already |f| * 600.
 ; A probe crosses the plate in time with the music: where it meets a nodal line, a tubular bell rings, doubled
 ; an octave below.
 BITS 16
@@ -38,40 +39,43 @@ frame:
     fld st0
     fmul st0,st2
     fsin
-    fstp dword [si]           ; sin(aX)
+    fimul word [bx+16]
+    fistp word [si]           ; K sin(aX), K = 6271
     fld st0
     fimul word [bx+14]
     fsin
-    fstp dword [si+4]         ; sin(bX), b = 6
+    fimul word [bx+16]
+    fistp word [si+2]         ; K sin(bX), b = 6
     fadd dword [bx+8]         ; X += 0.02
-    add si,8
-    cmp si,TAB+2560
+    add si,4
+    cmp si,TAB+1280
     jb .tb
     fcompp
     xor di,di
-    mov bp,TAB+60*8           ; row y uses entry y+60: Y = (y-100)*0.02
+    mov bp,TAB+60*4           ; row y uses entry y+60: Y = (y-100)*0.02
 .row:
     mov si,TAB
     mov cx,320
 .px:
-    fld dword [si]
-    fmul dword [bp+4]         ; sin(aX) sin(bY)
-    fld dword [si+4]
-    fmul dword [bp]           ; sin(bX) sin(aY)
-    fsubp st1,st0
-    fabs
-    fimul word [bx+16]        ; |f| * 600
-    fistp word [bx+18]
-    mov ax,[bx+18]
+    mov ax,[si]
+    imul word [bp+2]          ; K^2 sin(aX) sin(bY) in DX:AX
+    push dx
+    mov ax,[si+2]
+    imul word [bp]            ; K^2 sin(bX) sin(aY)
+    pop ax
+    sub ax,dx                 ; the high words: K^2 f / 65536 = 600 f, since K^2 = 600 * 65536
+    jns .abs
+    neg ax                    ; |f| * 600
+.abs:
     test ah,ah                ; above 255: clamp
     jz .ok
     mov al,255
 .ok:
     not al                    ; bright where the plate is still
     stosb
-    add si,8
+    add si,4
     loop .px
-    add bp,8
+    add bp,4
     cmp di,64000
     jb .row
     mov dx,3DAh
@@ -104,4 +108,4 @@ isr:                          ; INT 1Ch, 18.2 Hz
     iret
 data:
     dd 0.0115, -3.2, 0.02     ; w (radians per tick), X at the left edge, X per pixel
-    dw 3, 6, 600              ; a = 3 + sin(w t); b; brightness scale. |f|*600 is stored just past the end
+    dw 3, 6, 6271             ; a = 3 + sin(w t); b; K = sqrt(600 * 65536), the table scale
