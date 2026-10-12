@@ -1,19 +1,19 @@
 # uber256-lab
 
-**Twelve DOS demos of 256 bytes or less, each playing its own generated music: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, a picture made only of orderings, the migrating roots of a polynomial, a river and a field of golden blocks made of the program's own machine code.**
+**Thirteen DOS demos of 256 bytes or less, each playing its own generated music: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, a picture made only of orderings, the migrating roots of a polynomial, a river, a field of golden blocks and slow satin flows made of the program's own machine code.**
 
 [![CI](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml)
 
-![All twelve demos in DOSBox: GALAXY, CLIFF, CHLADNI, FIRE, JULIA, SELFTEX, ESCHER, LATCH, WARP, ORDER, ROOTS and GOLDTEX](docs/gallery.jpg)
+![All thirteen demos in DOSBox: GALAXY, CLIFF, CHLADNI, FIRE, JULIA, SELFTEX, ESCHER, LATCH, WARP, ORDER, ROOTS, GOLDTEX and FLOWTEX](docs/gallery.jpg)
 
-*Real DOSBox 0.74-3 captures of the shipped binaries. Top row: GALAXY, CLIFF, CHLADNI, FIRE. Middle: JULIA, SELFTEX, ESCHER, LATCH. Bottom: WARP, ORDER, ROOTS, GOLDTEX.*
+*Real DOSBox 0.74-3 captures of the shipped binaries. Top row: GALAXY, CLIFF, CHLADNI, FIRE, JULIA, SELFTEX, ESCHER. Bottom: LATCH, WARP, ORDER, ROOTS, GOLDTEX, FLOWTEX.*
 
 Everything here is a flat 16-bit real-mode `.COM` file written in NASM. There are no images, no data files, no
 libraries, and no DOS calls except setting the video mode, hooking the timer tick and leaving. Every pixel, every
 palette colour and every note is computed by a few hundred bytes of code. The music goes out as General MIDI through an
 MPU-401, which DOSBox provides out of the box (and plays through the system's synthesizer on macOS and Windows).
 
-**Watch and listen:** [`docs/uber256-lab-showreel.mp4`](docs/uber256-lab-showreel.mp4) is 77 seconds of all eleven, recorded
+**Watch and listen:** [`docs/uber256-lab-showreel.mp4`](docs/uber256-lab-showreel.mp4) is 91 seconds of all thirteen, recorded
 in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General MIDI soundfont.
 
 | Program | Size | Needs | What it is | Music |
@@ -30,6 +30,7 @@ in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General
 | [`JULIA.COM`](src/julia.asm) | 254 B | 386, VGA, MPU-401 | A Julia set in 8.8 fixed point. Its constant circles on a Minsky oscillator, so the fractal continually changes shape, and its escape bands flow 18 times a second. No FPU, no sine table. | Each tick, the escape time of the pixel just drawn is a celesta note; the set itself is silence. A low C pedal every 16 ticks. |
 | [`SELFTEX.COM`](src/selftex.asm) | 254 B | 386, VGA, MPU-401 | A river made of the program's own machine code: a perspective floor with a river winding across it into the distance, its water code bytes stretched into streaks that flow towards you, its banks fields of code-byte blocks, under a sky ramp. Every texel is a byte of the program. | The same bytes in order, on a kalimba: the score is the program. |
 | [`GOLDTEX.COM`](src/goldtex.asm) | 253 B | 386, VGA, MPU-401 | The classic SELFTEX effect, `code[x*y/64 + t]` (hyperbolic bands of machine code in a flowing palette), with polished gold blocks: the screen is a 16x16 grid and the program's own bytes decide which blocks are gold; they hop across the grid, and a band of white-gold light sweeps over every tile. | The program's bytes in order on a glockenspiel, doubled an octave up, over drums and a walking bass. |
+| [`FLOWTEX.COM`](src/flowtex.asm) | 219 B | 386, VGA, MPU-401 | The classic SELFTEX bands again, in one sepia-to-ivory ramp and sixteen times bigger: `code[x*y/1024 + t]`, with 32 interpolated steps between neighbouring code bytes, so the machine code flows past as slow satin ridges. Five instructions a pixel. | A harp plays the four code bytes flowing in at the corner as an arpeggio, each note doubled two octaves down. |
 
 ## Contents
 
@@ -48,7 +49,9 @@ in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General
 - [JULIA in detail](#julia-in-detail)
 - [SELFTEX in detail](#selftex-in-detail)
 - [GOLDTEX in detail](#goldtex-in-detail)
+- [FLOWTEX in detail](#flowtex-in-detail)
 - [Speed](#speed)
+- [Version 2.7: FLOWTEX](#version-27-flowtex)
 - [Version 2.6: polished gold](#version-26-polished-gold)
 - [Version 2.5: speed](#version-25-speed)
 - [Version 2.3: golden blocks](#version-23-golden-blocks)
@@ -79,8 +82,8 @@ Or build from source (needs [NASM](https://www.nasm.us/); on macOS `brew install
 
 ```sh
 ./build.sh              # assembles src/*.asm, enforces the 256-byte limit, writes SHA256SUMS
-./run-dosbox.sh galaxy  # any of: galaxy cliff chladni fire escher julia latch order roots selftex goldtex warp
-./run-dosbox.sh '*tex'  # several in a row (here SELFTEX, then GOLDTEX); also names, or 'all'
+./run-dosbox.sh galaxy  # any of: galaxy cliff chladni fire escher julia latch order roots selftex goldtex flowtex warp
+./run-dosbox.sh '*tex'  # several in a row (here SELFTEX, GOLDTEX, FLOWTEX); also names, or 'all'
 ```
 
 **Esc** quits each demo cleanly (with several, it starts the next one, each in a fresh DOSBox so a held Esc cannot skip one): it restores text mode 3, puts the timer vector back and returns to DOS (JULIA draws
@@ -111,7 +114,7 @@ Every demo plays its own score, and every score is computed from what the demo i
   is the bar number times 4, mod 5 (`shr al,2` / `aam 5`): A, G, E, D, C, walking down for ever. 52 bytes.
 - **Velocity = note.** The note byte is sent twice: higher notes are a little louder, and it costs one byte.
 - **No note-offs.** Every instrument chosen decays by itself (vibraphone, marimba, bells, guitar, celesta, music box,
-  pizzicato, steel drums, kalimba, electric piano), so nothing is left sounding when a demo quits.
+  pizzicato, steel drums, kalimba, glockenspiel, harp, electric piano), so nothing is left sounding when a demo quits.
 - **The clock in the handler** is the BIOS tick count at 0040:006Ch, read as `[fs:46Ch]` (FS is 0 when DOS starts a program).
   The handler never trusts DS (an IBM BIOS enters INT 1Ch with DS = 0040h): it reads the demo's state through CS, ES or the
   registers the interrupted loop left behind.
@@ -131,6 +134,7 @@ What each one plays:
 | ROOTS | steel drums (114) | T, the coefficient the main loop patches into its own code each frame |
 | SELFTEX | kalimba (108) | the program's own bytes, in order, one per step: a riff that repeats every 28 seconds |
 | GOLDTEX | glockenspiel (9) | the same, doubled an octave up, with the groove |
+| FLOWTEX | orchestral harp (46) | a four-note arpeggio of the code bytes flowing in at the top-left corner (they change as the field flows), each doubled two octaves down |
 | WARP | electric piano (4) | the same triangle wave that sets the character height (BL, the frame counter), every other tick |
 
 The MIDI each demo sent in a 15-second DOSBox run is in [`docs/music/`](docs/music), and the recordings with sound are
@@ -180,6 +184,8 @@ The GIFs are silent; each has an MP4 with its music next to it.
 | **WARP**, 9 s ([with sound](docs/warp.mp4)): the DOS screen squashing, stretching and shearing. | **ORDER**, 9 s ([with sound](docs/order.mp4)): the regions folding as the three expressions move. |
 | ![ROOTS](docs/roots.gif) | ![GOLDTEX](docs/goldtex.gif) |
 | **ROOTS**, 9 s ([with sound](docs/roots.mp4)): the root curves migrating, crossing and reconnecting. | **GOLDTEX**, 6 s at 15 fps ([with sound](docs/goldtex.mp4)): polished gold blocks hopping over bands of machine code, the light sweeping across them. |
+| ![FLOWTEX](docs/flowtex.gif) | ![FLOWTEX still](docs/flowtex.jpg) |
+| **FLOWTEX**, 6 s at 15 fps ([with sound](docs/flowtex.mp4)): the program's bytes as slow satin flows. | **FLOWTEX** in DOSBox: each ridge is one code byte, stretched along a hyperbola. |
 
 *How they were made: DOSBox ran under a virtual X display with its MIDI output sent to a pipe; the window was captured
 losslessly at 35 frames per second while the MIDI bytes were time-stamped as they arrived; the GIFs are 25 fps at the
@@ -568,6 +574,39 @@ The screen is drawn as 4,096 runs of 16 pixels, each inside one block (the last 
 The palette is rewritten every frame without touching port 3C8h: 768 values bring the DAC's write index back to 0.
 The music is SELFTEX's riff (the program's bytes in order) on a glockenspiel, doubled an octave up, over the groove.
 
+## FLOWTEX in detail
+
+```
+pixel(x, y) = T[t + x*y/32]        T[k] = a + (b - a) f / 32,  a = code[k/32],  b = code[k/32 + 1],  f = k mod 32
+```
+
+The same picture as the classic SELFTEX, `code[x*y/64 + t]`, with two changes. **Bigger:** a code byte covers x*y/1024
+instead of x*y/64, sixteen times the area, so about 62 bytes span the screen. **Smoother:** between neighbouring code
+bytes the value is linearly interpolated in 32 steps, so where SELFTEX jumps from one byte to the next at every pixel,
+FLOWTEX glides; each byte becomes a ridge or a trough in a field of satin. The emulator test measures it: neighbouring
+pixels differ by 10 on average, against 80 for the classic formula on the same code.
+
+The interpolation would cost a multiply per pixel, so it is done once: at start-up the program fills the 64 KB segment
+above itself (CS + 1000h, addressed through GS) with T, 256 code bytes times 32 steps, eight times over, so the table
+index can simply wrap at 16 bits. Each row then walks the table with a 16.16 step of y/32, and a pixel is five
+instructions:
+
+```
+add bp,dx           ; fraction of the index
+adc si,bx           ; index: t + x*y/32
+mov al,[gs:si]
+stosb
+loop .px
+```
+
+The step itself grows by 1/32 a row (`add dx,2048` / `adc bx,0`), so there is no multiply anywhere in the frame:
+321,616 instructions, 70 frames a second from 22,600 DOSBox cycles. Time is the frame counter, added to the index: the
+field slides along the code 1/32 of a byte a frame, a whole byte every half second. The palette is one ramp, sepia to
+ivory, `(s, s - s/8, s - s/4)` with s = i/4.
+
+The music: every other tick a harp plays one of the four code bytes now entering at the top-left corner (`t/32`, plus
+0 to 3), so the arpeggio changes as the field flows, each note doubled two octaves down. No drums: it is a calm piece.
+
 ## Speed
 
 A frame that takes even slightly longer than one 70 Hz refresh (14.3 ms) misses the retrace and waits for the next:
@@ -589,6 +628,7 @@ every run.
 | ROOTS | 2,421,665 -> 1,543,942 | 108,200 | 25 -> 39 | nested loops, no division; per-row terms out of the pixel loop |
 | JULIA | 14,204,682 -> 9,839,005 | 690,000 | 5.6 -> 13.7 | 32-bit products, 15 instructions an iteration; no retrace wait |
 | SELFTEX | 702,040 | 49,200 | 84 | (no retrace wait: the river runs on the clock) |
+| FLOWTEX | 321,616 | 22,600 | 70 | (2.7) a precomputed table: five instructions a pixel |
 | LATCH | 33,638 | 2,400 | 70 | |
 | ESCHER | 2,096 | 150 | 70 | |
 | WARP | 1,656 | 120 | 70 | |
@@ -597,6 +637,13 @@ every run.
 first frames, DOSBox averages over seven seconds.) ROOTS does not need 70: its picture changes with the BIOS clock, 18.2
 times a second, so 39 frames a second shows every change at least twice. JULIA is a slow-motion piece, and its palette
 flows 18 times a second in the tick handler whatever the frame rate. The music never depends on the frame rate.
+
+## Version 2.7: FLOWTEX
+
+A thirteenth demo, cloned from the classic SELFTEX with fewer colours and bigger flows (219 bytes, see
+[FLOWTEX in detail](#flowtex-in-detail)): one sepia-to-ivory ramp, code bytes sixteen times bigger and interpolated
+into smooth ridges, a harp arpeggio. `run-dosbox.sh '*tex'` now plays SELFTEX, GOLDTEX and FLOWTEX in turn. The
+emulator maps the 64 KB above the program too, and checks that only FLOWTEX writes there.
 
 ## Version 2.6: polished gold
 
@@ -753,7 +800,7 @@ program (`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OU
 what the demos lean on: a real interrupt-vector table with DOS functions 35h and 25h; the BIOS timer, whose `tick()`
 advances 0040:006Ch and enters the installed INT 1Ch handler as an IBM BIOS does (with DS = 0040h and AX, DX clobbered,
 so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it is in UART mode and decoded as MIDI
-(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 246 checks:
+(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 266 checks:
 
 - **All demos:** at most 256 bytes; the first call sets the video mode; all 768 DAC values are written and the palette is
   not black; no memory is touched outside video RAM and the program's own segment; the PC speaker and PIT channel 2 are
@@ -788,6 +835,9 @@ so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it 
   on an early frame and at t = 1234h;
   gold covers part of the screen in whole 16x16 blocks; the gold ramp is bright and both ramps cycle; the blocks hop;
   the melody is the program's bytes doubled an octave up, with the groove.
+- **FLOWTEX:** the 64 KB table is exactly the interpolated code; every sampled pixel is the table at t + x*y/32;
+  neighbouring pixels differ five times less than in the classic formula; one sepia ramp; the field flows 1/32 of a byte
+  a frame; only FLOWTEX writes above its segment; the harp arpeggio is the four code bytes at the corner.
 - **SELFTEX:** a sky ramp above the horizon; every ground pixel is a code byte (water, fields) or the shore; water in
   every row, wide in front and narrow far away; the river bends; it moves with the clock; the melody is the program's
   bytes in order.
@@ -843,13 +893,14 @@ src/latch.asm       cellular automaton computed by the VGA graphics controller +
 src/julia.asm       integer Julia set with an orbiting constant, mirrored + the pixels as they are drawn
 src/selftex.asm     a river made of the program's own code + the code as a riff
 src/goldtex.asm     classic SELFTEX code bands + golden blocks chosen by the code
+src/flowtex.asm     classic SELFTEX code bands, interpolated, big and sepia + a harp on the code
 src/dos.inc         shared macros: HOOK_TICK, ESC_OR_LOOP, MIDI_START, PENTA
 src/groove.inc      the rhythm section shared by FIRE, GOLDTEX, LATCH, ORDER and WARP: GM drums + walking bass
 build.sh            NASM build + 256-byte gate + SHA256SUMS
 run-dosbox.sh       DOSBox launcher: one demo, several, a pattern or all, in order
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
 tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture
-tests/test_lab.py   the 246 checks
+tests/test_lab.py   the 266 checks
 tools/equiv.py      frame-by-frame comparison of two builds
 tools/cost.py       instructions per frame and the DOSBox cycles each demo needs for 70 fps
 tools/synth13.py    the mode-13h kernel search (no demo shipped)

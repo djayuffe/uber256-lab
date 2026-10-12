@@ -20,7 +20,7 @@ def common(name, r, mode=0x13, colours=256):
     if mode == 0x13:
         check(len(r.dac()) >= 3 * colours, f"{name}: programs {colours} DAC colours ({len(r.dac())} values)")
         check(max(r.dac()[:768]) > 20, f"{name}: palette is not black")
-    check(not r.unmapped, f"{name}: touches no memory outside video RAM and its segment {r.unmapped[:3]}")
+    check(not r.unmapped and (name == "FLOWTEX" or not r.high), f"{name}: touches no memory outside video RAM and its segment {r.unmapped[:3]}")
     check(not any(p in (0x42, 0x43, 0x61) for p, v in r.outs), f"{name}: never touches the PC speaker or PIT channel 2")
 
 def music(name, r, program, ticks=64, lo=12, hi=None, between=0, scale=PENTA):
@@ -109,6 +109,44 @@ notes = mel(music("SELFTEX", r, 108))
 check(notes and all(t % 2 == 0 and n == ((code[(t >> 1) & 255] & 30) + 46) * 6 // 5 for t, _, n, _ in notes),
       "SELFTEX: the melody is the program's own bytes, one per step, in order")
 leaves("SELFTEX", Run("SELFTEX.COM"), 2)
+
+print("\n== FLOWTEX ==")
+r = Run("FLOWTEX.COM").frames(2); common("FLOWTEX", r)
+s = r.screen()[:64000]
+code = r.com + bytes(256 - len(r.com))
+def flow_table():
+    T = bytearray(65536)
+    for k in range(65536):
+        i, f = (k >> 5) & 255, k & 31
+        a, b = code[i], code[(i + 1) & 255]
+        T[k] = (a + ((b - a) * f >> 5)) & 255
+    return T
+FT = flow_table()
+check(bytes(r.uc.mem_read(0x20000, 65536)) == bytes(FT), "FLOWTEX: the 64 KB table above the program is the code, 32 linearly interpolated steps between neighbouring bytes")
+tt = int.from_bytes(r.uc.mem_read(0x1FF00, 2), 'little') - 1
+check(all(s[y * 320 + x] == FT[(tt + (x + 1) * y // 32) & 0xFFFF] for y in range(0, 200, 3) for x in range(0, 320, 3)),
+      "FLOWTEX: every pixel is the table at t + x*y/32: code[x*y/1024 + t/32], interpolated")
+def roughness(px): return sum(abs(px(x + 1, y) - px(x, y)) for y in range(0, 200, 2) for x in range(319)) / (100 * 319)
+d = roughness(lambda x, y: s[y * 320 + x]); dc = roughness(lambda x, y: code[((x * y >> 6) + tt) & 255])
+check(d * 5 < dc, f"FLOWTEX: big smooth flows, not pixel noise: mean step between neighbours {d:.1f}, against {dc:.1f} for the classic code[x*y/64 + t]")
+pal = r.dac()[:768]
+check(all(pal[k * 3] >= pal[k * 3 + 1] >= pal[k * 3 + 2] for k in range(256)) and all(pal[k * 3] == k >> 2 for k in range(256)),
+      "FLOWTEX: one sepia-to-ivory ramp: R = i/4, G and B a little less (few colours)")
+r.frames(32); s2 = r.screen()[:64000]
+tt2 = int.from_bytes(r.uc.mem_read(0x1FF00, 2), 'little') - 1
+check(tt2 == tt + 32 and sum(1 for a, b in zip(s, s2) if a != b) > 20000, "FLOWTEX: the field flows, 1/32 of a code byte a frame")
+check(r.high and not r.unmapped, "FLOWTEX: uses only its own segment, the 64 KB above it and video RAM")
+notes = mel(music("FLOWTEX", r, 46))
+tt3 = int.from_bytes(r.uc.mem_read(0x1FF00, 2), 'little')
+want = []
+for k in range(64):
+    tick = k + 1 + int.from_bytes(r.uc.mem_read(0x46C, 4), 'little') - 64
+    if not tick & 1:
+        n = ((code[((tt3 >> 5) + ((tick >> 1) & 3)) & 255] & 30) + 46) * 6 // 5
+        want += [n, n - 24]
+check([n for _, _, n, _ in notes] == want[:len(notes)] and len(notes) >= 40,
+      "FLOWTEX: a harp arpeggio of the four code bytes flowing in at the corner, each note doubled two octaves down")
+leaves("FLOWTEX", Run("FLOWTEX.COM"), 2)
 
 print("\n== GOLDTEX ==")
 r = Run("GOLDTEX.COM").frames(3); common("GOLDTEX", r)

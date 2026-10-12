@@ -2,10 +2,10 @@
 # Run demos in DOSBox, one after another: Esc ends each one and starts the next.
 #   ./run-dosbox.sh galaxy             one demo
 #   ./run-dosbox.sh selftex goldtex    several, in the order given
-#   ./run-dosbox.sh '*tex'             a pattern (quoted), matched in the order below: SELFTEX, then GOLDTEX
-#   ./run-dosbox.sh all                all twelve
+#   ./run-dosbox.sh '*tex'             a pattern (quoted), matched in the order below: SELFTEX, GOLDTEX, FLOWTEX
+#   ./run-dosbox.sh all                all thirteen
 set -eu
-ORDER="galaxy cliff chladni fire escher julia latch order roots selftex goldtex warp"
+ORDER="galaxy cliff chladni fire escher julia latch order roots selftex goldtex flowtex warp"
 DOSBOX_BIN=dosbox
 if ! command -v "$DOSBOX_BIN" >/dev/null 2>&1; then
     MAC_APP=/Applications/dosbox.app/Contents/MacOS/DOSBox

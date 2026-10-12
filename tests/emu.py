@@ -9,7 +9,7 @@ INT, IN and OUT are trapped. What it models:
   - ports 330h/331h: an MPU-401 in UART mode; bytes written to 330h after a 3Fh to 331h are captured as MIDI.
 """
 import pathlib
-from unicorn import Uc, UC_ARCH_X86, UC_MODE_16, UC_HOOK_INSN, UC_HOOK_INTR, UC_HOOK_MEM_UNMAPPED
+from unicorn import Uc, UC_ARCH_X86, UC_MODE_16, UC_HOOK_INSN, UC_HOOK_INTR, UC_HOOK_MEM_UNMAPPED, UC_HOOK_MEM_WRITE
 from unicorn.x86_const import *
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -21,7 +21,7 @@ class Run:
     def __init__(self, name, data=None):
         self.com = data if data is not None else (ROOT / name).read_bytes()
         uc = self.uc = Uc(UC_ARCH_X86, UC_MODE_16)     # fresh Uc per run: Unicorn caches translated blocks
-        uc.mem_map(0, 0x20000); uc.mem_map(0xA0000, 0x60000)
+        uc.mem_map(0, 0x30000); uc.mem_map(0xA0000, 0x60000)   # the program's segment, and the 64 KB above it
         uc.mem_write(LIN + 0x100, self.com); uc.mem_write(LIN, b"\xCD\x20")
         uc.mem_write(LIN + 2, (0xA000).to_bytes(2, 'little'))   # PSP:2, top of memory (DOSBox: 9FFFh/A000h)
         uc.mem_write(0x1C * 4, BIOS_1C[1].to_bytes(2, 'little') + BIOS_1C[0].to_bytes(2, 'little'))
@@ -37,6 +37,8 @@ class Run:
         uc.hook_add(UC_HOOK_INSN, self.on_in, None, 1, 0, UC_X86_INS_IN)
         uc.hook_add(UC_HOOK_INSN, self.on_out, None, 1, 0, UC_X86_INS_OUT)
         uc.hook_add(UC_HOOK_INTR, self.on_intr)
+        self.high = 0                                   # writes to the 64 KB above the program (FLOWTEX's table)
+        uc.hook_add(UC_HOOK_MEM_WRITE, lambda u, a, ad, sz, v, d: setattr(self, 'high', self.high + 1), None, LIN + 0x10000, LIN + 0x1FFFF)
         uc.hook_add(UC_HOOK_MEM_UNMAPPED, lambda u, a, ad, sz, v, d: self.unmapped.append(hex(ad)) or False)
         self.started = False
 

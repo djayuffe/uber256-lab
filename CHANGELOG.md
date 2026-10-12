@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.7.0]
+- **FLOWTEX** (219 bytes), a new demo cloned from the classic SELFTEX with fewer colours and bigger flows: `code[x*y/1024 + t]`, sixteen times the area per code byte, linearly interpolated in 32 steps between neighbouring bytes (a 64 KB table built at start-up in the segment above the program), in one sepia-to-ivory ramp, so the machine code flows past as smooth satin ridges. Five instructions a pixel, 70 fps from 22,600 DOSBox cycles. Music: a harp arpeggio of the four code bytes flowing in at the corner, doubled two octaves down.
+- `run-dosbox.sh '*tex'` runs SELFTEX, GOLDTEX, FLOWTEX; `all` runs thirteen.
+- Tests: 20 new checks (266); the emulator maps the 64 KB above the program and checks only FLOWTEX writes there.
+- DOSBox recording, GIF, still, MIDI; gallery (now 7 x 2) and showreel include it.
+
 ## [2.6.1]
 - `run-dosbox.sh` runs several demos in order: names, a quoted pattern (`'*tex'` is SELFTEX then GOLDTEX) or `all`. Each runs in its own DOSBox, closed when Esc ends it, because a held Esc would otherwise also end the next demo before it was seen.
 
