@@ -1,5 +1,8 @@
 # Changelog
 
+## [2.6.1]
+- `run-dosbox.sh` runs several demos in order: names, a quoted pattern (`'*tex'` is SELFTEX then GOLDTEX) or `all`. Each runs in its own DOSBox, closed when Esc ends it, because a held Esc would otherwise also end the next demo before it was seen.
+
 ## [2.6.0]
 - **GOLDTEX: polished gold.** Gold blocks are smooth diagonal ramps (colour 132 + 4(u + v)) instead of code texture, and colours 129..255 are a triangle wave one tile-diagonal long, R = s (32..63), G = s - 8, B = s - 32: a band of white-gold light sweeps over every tile from corner to corner every 1.8 s, over deep gold. Gold runs are three instructions a pixel (440,788 instructions a frame, was 555,123). 253 bytes.
 - Tests: the gold-tile formula, the gold palette (R >= 32, G = R - 8, B = R - 32, a smooth band), the sweeping light. 246 checks.

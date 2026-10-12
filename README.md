@@ -80,9 +80,10 @@ Or build from source (needs [NASM](https://www.nasm.us/); on macOS `brew install
 ```sh
 ./build.sh              # assembles src/*.asm, enforces the 256-byte limit, writes SHA256SUMS
 ./run-dosbox.sh galaxy  # any of: galaxy cliff chladni fire escher julia latch order roots selftex goldtex warp
+./run-dosbox.sh '*tex'  # several in a row (here SELFTEX, then GOLDTEX); also names, or 'all'
 ```
 
-**Esc** quits each demo cleanly: it restores text mode 3, puts the timer vector back and returns to DOS (JULIA draws
+**Esc** quits each demo cleanly (with several, it starts the next one, each in a fresh DOSBox so a held Esc cannot skip one): it restores text mode 3, puts the timer vector back and returns to DOS (JULIA draws
 about thirteen frames a second, so hold Esc for a moment). `DOSBOX.CONF` sets `cycles=max` and spells out DOSBox's default
 MIDI set-up (`mpu401=intelligent`, `mididevice=default`), which is all the music needs: on macOS and Windows DOSBox
 plays General MIDI through the system's built-in synthesizer. On Linux, point `mididevice` at a running synth such as
@@ -845,7 +846,7 @@ src/goldtex.asm     classic SELFTEX code bands + golden blocks chosen by the cod
 src/dos.inc         shared macros: HOOK_TICK, ESC_OR_LOOP, MIDI_START, PENTA
 src/groove.inc      the rhythm section shared by FIRE, GOLDTEX, LATCH, ORDER and WARP: GM drums + walking bass
 build.sh            NASM build + 256-byte gate + SHA256SUMS
-run-dosbox.sh       DOSBox launcher
+run-dosbox.sh       DOSBox launcher: one demo, several, a pattern or all, in order
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
 tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture
 tests/test_lab.py   the 246 checks
