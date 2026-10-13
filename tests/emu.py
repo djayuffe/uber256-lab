@@ -4,6 +4,7 @@ INT, IN and OUT are trapped. What it models:
   - port 3DAh: the retrace bit alternates on every read, so a frame is one 0 -> 8 transition seen by the program
     (that counts frames the same way for a single 'wait for retrace' loop and a 'wait for end, then start' pair);
   - INT 21h AH=35h/25h: a real interrupt-vector table at 0000:0000, preloaded with a fake BIOS handler for 1Ch;
+  - INT 10h AH=0Fh: the mode last set with AH=00h;
   - the timer: tick() advances the BIOS tick count at 0040:006Ch and calls the installed INT 1Ch handler the way
     the BIOS INT 08h handler does (with DS = 0040h, as on an IBM BIOS, so a handler that trusts DS is caught);
   - ports 330h/331h: an MPU-401 in UART mode; bytes written to 330h after a 3Fh to 331h are captured as MIDI.
@@ -21,7 +22,7 @@ class Run:
     def __init__(self, name, data=None):
         self.com = data if data is not None else (ROOT / name).read_bytes()
         uc = self.uc = Uc(UC_ARCH_X86, UC_MODE_16)     # fresh Uc per run: Unicorn caches translated blocks
-        uc.mem_map(0, 0x40000); uc.mem_map(0xA0000, 0x60000)   # the program's segment and the 128 KB above it
+        uc.mem_map(0, 0x60000); uc.mem_map(0xA0000, 0x60000)   # the program's segment and the 256 KB above it
         uc.mem_write(LIN + 0x100, self.com); uc.mem_write(LIN, b"\xCD\x20")
         uc.mem_write(LIN + 2, (0xA000).to_bytes(2, 'little'))   # PSP:2, top of memory (DOSBox: 9FFFh/A000h)
         uc.mem_write(0x1C * 4, BIOS_1C[1].to_bytes(2, 'little') + BIOS_1C[0].to_bytes(2, 'little'))
@@ -71,6 +72,8 @@ class Run:
         self.ints.append((n, ax))
         if n == 0x20: self.exited = True; uc.emu_stop()
         elif n == 0xFF: uc.emu_stop()                       # back from INT 1Ch into the fake BIOS
+        elif n == 0x10 and ax >> 8 == 0: self.mode = ax & 0x7F   # set mode: remembered for AH = 0Fh
+        elif n == 0x10 and ax >> 8 == 0x0F: uc.reg_write(UC_X86_REG_AX, 0x2800 | getattr(self, 'mode', 3))
         elif n == 0x21 and ax >> 8 == 0x35:
             k = ax & 255; v = uc.mem_read(k * 4, 4)
             uc.reg_write(UC_X86_REG_BX, int.from_bytes(v[:2], 'little')); uc.reg_write(UC_X86_REG_ES, int.from_bytes(v[2:], 'little'))

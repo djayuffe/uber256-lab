@@ -376,7 +376,7 @@ leaves("ROOTS", Run("ROOTS.COM"))
 print("\n== MEGA ==")
 def mega_run(esc_after=None):
     r = Run("MEGA.COM"); steps = 0
-    while not r.exited and steps < 400:
+    while not r.exited and steps < 1500:
         r.step(3_000_000); r.tick(30); steps += 1
         if esc_after is not None and steps == esc_after: r.p60 = 1
     return r
@@ -390,7 +390,8 @@ check(chimes == 13, f"MEGA: a chime (tubular bells) on each of the 13 title card
 seq = [p for p in seq if p != 14]
 check(seq == order, f"MEGA: its eleven parts play, in order: FLOWTEX, SELFTEX, GOLDTEX, ORDER, GALAXY, CLIFF, FIRE, ROOTS, JULIA, LATCH, WARP (programs {seq})")
 modes = [a for n, a in r.ints if n == 0x10 and a >> 8 == 0]
-check(modes.count(0x13) >= 13 and 0x0D in modes and modes[-3:] == [3, 0x13, 3], "MEGA: a mode-13h title card before every part, LATCH's mode 0Dh, text mode for the credits, the closing card, text mode at the end")
+check(modes.count(0x13) == 12 and 0x0D in modes and modes[-3:] == [3, 0x13, 3],
+      "MEGA: mode 13h set once at the start, by the nine mode-13h parts and for the two cards after LATCH and WARP (the others keep the part's mode-13h screen and drain it); LATCH's mode 0Dh; text mode for the credits and at the end")
 hooks = [v for v in r.vec_sets if v[0] == 0x1C]
 check(len(hooks) == 22 and r.vector(0x1C) == BIOS_1C, "MEGA: each part hooks the timer and puts it back (11 hooks, 11 unhooks); the BIOS handler is in place at the end")
 pel = [v for p, v in r.outs if p == 0x3C6]
@@ -403,6 +404,9 @@ def first_step(i):                                   # the 768 DAC values writte
     return vals[-768:]
 check(pel.count(0) == 11 and len(opens) == 11 and all(len(first_step(i)) == 768 and max(first_step(i)) <= 2 for i in opens),
       "MEGA: every part starts masked (PEL mask 0) and fades in from black: its first palette is written at 1/32 brightness")
+idx = [v for p, v in r.outs if p == 0x3C8]
+check(idx.count(224) == 13, f"MEGA: every one of the 13 cards burns in and out: the burning-edge ramp (colours 224..255) is set for each ({idx.count(224)})")
+check(idx.count(128) >= 13 + 9, f"MEGA: out of each of the nine mode-13h parts the picture drains to sepia (the ramp at 128..191, {idx.count(128)} writes)")
 text = bytes(r.uc.mem_read(0xB8000, 4000))[0::2]
 check(b"M E G A D E M O" in text and b"djayuffe" in text, "MEGA: WARP bends the credits, which the megademo wrote to the text screen")
 check(r.exited and not r.unmapped, "MEGA: returns to DOS at the end, touching only its segments and video RAM")

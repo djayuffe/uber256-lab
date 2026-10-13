@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.9.0]
+- **MEGA.COM: transitions.** Out of every mode-13h part the last frame drains to sepia (a 24-frame DAC crossfade to each colour's luminance, then a race-the-beam remap into colours 128..191 that changes nothing on screen and frees the palette). Each title card is drawn off screen and burns in through a shaped wipe, a threshold over a per-pixel map with a 16-wide burning edge from white-gold to deep orange, and burns out to black through another. Seven shapes computed on the x87 per wipe (star iris, paper burn, spiral sweep, petalled close, drips, rippled diamond, sparkling fizzle), with a new phase each time. 5,502 bytes.
+- Fixed while building it: the card kept its strings' pointer in SI, which the new drain clobbered.
+- The emulator answers INT 10h AH = 0Fh with the mode last set, so the tests run the sepia drain. Tests: 276 (every card burns in and out; the nine mode-13h parts drain).
+- New recording, contact sheet, MIDI, and `docs/mega-wipes.gif` (the opening wipes).
+
 ## [2.8.3]
 - MEGA.COM: every part fades in from black. The part starts with the PEL mask at 0 (its first frame drawn unseen), then the shared frame check reads the DAC at the end of each of its first 32 frames, takes whatever palette the part has written since the last step, and writes it at k/32 brightness, so it works for parts that set their palette once and for those that rewrite it every frame. 4,507 bytes.
 - Tests: 274 (the fade-in: masked start, first palette at 1/32). New recording, contact sheet, MIDI.

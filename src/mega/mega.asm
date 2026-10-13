@@ -20,7 +20,14 @@ ORG 100h
     mov fs,ax                 ; FS = 0: the BIOS tick count is [fs:46Ch], as every part assumes
     mov ax,cs
     add ax,1000h
-    mov [pseg],ax             ; the parts run in the 64 KB segment above the megademo
+    mov [pseg],ax             ; the parts run in the 64 KB segment above the megademo (FLOWTEX uses the next one)
+    add ah,20h
+    mov [mapseg],ax           ; then the wipe's map and the card, drawn off screen
+    add ah,10h
+    mov [cardseg],ax
+    xor ax,ax
+    mov [afterpart],al        ; (the variables past the end of the file start as whatever memory held)
+    mov [wipe_n],ax
     mov ax,1130h              ; the BIOS 8x8 font (characters 0..127) -> [font]
     mov bh,3
     push es
@@ -58,12 +65,11 @@ ORG 100h
     pop bx
 .run:
     call run_part
+    mov byte [afterpart],1
     mov es,[pseg]
     cmp byte [es:5Eh],0
-    jne quit                  ; Esc during the part
-    call fade_out
     pop bx
-    jc quit
+    jne quit                  ; Esc during the part
     cmp bx,parts_end
     jb .next
     mov si,outro
@@ -281,17 +287,35 @@ fade_out:
     clc
 .x: ret
 
-; ---- a title card: SI -> the big title, a size line and a tagline (zero-terminated), CL = frames to hold. A chime,
-;      then it fades in over 32 frames, holds, and fades out; a band of white light runs down the letters all along.
-;      Returns SI after the third line, CF = 1 on Esc.
+; ---- a title card: SI -> the big title, a size line and a tagline (zero-terminated), CL = frames to hold.
+;      Out of a mode-13h part the last frame drains to sepia; out of anything else it fades to black. The card then
+;      arrives through a wipe, is held with a chime and a band of light running down its letters, and leaves through
+;      another wipe to black. Each wipe has its own shape (see gen_map) and a burning edge. Returns SI after the third
+;      line, CF = 1 on Esc.
 card:
     push cx
+    push si
+    mov ah,0Fh
+    int 10h                   ; the current video mode
+    cmp al,13h
+    jne .fade
+    cmp byte [afterpart],0
+    je .ready
+    call desat                ; a mode-13h picture: drain it to sepia, into colours 128..191
+    jc .esc2
+    jmp short .ready
+.fade:
+    call fade_out             ; planar or text: fade it, then mode 13h
+    jc .esc2
     mov ax,13h
     int 10h
-    xor bl,bl
-    call card_pal             ; everything black while drawing
-    push word 0A000h
-    pop es
+.ready:
+    pop si
+    call set_ramps            ; the sepia ramp, the burn ramp, black
+    mov bl,32
+    call card_pal
+    mov es,[cardseg]          ; draw the card off screen
+    call clear_es
     mov ax,44 * 256 + 5       ; the name, 40 pixels high, in the gold gradient
     call text
     mov ax,108 * 256 + 2      ; the size, solid (colour 200)
@@ -301,6 +325,9 @@ card:
     inc byte [solid]
     call text
     mov byte [solid],0
+    push si
+    mov al,[wipe_n]           ; in: the next shape
+    call gen_map
     mov al,14                 ; the chime: tubular bells, a fifth (C6 and G6)
     push cs
     call svc_midi
@@ -312,25 +339,31 @@ card:
     out dx,al
     mov al,60
     out dx,al
+    call wipe                 ; the card burns in
+    jc .esc2
+    mov es,[cardseg]          ; out: to black, through the next shape
+    call clear_es
+    mov al,[wipe_n]
+    add al,3
+    call gen_map
+    pop si
     pop cx
-    xor bl,bl
-.in:
-    call .frame
-    jc .x
-    inc bx
-    cmp bl,33
-    jb .in
     movzx cx,cl
-    dec bx
+    mov bl,32
 .h: call .frame
     jc .x
     loop .h
-.out:
-    call .frame
-    jc .x
-    dec bl
-    jns .out
-    clc
+    push si
+    call wipe                 ; the card burns away
+    pop si
+    inc byte [wipe_n]
+    mov byte [afterpart],0
+    ret
+.esc2:
+    pop si
+.esc:
+    pop cx
+    stc
 .x: ret
 .frame:                       ; one frame of the card: CF = 1 on Esc
     call vsync
@@ -338,6 +371,407 @@ card:
     call card_pal
     clc
 .r: ret
+
+; ---- drain the mode-13h picture on screen to sepia: the DAC crossfades from the part's palette to the luminance of
+;      each colour (24 frames), then, racing the beam down from the top of a retrace, every pixel is moved to colour
+;      128 + its luminance and colours 128..191 become the same sepia ramp, so nothing visible changes and the rest
+;      of the palette is free for the card
+desat:
+    push ds
+    pop es
+    mov dx,3C7h
+    xor al,al
+    out dx,al
+    mov dl,0C9h
+    mov di,dac
+    mov cx,768
+    rep insb                  ; the part's palette
+    mov si,dac
+    mov di,lum
+    mov cx,256
+.l: lodsb                     ; luminance = (2R + 5G + B) / 8, 0..63
+    movzx ax,al
+    add ax,ax
+    mov bx,ax
+    lodsb
+    mov ah,0
+    imul ax,ax,5
+    add bx,ax
+    lodsb
+    mov ah,0
+    add ax,bx
+    shr ax,3
+    stosb
+    loop .l
+    mov bp,1
+.f: call vsync                ; 24 frames: each channel moves from the part's colour to the sepia of its luminance
+    jc .x
+    mov dx,3C8h
+    xor al,al
+    out dx,al
+    inc dx
+    mov si,dac
+    mov bx,lum
+.c: mov al,[bx]
+    call sepia                ; CL, CH, AH = the sepia of the luminance
+    push ax
+    mov al,cl
+    call .mix
+    mov al,ch
+    call .mix
+    pop ax
+    mov al,ah
+    call .mix
+    inc bx
+    cmp bx,lum + 256
+    jb .c
+    inc bp
+    cmp bp,25
+    jb .f
+    call vsync                ; then, from the top of a retrace: the ramp at 128..191 and every pixel moved there
+    jc .x
+    call ramp_sepia
+    push word 0A000h
+    pop es
+    xor di,di
+    mov bx,remap
+    mov cx,256                ; (the table: 128 + luminance)
+    mov si,lum
+.t: lodsb
+    add al,128
+    mov [bx],al
+    inc bx
+    loop .t
+    mov bx,remap
+    mov cx,64000
+.p: mov al,[es:di]
+    xlat
+    stosb
+    loop .p
+    clc
+.x: ret
+.mix:                         ; out the part's channel + (the sepia channel - it) x frame / 24
+    push ax
+    lodsb
+    mov ah,0
+    mov di,ax
+    pop ax
+    mov ah,0
+    sub ax,di
+    imul ax,bp
+    push dx
+    cwd
+    push bx
+    mov bx,24
+    idiv bx
+    pop bx
+    pop dx
+    add ax,di
+    out dx,al
+    ret
+
+sepia:                        ; AL = luminance 0..63 -> CL = R, CH = G = 13/16, AH = B = 9/16 of it
+    movzx ax,al
+    mov cl,al
+    imul ax,ax,13
+    shr ax,4
+    mov ch,al
+    movzx ax,cl
+    imul ax,ax,9
+    shr ax,4
+    mov ah,al
+    mov al,cl
+    ret
+ramp_sepia:                   ; colours 128..191: the sepia ramp
+    mov dx,3C8h
+    mov al,128
+    out dx,al
+    inc dx
+    xor al,al
+.r: push ax
+    call sepia
+    xchg ax,cx                ; AL = R, AH = G
+    out dx,al
+    mov al,ah
+    out dx,al
+    pop ax
+    push ax
+    call sepia
+    mov al,ah
+    out dx,al
+    pop ax
+    inc ax
+    cmp al,64
+    jb .r
+    ret
+
+; ---- the ramps the wipes use: black at 0, the sepia ramp at 128..191, and the burning edge at 224..255, deep orange
+;      behind the front to white-gold on it
+set_ramps:
+    mov dx,3C8h
+    xor al,al
+    out dx,al
+    inc dx
+    out dx,al
+    out dx,al
+    out dx,al
+    call ramp_sepia
+    mov al,224
+    dec dx
+    out dx,al
+    inc dx
+    xor cx,cx
+.b: mov al,cl                 ; R = 32 + k
+    add al,32
+    out dx,al
+    mov al,cl                 ; G = 8 + 7k/4
+    imul ax,ax,7
+    shr ax,2
+    add al,8
+    out dx,al
+    mov al,cl                 ; B = k^2 / 20
+    mul al
+    push dx
+    xor dx,dx
+    push bx
+    mov bx,20
+    div bx
+    pop bx
+    pop dx
+    out dx,al
+    inc cx
+    cmp cl,32
+    jb .b
+    ret
+
+clear_es:                     ; 64,000 zero bytes at ES:0
+    xor di,di
+    xor ax,ax
+    mov cx,32000
+    rep stosw
+    ret
+
+; ---- a wipe: the screen turns into the picture at [cardseg] where the map at [mapseg] is below a threshold that
+;      rises 5 a frame; just ahead of it a 16-wide band burns (colours 224..255, brightest at the front)
+wipe:
+    mov ax,[mapseg]
+    mov gs,ax
+    mov fs,[cardseg]
+    push word 0A000h
+    pop es
+    mov bp,-16
+.f: mov bl,32
+    call card.frame           ; the card's band of light keeps running
+    jc .x
+    xor di,di
+.p: movzx ax,byte [gs:di]
+    sub ax,bp
+    jl .new                   ; behind the front: the new picture
+    cmp ax,16
+    jae .n                    ; ahead of the band: untouched
+    shl al,1                  ; in the band: 255 at the front, 225 at its back
+    not al
+    jmp short .w
+.new:
+    mov al,[fs:di]
+.w: mov [es:di],al
+.n: inc di
+    cmp di,64000
+    jb .p
+    add bp,5
+    cmp bp,256 + 16
+    jl .f
+    clc
+.x: push word 0
+    pop fs                    ; FS = 0 again for the parts
+    ret
+
+; ---- the wipe shapes: a value 0..255 per pixel, the order in which pixels turn. X = x - 160, Y = 1.2 (y - 100)
+;      (square pixels), r and a its polar form. AL = the shape number (mod 7); [wipe_n] also turns the patterns.
+;        0 star     r (1 + 0.2 sin(5a + p)) 1.25            an iris opening in a five-pointed star
+;        1 burn     sums of sines of x, y, x + y and r     the picture burns away in blobs, like paper
+;        2 spiral   (a + pi) 25.5 + r / 2                  a sweep that turns outwards
+;        3 close    255 - r (1.25 + 0.1 sin(8a + p))       a petalled iris closing on the centre
+;        4 drip     1.15 y + 20 + 22 sin(0.37 x + p) + ...  a curtain falling in drips
+;        5 diamond  0.95 (|X| + |Y|) + 10 sin(r / 5)       a rippled diamond opening
+;        6 fizzle   a random byte                           a dissolve that sparkles
+gen_map:
+    push si
+    fninit                    ; (a part may have left values on the FPU stack)
+    movzx ax,al
+    mov bl,7
+    div bl
+    movzx bx,ah
+    add bx,bx
+    mov si,[mapfn + bx]
+    fild word [wipe_n]
+    fmul dword [f13]
+    fstp dword [phase_f]
+    mov es,[mapseg]
+    xor di,di
+    mov word [gy],0
+.y: mov word [gx],0
+.x: call si                   ; -> AX
+    test ah,ah
+    jz .ok
+    sar ax,15                 ; below 0: 0, above 255: 255
+    not al
+.ok: stosb
+    inc word [gx]
+    cmp word [gx],320
+    jb .x
+    inc word [gy]
+    cmp word [gy],200
+    jb .y
+    pop si
+    ret
+mapfn: dw m_star, m_burn, m_spiral, m_close, m_drip, m_diamond, m_fizzle
+
+polar:                        ; -> st0 = a, st1 = r (and X, Y gone)
+    fild word [gx]
+    fisub word [c160]
+    fild word [gy]
+    fisub word [c100]
+    fmul dword [f_aspect]     ; Y, X
+    fld st1
+    fmul st0,st0
+    fld st1
+    fmul st0,st0
+    faddp st1,st0
+    fsqrt                     ; r, Y, X
+    fxch st2                  ; X, Y, r
+    fpatan                    ; a = atan2(Y, X), r
+    ret
+m_star:
+    call polar
+    fimul word [c5]
+    fadd dword [phase_f]
+    fsin
+    fmul dword [f02]
+    fld1
+    faddp st1,st0
+    fmulp st1,st0
+    fmul dword [f125]
+    jmp m_out
+m_close:
+    call polar
+    fimul word [c8]
+    fadd dword [phase_f]
+    fsin
+    fmul dword [f01]
+    fadd dword [f125]
+    fmulp st1,st0
+    fisubr word [c255]
+    jmp m_out
+m_spiral:
+    call polar
+    fldpi
+    faddp st1,st0
+    fmul dword [f255]
+    fxch st1
+    fmul dword [f05]
+    faddp st1,st0
+    jmp m_out
+m_out:
+    fistp word [val]
+    mov ax,[val]
+    ret
+m_burn:
+    fild word [gx]            ; sin(x/17 + p)
+    fmul dword [f_17]
+    fadd dword [phase_f]
+    fsin
+    fild word [gy]            ; + sin(y/13 + x/29)
+    fmul dword [f_13]
+    fild word [gx]
+    fmul dword [f_29]
+    faddp st1,st0
+    fsin
+    faddp st1,st0
+    fild word [gx]            ; + sin((x + y)/23 - p)
+    fiadd word [gy]
+    fmul dword [f_23]
+    fsub dword [phase_f]
+    fsin
+    faddp st1,st0
+    fmul dword [f34]          ; x 34
+    call polar                ; + 20 sin(r/9)
+    fstp st0
+    fmul dword [f_9]
+    fsin
+    fmul dword [f20]
+    faddp st1,st0
+    fiadd word [c128]
+    jmp m_out
+m_drip:
+    fild word [gy]
+    fmul dword [f115]
+    fild word [gx]
+    fmul dword [f037]
+    fadd dword [phase_f]
+    fsin
+    fmul dword [f22]
+    faddp st1,st0
+    fild word [gx]
+    fmul dword [f113]
+    fsin
+    fmul dword [f14]
+    faddp st1,st0
+    fiadd word [c20]
+    jmp m_out
+m_diamond:
+    fild word [gx]
+    fisub word [c160]
+    fabs
+    fild word [gy]
+    fisub word [c100]
+    fmul dword [f_aspect]
+    fabs
+    faddp st1,st0
+    fmul dword [f095]
+    call polar
+    fstp st0
+    fmul dword [f_5]
+    fsin
+    fmul dword [f10]
+    faddp st1,st0
+    jmp m_out
+m_fizzle:
+    imul ax,[seed],25173
+    add ax,13849
+    mov [seed],ax
+    shr ax,8
+    ret
+c5:   dw 5
+c8:   dw 8
+c20:  dw 20
+c100: dw 100
+c128: dw 128
+c160: dw 160
+c255: dw 255
+f_aspect: dd 1.2
+f02:  dd 0.2
+f01:  dd 0.1
+f05:  dd 0.5
+f13:  dd 1.3
+f125: dd 1.25
+f255: dd 25.5
+f_17: dd 0.0588
+f_13: dd 0.0769
+f_29: dd 0.0345
+f_23: dd 0.0435
+f_9:  dd 0.111
+f_5:  dd 0.2
+f34:  dd 34.0
+f20:  dd 20.0
+f115: dd 1.15
+f037: dd 0.37
+f22:  dd 22.0
+f113: dd 1.13
+f14:  dd 14.0
+f095: dd 0.95
+f10:  dd 10.0
+seed: dw 1234
 
 ; card palette at brightness BL/32: colours 64..127 a gradient from ivory (top of the letters) to deep gold (bottom)
 ; with a band of white light at row [phase] that moves one step a call; 200 and 201 two warm greys
@@ -610,6 +1044,17 @@ bye:
 
 section .bss
 pseg:    resw 1
+mapseg:  resw 1
+cardseg: resw 1
+afterpart: resb 1
+wipe_n:  resb 1
+wipe_nh: resb 1               ; (wipe_n as a word, for the FPU)
+gx:      resw 1
+gy:      resw 1
+val:     resw 1
+phase_f: resd 1
+lum:     resb 256
+remap:   resb 256
 fadein:  resb 1
 orig:    resb 768
 last:    resb 768

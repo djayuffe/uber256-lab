@@ -14,7 +14,8 @@ palette colour and every note is computed by a few hundred bytes of code. The mu
 MPU-401, which DOSBox provides out of the box (and plays through the system's synthesizer on macOS and Windows).
 
 **The megademo:** [`MEGA.COM`](src/mega/mega.asm) plays eleven of them in one show, about four minutes, with
-a golden title card before each part, a fade after it, and WARP bending the credits at the end:
+a golden title card before each part that burns in and out through shaped, glowing wipes, and WARP bending the credits
+at the end:
 [`docs/mega.mp4`](docs/mega.mp4) is a DOSBox recording of it with its music. `./run-dosbox.sh mega` runs it.
 
 **Watch and listen:** [`docs/uber256-lab-showreel.mp4`](docs/uber256-lab-showreel.mp4) is 91 seconds of all thirteen, recorded
@@ -616,7 +617,7 @@ The music: every other tick a harp plays one of the four code bytes now entering
 
 ## The megademo
 
-[`MEGA.COM`](src/mega/mega.asm) (4.5 KB) is eleven of the intros as one show, in an order chosen to flow: the three
+[`MEGA.COM`](src/mega/mega.asm) (5.4 KB) is eleven of the intros as one show, in an order chosen to flow: the three
 code textures (FLOWTEX, SELFTEX, GOLDTEX), then ORDER, the two attractors, FIRE, ROOTS, JULIA, LATCH, and WARP last,
 bending the credits. About four minutes; Esc ends it at any point. ESCHER and CHLADNI are left out of the show (2.8.1);
 they are still in the collection as standalone intros. The programme is the `ENTRY` list in the source: `build.sh`
@@ -646,14 +647,33 @@ has written a palette since the last step (anything but what the fade itself wro
 to; it writes it at k/32 brightness and opens the mask. So it works for parts that set their palette once and for parts
 that rewrite it every frame (ORDER, GOLDTEX, LATCH, WARP) alike.
 
-**Between parts.** The picture fades to black over 32 frames: the program reads the 768 DAC values back (port 3C7h,
-`rep insb`) and writes them scaled down each retrace, which works the same in mode 13h, LATCH's planar mode 0Dh and
-WARP's text mode. Then a title card: the part's name in the BIOS 8x8 font (INT 10h AX = 1130h) scaled five times, each
-glyph row its own gradient step from ivory to deep gold, with the size of the 256-byte build and a line on what it is
-and what plays it, rung in by a chime (tubular bells, a fifth). A band of white light runs down the letters while the
-card fades in, holds and fades out. Before WARP the megademo writes the credits to the text screen, the list of parts
-read from the programme itself, and WARP, which bends whatever text is there, bends them. The
-show ends on a card with the total: the eleven intros in it come to 2,724 bytes.
+**Between parts: drain, burn in, burn out.** When a mode-13h part ends, its last frame drains to sepia: the DAC
+crossfades over 24 frames from the part's own colours to the luminance of each one, tinted, and then, starting at the
+top of a retrace and staying ahead of the beam, every pixel is moved to colour 128 + its luminance while colours
+128..191 become the same ramp, so nothing visible changes and the rest of the palette is free. (LATCH's planar mode
+and WARP's text mode fade to black instead.) The title card is drawn off screen, and arrives through a **wipe**: every
+pixel has a value 0..255 in a map, a threshold rises 5 a frame, pixels below it turn into the card, and a 16-wide band
+just ahead of it burns, white-gold at the front to deep orange behind (colours 224..255). The card is held with its
+chime and its running band of light, then leaves the same way to black, through another shape. The maps are computed
+on the x87 for each wipe, with square pixels (Y scaled by 1.2) and a phase that changes every time:
+
+| Shape | Map | What it looks like |
+|---|---|---|
+| star | r (1 + 0.2 sin(5a + p)) x 1.25 | an iris opening in a five-pointed star |
+| burn | sums of sines of x, y, x + y and r | the picture burns away in islands, like paper |
+| spiral | (a + pi) x 25.5 + r / 2 | a sweep that turns outwards |
+| close | 255 - r (1.25 + 0.1 sin(8a + p)) | a petalled iris closing on the centre |
+| drip | 1.15 y + 22 sin(0.37 x + p) + 14 sin(1.13 x) + 20 | a curtain falling in drips |
+| diamond | 0.95 (\|X\| + \|Y\|) + 10 sin(r / 5) | a rippled diamond opening |
+| fizzle | a random byte | a dissolve that sparkles |
+
+The card text uses the BIOS 8x8 font (INT 10h AX = 1130h) scaled five times, each glyph row its own gradient step
+from ivory to deep gold, with the size of the 256-byte build and a line on what it is and what plays it. Before WARP
+the megademo writes the credits to the text screen, the list of parts read from the programme itself, and WARP, which
+bends whatever text is there, bends them. The show ends on a card with the total: the eleven intros in it come to
+2,724 bytes.
+
+![The opening wipes: a star iris, a petalled close, a burn](docs/mega-wipes.gif)
 
 **Tests.** The emulator runs the whole show, advancing the clock as it goes: all eleven parts play in order (their
 General MIDI programs, in sequence), every card rings its chime, every part hooks and unhooks the timer, LATCH gets its mode 0Dh and WARP its
@@ -693,6 +713,7 @@ flows 18 times a second in the tick handler whatever the frame rate. The music n
 ## Version 2.8: the megademo
 
 2.8.1 takes ESCHER and CHLADNI out of the show (eleven parts, about four minutes); both stay as standalone intros.
+2.9.0 replaces the plain fades between parts with sepia drains and shaped, burning wipes.
 2.8.3 fades every part in from black (PEL mask, then 32 steps from the shared frame check).
 2.8.2 shrinks it from 5,133 to 4,389 bytes: the parts share one copy of the frame check, the MIDI header and the groove
 through far calls, the programme is packed (no padding), and the credits list the parts from it; each card now rings
@@ -863,7 +884,7 @@ program (`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OU
 what the demos lean on: a real interrupt-vector table with DOS functions 35h and 25h; the BIOS timer, whose `tick()`
 advances 0040:006Ch and enters the installed INT 1Ch handler as an IBM BIOS does (with DS = 0040h and AX, DX clobbered,
 so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it is in UART mode and decoded as MIDI
-(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 274 checks:
+(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 276 checks:
 
 - **All demos:** at most 256 bytes; the first call sets the video mode; all 768 DAC values are written and the palette is
   not black; no memory is touched outside video RAM and the program's own segment; the PC speaker and PIT channel 2 are
@@ -904,8 +925,8 @@ so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it 
 - **SELFTEX:** a sky ramp above the horizon; every ground pixel is a code byte (water, fields) or the shore; water in
   every row, wide in front and narrow far away; the river bends; it moves with the clock; the melody is the program's
   bytes in order.
-- **MEGA:** all eleven parts in order (by their MIDI programs); a title card with a chime before each; each part fades in
-  from black; LATCH's mode, the credits
+- **MEGA:** all eleven parts in order (by their MIDI programs); a title card with a chime before each, burning in and out;
+  each mode-13h part drained to sepia after it; each part fades in from black; LATCH's mode, the credits
   for WARP, the closing card; 13 timer hooks and 13 unhooks; Esc ends the show; a clean return to DOS.
 - **The groove** (FIRE, GOLDTEX, LATCH, ORDER, WARP): drums every fourth tick in the kick, hat, snare, hat order, and a
   bass with every kick on the descending pentatonic walk.
@@ -966,8 +987,8 @@ src/groove.inc      the rhythm section shared by FIRE, GOLDTEX, LATCH, ORDER and
 build.sh            NASM build + 256-byte gate + the megademo + SHA256SUMS
 run-dosbox.sh       DOSBox launcher: one demo, several, a pattern or all, in order
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
-tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture
-tests/test_lab.py   the 274 checks
+tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture, the video mode
+tests/test_lab.py   the 276 checks
 tools/equiv.py      frame-by-frame comparison of two builds
 tools/cost.py       instructions per frame and the DOSBox cycles each demo needs for 70 fps
 tools/synth13.py    the mode-13h kernel search (no demo shipped)
