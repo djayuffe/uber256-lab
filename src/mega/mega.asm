@@ -7,9 +7,10 @@
 ; megademo runs a part the way DOS runs a .COM: it clears a 64 KB segment above itself, puts the part at offset 100h,
 ; a far jump back to itself at offset 0 (where the part's final RET lands), the vectors and the end tick in the PSP,
 ; gives it its own stack and the registers DOS gives a program, and jumps in. Each part fades in over its first 32
-; frames (the frame check does it). Between parts it reads the DAC and fades the picture to black, then shows the
-; next title: the BIOS 8x8 font scaled up in a gold gradient with a band of light running down it, a chime, a fade in
-; and out. Esc at any moment ends the show.
+; frames (the frame check does it). Between parts the last frame drains to sepia (or fades, out of LATCH's and WARP's
+; modes), and the next title, drawn off screen in the BIOS 8x8 font scaled up in a gold gradient with a band of light
+; running down it, burns in through a shaped wipe with a glowing edge, rings a chime, and burns out through another.
+; Esc at any moment ends the show.
 BITS 16
 CPU 386
 ORG 100h
