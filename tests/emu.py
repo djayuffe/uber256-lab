@@ -22,7 +22,7 @@ class Run:
     def __init__(self, name, data=None):
         self.com = data if data is not None else (ROOT / name).read_bytes()
         uc = self.uc = Uc(UC_ARCH_X86, UC_MODE_16)     # fresh Uc per run: Unicorn caches translated blocks
-        uc.mem_map(0, 0x60000); uc.mem_map(0xA0000, 0x60000)   # the program's segment and the 256 KB above it
+        uc.mem_map(0, 0x70000); uc.mem_map(0xA0000, 0x60000)   # the program's segment and the 320 KB above it
         uc.mem_write(LIN + 0x100, self.com); uc.mem_write(LIN, b"\xCD\x20")
         uc.mem_write(LIN + 2, (0xA000).to_bytes(2, 'little'))   # PSP:2, top of memory (DOSBox: 9FFFh/A000h)
         uc.mem_write(0x1C * 4, BIOS_1C[1].to_bytes(2, 'little') + BIOS_1C[0].to_bytes(2, 'little'))

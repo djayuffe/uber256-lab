@@ -14,8 +14,8 @@ palette colour and every note is computed by a few hundred bytes of code. The mu
 MPU-401, which DOSBox provides out of the box (and plays through the system's synthesizer on macOS and Windows).
 
 **The megademo:** [`MEGA.COM`](src/mega/mega.asm) plays eleven of them in one show, about four minutes, with
-a golden title card before each part that burns in and out through shaped, glowing wipes, and WARP bending the credits
-at the end:
+a golden title card over flowing bronze before each part that burns in and out through shaped, glowing wipes, and WARP
+bending the credits at the end (Space: next part, Esc: quit):
 [`docs/mega.mp4`](docs/mega.mp4) is a DOSBox recording of it with its music. `./run-dosbox.sh mega` runs it.
 
 **Watch and listen:** [`docs/uber256-lab-showreel.mp4`](docs/uber256-lab-showreel.mp4) is 91 seconds of all thirteen, recorded
@@ -617,15 +617,15 @@ The music: every other tick a harp plays one of the four code bytes now entering
 
 ## The megademo
 
-[`MEGA.COM`](src/mega/mega.asm) (5.4 KB) is eleven of the intros as one show, in an order chosen to flow: the three
+[`MEGA.COM`](src/mega/mega.asm) (6.1 KB) is eleven of the intros as one show, in an order chosen to flow: the three
 code textures (FLOWTEX, SELFTEX, GOLDTEX), then ORDER, the two attractors, FIRE, ROOTS, JULIA, LATCH, and WARP last,
-bending the credits. About four minutes; Esc ends it at any point. ESCHER and CHLADNI are left out of the show (2.8.1);
+bending the credits. About four minutes; Space skips to the next part, Esc ends it at any point. ESCHER and CHLADNI are left out of the show (2.8.1);
 they are still in the collection as standalone intros. The programme is the `ENTRY` list in the source: `build.sh`
 reads it for the part count and total size on the closing card.
 
-![The megademo, a frame every five seconds](docs/mega-sheet.jpg)
+![The megademo, a frame every four seconds](docs/mega-sheet.jpg)
 
-*A frame every five seconds of the DOSBox recording ([`docs/mega.mp4`](docs/mega.mp4), with sound).*
+*A frame every four seconds of the DOSBox recording ([`docs/mega.mp4`](docs/mega.mp4), with sound).*
 
 **The parts are the intros themselves, sharing what they repeat.** `build.sh` assembles every source a second time
 with `-DMEGA`. Three pieces of code that every intro carries become far calls into the megademo, through vectors it
@@ -673,11 +673,21 @@ the megademo writes the credits to the text screen, the list of parts read from 
 bends whatever text is there, bends them. The show ends on a card with the total: the eleven intros in it come to
 2,724 bytes.
 
-![The opening wipes: a star iris, a petalled close, a burn](docs/mega-wipes.gif)
+**The card.** Behind the text is a bronze field, `sin(0.031x) + sin(0.043y + 0.019x) + sin(0.024(x - y)) + sin(0.06r)`,
+computed on the x87 once at start-up into a segment of its own and mapped to colours 1..63; each frame the card's
+palette cycles those 63 colours through a sine table (brightness 3..15, warm), so the background flows under the text
+without a pixel being redrawn. Every line of text is drawn twice, first in black a pixel or two down and right, then in
+its gradient, so it stands off the background. Under the tagline a gold progress bar (colours 64.., on a dark track)
+grows by one part per card, with `PART n OF 11` beneath it; the opening card has the keys instead, the closing card a full
+bar and `THANKS FOR WATCHING`. **Space** (the key's make code, edge-triggered, so a held key counts once) ends the part
+playing through the same path as its time running out, or cuts a card's hold short; the wipes still play.
+
+![GALAXY's card burning in and out](docs/mega-wipes.gif)
 
 **Tests.** The emulator runs the whole show, advancing the clock as it goes: all eleven parts play in order (their
 General MIDI programs, in sequence), every card rings its chime, every part hooks and unhooks the timer, LATCH gets its mode 0Dh and WARP its
-credits, Esc during a part ends everything cleanly, and the program returns to DOS.
+credits, Space during a part ends it and the show goes on, Esc during a part ends everything cleanly, and the program
+returns to DOS.
 
 ## Speed
 
@@ -884,7 +894,7 @@ program (`CX = 00FFh`, `SI = 0100h`, `DX = 0192h`, `BP = 091Ch`). INT, IN and OU
 what the demos lean on: a real interrupt-vector table with DOS functions 35h and 25h; the BIOS timer, whose `tick()`
 advances 0040:006Ch and enters the installed INT 1Ch handler as an IBM BIOS does (with DS = 0040h and AX, DX clobbered,
 so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it is in UART mode and decoded as MIDI
-(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 276 checks:
+(running status included); and port 3DAh, where a frame is one 0 -> 8 transition seen by the program. It runs 277 checks:
 
 - **All demos:** at most 256 bytes; the first call sets the video mode; all 768 DAC values are written and the palette is
   not black; no memory is touched outside video RAM and the program's own segment; the PC speaker and PIT channel 2 are
@@ -927,7 +937,7 @@ so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it 
   bytes in order.
 - **MEGA:** all eleven parts in order (by their MIDI programs); a title card with a chime before each, burning in and out;
   each mode-13h part drained to sepia after it; each part fades in from black; LATCH's mode, the credits
-  for WARP, the closing card; 13 timer hooks and 13 unhooks; Esc ends the show; a clean return to DOS.
+  for WARP, the closing card; 13 timer hooks and 13 unhooks; Space skips a part; Esc ends the show; a clean return to DOS.
 - **The groove** (FIRE, GOLDTEX, LATCH, ORDER, WARP): drums every fourth tick in the kick, hat, snare, hat order, and a
   bass with every kick on the descending pentatonic walk.
 
@@ -988,7 +998,7 @@ build.sh            NASM build + 256-byte gate + the megademo + SHA256SUMS
 run-dosbox.sh       DOSBox launcher: one demo, several, a pattern or all, in order
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
 tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture, the video mode
-tests/test_lab.py   the 276 checks
+tests/test_lab.py   the 277 checks
 tools/equiv.py      frame-by-frame comparison of two builds
 tools/cost.py       instructions per frame and the DOSBox cycles each demo needs for 70 fps
 tools/synth13.py    the mode-13h kernel search (no demo shipped)

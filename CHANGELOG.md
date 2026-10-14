@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.10.0]
+- **MEGA.COM: eye candy and controls.** The title cards sit on a bronze background that flows: one field of four sines, computed on the x87 once at start-up into its own segment, coloured 1..63 and palette-cycled through a sine table every frame, so it moves under the text at no cost. Every line of text has a drop shadow. Each card says `PART n OF 11` over a gold progress bar; the opening card shows the keys (`SPACE: NEXT PART   ESC: QUIT`), the closing card a full bar and `THANKS FOR WATCHING`. **Space** ends the part now playing (or cuts a card's hold short) and goes on to the next; Esc still ends the show. 6,205 bytes.
+- Tests: 277 (Space during a part unhooks it and the show goes on). The emulator maps 448 KB for the program's segments.
+- New recording, contact sheet (a frame every four seconds), MIDI, and `docs/mega-wipes.gif` (GALAXY's card burning in and out).
+
 ## [2.9.0]
 - **MEGA.COM: transitions.** Out of every mode-13h part the last frame drains to sepia (a 24-frame DAC crossfade to each colour's luminance, then a race-the-beam remap into colours 128..191 that changes nothing on screen and frees the palette). Each title card is drawn off screen and burns in through a shaped wipe, a threshold over a per-pixel map with a 16-wide burning edge from white-gold to deep orange, and burns out to black through another. Seven shapes computed on the x87 per wipe (star iris, paper burn, spiral sweep, petalled close, drips, rippled diamond, sparkling fizzle), with a new phase each time. 5,502 bytes.
 - Fixed while building it: the card kept its strings' pointer in SI, which the new drain clobbered.

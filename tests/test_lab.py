@@ -410,6 +410,14 @@ check(idx.count(128) >= 13 + 9, f"MEGA: out of each of the nine mode-13h parts t
 text = bytes(r.uc.mem_read(0xB8000, 4000))[0::2]
 check(b"M E G A D E M O" in text and b"djayuffe" in text, "MEGA: WARP bends the credits, which the megademo wrote to the text screen")
 check(r.exited and not r.unmapped, "MEGA: returns to DOS at the end, touching only its segments and video RAM")
+r = Run("MEGA.COM"); steps = 0                      # Space: on to the next part, without waiting for its time
+while 46 not in [p for ch, p in r.programs()] and steps < 200:
+    r.step(3_000_000); r.tick(1); steps += 1
+unhooks = sum(1 for v in r.vec_sets if v[0] == 0x1C)
+r.p60 = 0x39; r.step(3_000_000); r.p60 = 0xB9
+r.step(3_000_000); r.tick(1)
+check(sum(1 for v in r.vec_sets if v[0] == 0x1C) == unhooks + 1 and not r.exited,
+      "MEGA: Space during a part ends it at once (its timer is unhooked) and the show goes on to the next card")
 r = mega_run(esc_after=6)
 check(r.exited and len({p for ch, p in r.programs()}) <= 2 and r.vector(0x1C) == BIOS_1C, "MEGA: Esc during a part ends the whole show cleanly")
 

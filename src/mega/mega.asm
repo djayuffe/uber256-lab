@@ -10,7 +10,9 @@
 ; frames (the frame check does it). Between parts the last frame drains to sepia (or fades, out of LATCH's and WARP's
 ; modes), and the next title, drawn off screen in the BIOS 8x8 font scaled up in a gold gradient with a band of light
 ; running down it, burns in through a shaped wipe with a glowing edge, rings a chime, and burns out through another.
-; Esc at any moment ends the show.
+; The cards sit on a slowly flowing bronze background (one x87 field, palette-cycled), the text has drop shadows, and
+; each card shows "PART n OF 11" over a progress bar. Space skips to the next part (or past a card); Esc at any moment
+; ends the show.
 BITS 16
 CPU 386
 ORG 100h
@@ -26,9 +28,27 @@ ORG 100h
     mov [mapseg],ax           ; then the wipe's map and the card, drawn off screen
     add ah,10h
     mov [cardseg],ax
+    add ah,10h
+    mov [bgseg],ax            ; and the cards' background, computed once
     xor ax,ax
     mov [afterpart],al        ; (the variables past the end of the file start as whatever memory held)
     mov [wipe_n],ax
+    mov [xsh],ax
+    mov [partno],al
+    mov [lastkey],al
+    mov [bgph],ax
+    mov si,parts              ; count the parts
+    xor bx,bx
+.cnt:
+    inc bx
+    add si,5
+    call skipz
+    call skipz
+    call skipz
+    cmp si,parts_end
+    jb .cnt
+    mov [nparts],bl
+    call gen_bg
     mov ax,1130h              ; the BIOS 8x8 font (characters 0..127) -> [font]
     mov bh,3
     push es
@@ -46,6 +66,8 @@ ORG 100h
     call vsync
     jc quit
     loop .dark
+    mov word [line4],hint     ; the intro: the keys, no progress bar
+    mov word [bar],0
     mov si,intro
     mov cl,200                ; held longer
     call card
@@ -53,6 +75,7 @@ ORG 100h
     mov bx,parts
 .next:                        ; BX -> a part: dw code, dw length, db seconds, then the card's three lines
     push bx
+    call progress             ; "PART n OF 11" and the progress bar
     lea si,[bx+5]
     mov cl,80
     call card                 ; leaves SI at the next part
@@ -73,6 +96,8 @@ ORG 100h
     jne quit                  ; Esc during the part
     cmp bx,parts_end
     jb .next
+    mov word [line4],thanks
+    mov word [bar],240
     mov si,outro
     mov cl,240
     call card                 ; the end
@@ -165,10 +190,16 @@ svc_check:                    ; once per frame: CF = 1 when the part's time is u
     mov ds,[cs:pseg]
     in al,60h
     cmp al,1
-    jne .t
+    jne .k
     mov [5Eh],al              ; Esc: tell the megademo
     stc
     jmp short .x
+.k: cmp al,[cs:lastkey]       ; Space, just pressed: on to the next part
+    mov [cs:lastkey],al
+    je .t
+    cmp al,39h
+    stc
+    je .x
 .t: mov ax,[fs:46Ch]
     sub ax,[5Ch]
     cmp ax,8000h              ; CF = 1 once the tick count has reached the end (the difference is not negative)
@@ -253,7 +284,13 @@ vsync:
     cmp al,1                  ; Esc down: CF = 1
     stc
     je .c
-    clc
+    cmp al,[lastkey]          ; a key that has just gone down
+    mov [lastkey],al
+    je .k
+    cmp al,39h                ; Space: skip (the card's hold reads it)
+    jne .k
+    mov [skip],al
+.k: clc
 .c: pop dx
     pop ax
     ret
@@ -311,21 +348,56 @@ card:
     mov ax,13h
     int 10h
 .ready:
-    pop si
     call set_ramps            ; the sepia ramp, the burn ramp, black
     mov bl,32
     call card_pal
-    mov es,[cardseg]          ; draw the card off screen
-    call clear_es
-    mov ax,44 * 256 + 5       ; the name, 40 pixels high, in the gold gradient
-    call text
-    mov ax,108 * 256 + 2      ; the size, solid (colour 200)
-    mov byte [solid],200
-    call text
-    mov ax,140 * 256 + 1      ; the tagline (201)
-    inc byte [solid]
-    call text
+    push ds                   ; draw the card off screen, on the flowing background
+    mov es,[cardseg]
+    mov ds,[bgseg]
+    xor si,si
+    xor di,di
+    mov cx,16000
+    rep movsd
+    pop ds
+    pop si
     mov byte [solid],0
+    mov ax,34 * 256 + 5       ; the name, 40 pixels high, in the gold gradient, with a shadow
+    mov cl,2
+    call text2
+    mov byte [solid],200
+    mov ax,92 * 256 + 2       ; the size (colour 200)
+    mov cl,1
+    call text2
+    mov byte [solid],201
+    mov ax,122 * 256 + 1      ; the tagline (201)
+    mov cl,1
+    call text2
+    push si
+    mov cx,[bar]              ; the progress bar: a dark track, filled in gold
+    jcxz .nobar
+    mov di,146 * 320 + 40
+    mov bl,4
+.bar:
+    push di
+    mov al,193
+    mov cx,240
+    rep stosb
+    pop di
+    push di
+    mov al,100
+    mov cx,[bar]
+    rep stosb
+    pop di
+    add di,320
+    dec bl
+    jnz .bar
+.nobar:
+    mov si,[line4]            ; the fourth line: the keys, the part number, or thanks
+    mov ax,160 * 256 + 1
+    mov cl,1
+    call text2
+    mov byte [solid],0
+    pop si
     push si
     mov al,[wipe_n]           ; in: the next shape
     call gen_map
@@ -351,9 +423,13 @@ card:
     pop cx
     movzx cx,cl
     mov bl,32
-.h: call .frame
+    mov byte [skip],0
+.h: call .frame               ; hold, until the time is up or Space is pressed
     jc .x
+    cmp byte [skip],0
+    jne .hx
     loop .h
+.hx:
     push si
     call wipe                 ; the card burns away
     pop si
@@ -821,10 +897,56 @@ card_pal:
     inc dx
     mov bh,0
     mov si,greys
-    mov cl,6
-.g: lodsb
+    mov cl,12
+.g: lodsb                     ; 200, 201 the warm greys; 202..203 unused, 204.. not written
     call .out
     loop .g
+    mov al,192                ; 192 the shadow (black), 193 the progress bar's track
+    dec dx
+    out dx,al
+    inc dx
+    xor al,al
+    out dx,al
+    out dx,al
+    out dx,al
+    mov al,14
+    call .out
+    mov al,10
+    call .out
+    mov al,6
+    call .out
+    mov al,1                  ; 1..63 the background: dark bronze bands that flow, one step a frame
+    dec dx
+    out dx,al
+    inc dx
+    inc byte [bgph]
+    cmp byte [bgph],63
+    jb .ph
+    mov byte [bgph],0
+.ph:
+    mov cl,1
+.bgc:
+    movzx si,cl
+    add si,[bgph]             ; (bgph and the byte after it, 0, as a word)
+    cmp si,63
+    jb .w
+    sub si,63
+.w: mov al,[bgsin + si]       ; b = 3..15
+    mov ah,al
+    shr ah,2
+    add al,ah
+    call .out                 ; R = 5b/4
+    mov al,[bgsin + si]
+    mov ah,al
+    shr ah,2
+    sub al,ah
+    call .out                 ; G = 3b/4
+    mov al,[bgsin + si]
+    shr al,1
+    call .out                 ; B = b/2
+    inc cx
+    cmp cl,64
+    jb .bgc
     popa
     ret
 .out:                         ; out (AL + BH, at most 63) * BL / 32
@@ -836,7 +958,7 @@ card_pal:
     shr ax,5
     out dx,al
     ret
-greys: db 58, 54, 46, 34, 30, 24
+greys: db 58, 54, 46, 34, 30, 24, 0, 0, 0, 0, 0, 0
 
 ; draw the zero-terminated string at SI, centred, in the BIOS font scaled by AL, top row AH; [solid] = 0 for the gold
 ; gradient (colour 64 + 8 x line / scale), else that colour. Returns SI after the terminator.
@@ -856,6 +978,7 @@ text:
     neg ax
     add ax,320
     shr ax,1
+    add ax,[xsh]              ; (shifted for a shadow)
     add bp,ax                 ; BP -> the first glyph's top left corner
 .ch:
     lodsb
@@ -909,6 +1032,129 @@ text:
     jmp .ch
 .done:
     ret
+
+; the same, twice: first in colour 192 (black) CL pixels right and down, the shadow, then itself
+text2:
+    push si
+    mov bl,[solid]
+    push bx
+    mov byte [solid],192
+    movzx bx,cl
+    mov [xsh],bx
+    push ax
+    add ah,cl
+    call text
+    pop ax
+    mov word [xsh],0
+    pop bx
+    mov [solid],bl
+    pop si
+    jmp text
+
+; "PART n OF 11" into [line4] and the progress bar's length into [bar], for the part about to be shown
+progress:
+    push bx
+    inc byte [partno]
+    mov dword [partline],'PART'
+    mov byte [partline + 4],' '
+    mov di,partline + 5
+    push ds
+    pop es
+    movzx ax,byte [partno]
+    aam                       ; AH = tens, AL = units
+    test ah,ah
+    jz .one
+    xchg al,ah
+    add al,'0'
+    stosb
+    xchg al,ah
+.one:
+    add al,'0'
+    stosb
+    mov si,of_n
+.c: lodsb
+    stosb
+    test al,al
+    jnz .c
+    mov word [line4],partline
+    movzx ax,byte [partno]
+    imul ax,ax,240
+    div byte [nparts]
+    movzx ax,al
+    mov [bar],ax
+    pop bx
+    ret
+
+; the cards' background, once: bands of a smooth field, colours 1..63, which the palette cycles so they flow
+gen_bg:
+    fninit
+    mov es,[bgseg]
+    xor di,di
+    mov word [gy],0
+.y: mov word [gx],0
+.x: fild word [gx]            ; f = sin(0.031 x) + sin(0.043 y + 0.019 x) + sin(0.024 (x - y)) + sin(0.06 r)
+    fmul dword [b1]
+    fsin
+    fild word [gy]
+    fmul dword [b2]
+    fild word [gx]
+    fmul dword [b3]
+    faddp st1,st0
+    fsin
+    faddp st1,st0
+    fild word [gx]
+    fisub word [gy]
+    fmul dword [b4]
+    fsin
+    faddp st1,st0
+    call polar
+    fstp st0
+    fmul dword [b5]
+    fsin
+    faddp st1,st0
+    fiadd word [c4]           ; 0..8
+    fmul dword [f20]          ; 0..160
+    fistp word [val]
+    mov ax,[val]
+    xor dx,dx
+    mov cx,63
+    div cx
+    mov al,dl                 ; 1 + (that mod 63)
+    inc ax
+    stosb
+    inc word [gx]
+    cmp word [gx],320
+    jb .x
+    inc word [gy]
+    cmp word [gy],200
+    jb .y
+    fninit                    ; the sine table for the background's palette: 9 + 6 sin(2 pi k / 63)
+    mov di,bgsin
+    push ds
+    pop es
+    xor cx,cx
+.s: mov [val],cx
+    fild word [val]
+    fmul dword [b6]
+    fsin
+    fmul dword [f6]
+    fiadd word [c9]
+    fistp word [val]
+    mov al,[val]
+    stosb
+    inc cx
+    cmp cx,63
+    jb .s
+    ret
+b1: dd 0.031
+b2: dd 0.043
+b3: dd 0.019
+b4: dd 0.024
+b5: dd 0.06
+b6: dd 0.09973             ; 2 pi / 63
+f6: dd 6.0
+c4: dw 4
+c9: dw 9
 
 ; ---- the credits that WARP bends: text mode 3, centred lines in colours 9..15; a 1 stands for the list of parts,
 ;      which is read from the programme itself
@@ -1023,6 +1269,9 @@ credit_lines:
     db "github.com/djayuffe/uber256-lab", 0
     db "thanks for watching", 0
     db 0FFh
+hint:   db "SPACE: NEXT PART     ESC: QUIT", 0
+thanks: db "THANKS FOR WATCHING", 0
+of_n:   db " OF ", SZ_COUNT, 0
 bye:
     db "uber256-lab megademo. Thanks for watching.", 13, 10, "$"
 
@@ -1045,6 +1294,18 @@ bye:
 
 section .bss
 pseg:    resw 1
+bgseg:   resw 1
+xsh:     resw 1
+bar:     resw 1
+line4:   resw 1
+partno:  resb 1
+nparts:  resb 1
+lastkey: resb 1
+skip:    resb 1
+bgph:    resb 1
+bgph_hi: resb 1               ; (always 0: bgph is read as a word)
+bgsin:   resb 64
+partline: resb 24
 mapseg:  resw 1
 cardseg: resw 1
 afterpart: resb 1
