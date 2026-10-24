@@ -1,6 +1,58 @@
 # uber256-lab
 
-**Thirteen DOS demos of 256 bytes or less, each playing its own generated music: two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, a picture made only of orderings, the migrating roots of a polynomial, a river, a field of golden blocks and slow satin flows made of the program's own machine code.**
+## Continuous atlas show
+
+All 27 atlas effects now play automatically in **ATLAS.COM**, with timed parts,
+flowing title cards, vivid palettes, fades, progress and wrapped credits:
+
+```sh
+./run-dosbox.sh atlas-show
+```
+
+Space skips a part; Escape exits. Use `./run-dosbox.sh --list` to discover demos.
+See the [show programme and controls](docs/ATLAS_SHOW.md) and
+[verified integer optimizations](docs/OPTIMIZATION.md).
+
+## New: DOS atlas experiments
+
+Six more effects are now included: **TIMELENS (210 B)**, **EMBOSS (231 B)**,
+**SURGERY (230 B)**, **BRACKET (213 B)**, **ORBIT (204 B)** and
+**CRITICAL (251 B)**. See [their formulas, screenshots and tests](docs/DOS_ATLAS_FIELDS.md).
+
+The previous batch adds **HYSTER, RESIDUAL, SIGNED, RUNS, BYTEVM, REVERSO,
+BIFURC, TERRACE, LOOM, RING, PREFIX, RANK and BALLOT** (189–243 bytes each).
+These include actual framebuffer history, a bounded bytecode interpreter,
+reversible arithmetic and software collectives. See
+[formulas, screenshots, limits and full-frame tests](docs/DOS_ATLAS_STATE.md).
+Run all twenty-seven new adaptations with `./run-dosbox.sh atlas`.
+
+The atlas effects now use seven vivid palette families: Fire, Ice, Orchid,
+Emerald, Gold, Rose and slowly cycling Spectrum. Their channels vary smoothly
+within VGA's 6-bit range; binary states retain bright-on-black contrast.
+See [palette choices, colour cycling and rendering optimizations](docs/PALETTES.md).
+
+Six more standalone adaptations are available: **HORIZON (194 B)**,
+**COMMUTE (229 B)**, **LIFT (199 B)**, **MIRROR (198 B)**,
+**RESFIELD (202 B)** and **SHUFFLE (238 B)**. Run
+`./run-dosbox.sh horizon commute lift mirror resfield shuffle`.
+See [equations, limitations and emulator captures](docs/DOS_ATLAS.md) and the
+[150-proposal coverage ledger](docs/ATLAS_COVERAGE.md). Twenty-eight proposal IDs
+are adapted across twenty-seven demos; 122 remain unimplemented. This is not a
+completed implementation of the atlas, and no native GPU features are claimed.
+
+Two additional standalone demos adapt the supplied GPU-effects atlas to DOS:
+**CAUSAL (200 B)** combines distance-delayed animation with chronology shells;
+**PHASE (228 B)** combines three time-shifted triangle waves as interference.
+Both include generated MIDI music, fit the 256-byte limit, and run with
+`./run-dosbox.sh causal phase`. They also appear after ROOTS in the expanded
+thirteen-part MEGA show, with titles, fades and Space-to-skip controls. There are
+now forty standalone demos. Only CAUSAL and PHASE were added to MEGA; it still
+contains thirteen parts. See [temporal formulas, captures and tests](docs/TEMPORAL_ATLAS.md).
+
+![Temporal shell experiment](docs/causal-atlas.png)
+![Temporal phase interference](docs/phase-atlas.png)
+
+**The original thirteen DOS demos, each at most 256 bytes with generated music:** two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, a picture made only of orderings, the migrating roots of a polynomial, a river, a field of golden blocks and slow satin flows made of the program's own machine code. The twenty-seven atlas adaptations above bring the standalone collection to forty.
 
 [![CI](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml)
 
@@ -13,12 +65,12 @@ libraries, and no DOS calls except setting the video mode, hooking the timer tic
 palette colour and every note is computed by a few hundred bytes of code. The music goes out as General MIDI through an
 MPU-401, which DOSBox provides out of the box (and plays through the system's synthesizer on macOS and Windows).
 
-**The megademo:** [`MEGA.COM`](src/mega/mega.asm) plays eleven of them in one show, about four minutes, with
+**The megademo:** [`MEGA.COM`](src/mega/mega.asm) now plays thirteen of them in one show, with
 a golden title card over flowing bronze before each part that burns in and out through shaped, glowing wipes, and WARP
 bending the credits at the end (Space: next part, Esc: quit):
-[`docs/mega.mp4`](docs/mega.mp4) is a DOSBox recording of it with its music. `./run-dosbox.sh mega` runs it.
+[`docs/mega.mp4`](docs/mega.mp4) is an earlier DOSBox recording of the eleven-part version with its music; it does not include CAUSAL or PHASE. `./run-dosbox.sh mega` runs the current thirteen-part show.
 
-**Watch and listen:** [`docs/uber256-lab-showreel.mp4`](docs/uber256-lab-showreel.mp4) is 91 seconds of all thirteen, recorded
+**Watch and listen:** [`docs/uber256-lab-showreel.mp4`](docs/uber256-lab-showreel.mp4) is 91 seconds of the original thirteen, recorded
 in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General MIDI soundfont.
 
 | Program | Size | Needs | What it is | Music |
@@ -91,7 +143,7 @@ Or build from source (needs [NASM](https://www.nasm.us/); on macOS `brew install
 ./build.sh              # assembles src/*.asm, enforces the 256-byte limit, writes SHA256SUMS
 ./run-dosbox.sh galaxy  # any of: galaxy cliff chladni fire escher julia latch order roots selftex goldtex flowtex warp
 ./run-dosbox.sh '*tex'  # several in a row (here SELFTEX, GOLDTEX, FLOWTEX); also names, or 'all'
-./run-dosbox.sh mega    # the megademo: eleven of them in one program, with titles, fades and credits
+./run-dosbox.sh mega    # thirteen parts with titles, fades and credits
 ```
 
 **Esc** quits each demo cleanly (with several, it starts the next one, each in a fresh DOSBox so a held Esc cannot skip one): it restores text mode 3, puts the timer vector back and returns to DOS (JULIA draws
@@ -120,6 +172,10 @@ Every demo plays its own score, and every score is computed from what the demo i
 - **The groove** ([`src/groove.inc`](src/groove.inc), in FIRE, GOLDTEX, LATCH, ORDER and WARP): every fourth tick a GM drum
   on channel 10 (kick, closed hi-hat, snare, hi-hat), and with each kick a bass note on channel 2 whose pentatonic degree
   is the bar number times 4, mod 5 (`shr al,2` / `aam 5`): A, G, E, D, C, walking down for ever. 52 bytes.
+- **The atlas orchestra.** Each of the 27 atlas standalones has its own GM voice and answers every image-derived lead
+  note two octaves lower, a four-byte harmony layer. `ATLAS.COM` adds an accented tick hi-hat, alternating kick/snare,
+  pentatonic acoustic bass and pizzicato root/fifth dyads on separate MIDI channels. See the
+  [complete score and instrument map](docs/ATLAS_MUSIC.md).
 - **Velocity = note.** The note byte is sent twice: higher notes are a little louder, and it costs one byte.
 - **No note-offs.** Every instrument chosen decays by itself (vibraphone, marimba, bells, guitar, celesta, music box,
   pizzicato, steel drums, kalimba, glockenspiel, harp, electric piano), so nothing is left sounding when a demo quits.
@@ -617,15 +673,15 @@ The music: every other tick a harp plays one of the four code bytes now entering
 
 ## The megademo
 
-[`MEGA.COM`](src/mega/mega.asm) (6.1 KB) is eleven of the intros as one show, in an order chosen to flow: the three
-code textures (FLOWTEX, SELFTEX, GOLDTEX), then ORDER, the two attractors, FIRE, ROOTS, JULIA, LATCH, and WARP last,
-bending the credits. About four minutes; Space skips to the next part, Esc ends it at any point. ESCHER and CHLADNI are left out of the show (2.8.1);
-they are still in the collection as standalone intros. The programme is the `ENTRY` list in the source: `build.sh`
+[`MEGA.COM`](src/mega/mega.asm) (6,778 bytes) is thirteen of the intros as one show, in an order chosen to flow: the three
+code textures (FLOWTEX, SELFTEX, GOLDTEX), then ORDER, the two attractors, FIRE, ROOTS, CAUSAL, PHASE, JULIA, LATCH, and WARP last,
+bending the credits. CAUSAL and PHASE add 32 seconds of effects plus their transitions to the earlier show; Space skips to the next part, Esc ends it at any point. ESCHER and CHLADNI are left out of the show (2.8.1);
+they are still in the collection as standalone intros. The programme is the `ENTRY` list in `src/mega/mega_program.inc`: `build.sh`
 reads it for the part count and total size on the closing card.
 
 ![The megademo, a frame every four seconds](docs/mega-sheet.jpg)
 
-*A frame every four seconds of the DOSBox recording ([`docs/mega.mp4`](docs/mega.mp4), with sound).*
+*A frame every four seconds of the earlier eleven-part DOSBox recording ([`docs/mega.mp4`](docs/mega.mp4), with sound). It predates the temporal effects.*
 
 **The parts are the intros themselves, sharing what they repeat.** `build.sh` assembles every source a second time
 with `-DMEGA`. Three pieces of code that every intro carries become far calls into the megademo, through vectors it
@@ -670,34 +726,39 @@ on the x87 for each wipe, with square pixels (Y scaled by 1.2) and a phase that 
 The card text uses the BIOS 8x8 font (INT 10h AX = 1130h) scaled five times, each glyph row its own gradient step
 from ivory to deep gold, with the size of the 256-byte build and a line on what it is and what plays it. Before WARP
 the megademo writes the credits to the text screen, the list of parts read from the programme itself, and WARP, which
-bends whatever text is there, bends them. The show ends on a card with the total: the eleven intros in it come to
-2,724 bytes.
+bends whatever text is there, bends them. The show ends on a card with the total: the thirteen intros in it come to
+3,144 bytes.
 
 **The card.** Behind the text is a bronze field, `sin(0.031x) + sin(0.043y + 0.019x) + sin(0.024(x - y)) + sin(0.06r)`,
 computed on the x87 once at start-up into a segment of its own and mapped to colours 1..63; each frame the card's
 palette cycles those 63 colours through a sine table (brightness 3..15, warm), so the background flows under the text
 without a pixel being redrawn. Every line of text is drawn twice, first in black a pixel or two down and right, then in
 its gradient, so it stands off the background. Under the tagline a gold progress bar (colours 64.., on a dark track)
-grows by one part per card, with `PART n OF 11` beneath it; the opening card has the keys instead, the closing card a full
+grows by one part per card, with `PART n OF 13` beneath it; the opening card has the keys instead, the closing card a full
 bar and `THANKS FOR WATCHING`. **Space** (the key's make code, edge-triggered, so a held key counts once) ends the part
 playing through the same path as its time running out, or cuts a card's hold short; the wipes still play.
 
 ![GALAXY's card burning in and out](docs/mega-wipes.gif)
 
-**Tests.** The emulator runs the whole show, advancing the clock as it goes: all eleven parts play in order (their
+**Tests.** The emulator runs the whole show, advancing the clock as it goes: all thirteen parts play in order (their
 General MIDI programs, in sequence), every card rings its chime, every part hooks and unhooks the timer, LATCH gets its mode 0Dh and WARP its
 credits, Space during a part ends it and the show goes on, Esc during a part ends everything cleanly, and the program
 returns to DOS.
 
 ## Speed
 
-A frame that takes even slightly longer than one 70 Hz refresh (14.3 ms) misses the retrace and waits for the next:
-35 frames a second, not 69. So what matters is whether a frame fits, and that is a count of instructions, because
-DOSBox's normal core, the one real-mode code runs on, charges one cycle per instruction: `cycles=N` runs N instructions
-a millisecond. [`tools/cost.py`](tools/cost.py) counts each demo's instructions per frame in the emulator and turns
-them into the `cycles` setting that gives 70 frames a second. The last column is measured in DOSBox 0.74-3 at
-`cycles=fixed 60000` with a probe build (one MIDI byte a frame), which unlike `cycles=max` gives the same answer on
-every run.
+A 70 Hz refresh gives a nominal 14.3 ms frame interval; a renderer that misses
+retrace can lose a whole refresh. [`tools/cost.py`](tools/cost.py) counts emulated
+instructions between frame polls at a fixed BIOS tick. It excludes the show hosts
+and startup, checks that each measured frame completed, and accepts `--frames`
+and `--tick`. Instruction counts compare work; CPU timings, emulation, interrupts
+and VGA output determine the achieved frame rate.
+
+The following table preserves historical 2.4-to-2.5 results for the original
+demos. Its DOSBox cycle thresholds are historical estimates, and its final column
+records DOSBox 0.74-3 at `cycles=fixed 60000` using a probe build. These values
+are not current hardware benchmarks for the atlas effects. See the
+[current optimization notes](docs/OPTIMIZATION.md) for the new integer kernels.
 
 | Demo | Instructions a frame, 2.4 -> 2.5 | `cycles` for 70 fps | DOSBox fps at 60000 cycles, 2.4 -> 2.5 | How |
 |---|---:|---:|---:|---|
@@ -935,7 +996,7 @@ so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it 
 - **SELFTEX:** a sky ramp above the horizon; every ground pixel is a code byte (water, fields) or the shore; water in
   every row, wide in front and narrow far away; the river bends; it moves with the clock; the melody is the program's
   bytes in order.
-- **MEGA:** all eleven parts in order (by their MIDI programs); a title card with a chime before each, burning in and out;
+- **MEGA:** all thirteen parts in order (by their MIDI programs); a title card with a chime before each, burning in and out;
   each mode-13h part drained to sepia after it; each part fades in from black; LATCH's mode, the credits
   for WARP, the closing card; 13 timer hooks and 13 unhooks; Space skips a part; Esc ends the show; a clean return to DOS.
 - **The groove** (FIRE, GOLDTEX, LATCH, ORDER, WARP): drums every fourth tick in the kick, hat, snare, hat order, and a
@@ -991,16 +1052,19 @@ src/julia.asm       integer Julia set with an orbiting constant, mirrored + the 
 src/selftex.asm     a river made of the program's own code + the code as a riff
 src/goldtex.asm     classic SELFTEX code bands + golden blocks chosen by the code
 src/flowtex.asm     classic SELFTEX code bands, interpolated, big and sepia + a harp on the code
-src/mega/mega.asm   the megademo: runs every part (built with -DMEGA) with title cards, fades and credits
+src/mega/mega.asm   shared MEGA/ATLAS host: titles, fades, timed parts and credits
+src/mega/*_program.inc  playlists shared by metadata generation and binary embedding
 src/dos.inc         shared macros: HOOK_TICK, ESC_OR_LOOP, MIDI_START (the last two as far calls in the megademo), PENTA
 src/groove.inc      the rhythm section shared by FIRE, GOLDTEX, LATCH, ORDER and WARP: GM drums + walking bass
-build.sh            NASM build + 256-byte gate + the megademo + SHA256SUMS
-run-dosbox.sh       DOSBox launcher: one demo, several, a pattern or all, in order
+build.sh            NASM build + 256-byte gate + both continuous shows + SHA256SUMS
+run-dosbox.sh       DOSBox launcher: demos, patterns, groups, both shows, help and listing
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
 tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture, the video mode
-tests/test_lab.py   the 277 checks
+tests/test_lab.py   original demos and thirteen-part MEGA regression checks
+tests/test_atlas_show.py  playlist-driven atlas show, credits, Space and Escape
+tests/test_launcher.py  selection and stale-build prevention without a GUI
 tools/equiv.py      frame-by-frame comparison of two builds
-tools/cost.py       instructions per frame and the DOSBox cycles each demo needs for 70 fps
+tools/cost.py       controlled instruction counts per frame (not hardware timing)
 tools/synth13.py    the mode-13h kernel search (no demo shipped)
 docs/               DOSBox screenshots, GIFs, MP4 recordings with sound, the showreel
 docs/music/         the MIDI each demo sent during its recording

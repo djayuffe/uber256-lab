@@ -1,9 +1,9 @@
-; MEGA - the uber256-lab megademo: eleven of the intros in one program, each introduced by a title card and closed by
+; Shared MEGA/ATLAS show host: each intro is introduced by a title card and closed by
 ; a fade, with its own live music, ending on WARP bending the credits.
 ;
 ; Each part is its own source assembled with -DMEGA (build.sh): the same program as the 256-byte release, except that
 ; the code every intro repeats is shared. Its frame check, its MIDI header and the groove are far calls through three
-; vectors the megademo puts in the part's PSP (50h, 54h, 58h), so one copy of each serves all eleven parts. The
+; vectors the megademo puts in the part's PSP (50h, 54h, 58h), so one copy of each serves all parts. The
 ; megademo runs a part the way DOS runs a .COM: it clears a 64 KB segment above itself, puts the part at offset 100h,
 ; a far jump back to itself at offset 0 (where the part's final RET lands), the vectors and the end tick in the PSP,
 ; gives it its own stack and the registers DOS gives a program, and jumps in. Each part fades in over its first 32
@@ -11,12 +11,21 @@
 ; modes), and the next title, drawn off screen in the BIOS 8x8 font scaled up in a gold gradient with a band of light
 ; running down it, burns in through a shaped wipe with a glowing edge, rings a chime, and burns out through another.
 ; The cards sit on a slowly flowing bronze background (one x87 field, palette-cycled), the text has drop shadows, and
-; each card shows "PART n OF 11" over a progress bar. Space skips to the next part (or past a card); Esc at any moment
+; each card shows the part count over a progress bar. Space skips to the next part (or past a card); Esc at any moment
 ; ends the show.
 BITS 16
 CPU 386
 ORG 100h
 %include "sizes.inc"          ; the byte counts of the 256-byte builds, written by build.sh
+%ifdef ATLAS_SHOW
+    %undef SZ_COUNT
+    %undef SZ_TOTAL
+    %define SZ_COUNT SZ_ATLAS_COUNT
+    %define SZ_TOTAL SZ_ATLAS_TOTAL
+    %define PROGRAM_FILE "mega/atlas_program.inc"
+%else
+    %define PROGRAM_FILE "mega/mega_program.inc"
+%endif
 
     cld
     xor ax,ax
@@ -75,18 +84,20 @@ ORG 100h
     mov bx,parts
 .next:                        ; BX -> a part: dw code, dw length, db seconds, then the card's three lines
     push bx
-    call progress             ; "PART n OF 11" and the progress bar
+    call progress             ; current part and the progress bar
     lea si,[bx+5]
     mov cl,80
     call card                 ; leaves SI at the next part
     pop bx
     jc quit
     push si
+%ifndef ATLAS_SHOW
     cmp word [bx],warp_bin
     jne .run
     push bx
     call credits              ; WARP bends whatever is on the text screen: give it the credits
     pop bx
+%endif
 .run:
     call run_part
     mov byte [afterpart],1
@@ -101,6 +112,15 @@ ORG 100h
     mov si,outro
     mov cl,240
     call card                 ; the end
+%ifdef ATLAS_SHOW
+    jc quit
+    call credits
+    mov cx,180
+.credits_hold:
+    call vsync
+    jc quit
+    loop .credits_hold
+%endif
 quit:
     mov ax,3
     int 10h
@@ -255,13 +275,68 @@ fade_in:
     pop ds
     popa
     ret
-svc_midi:                     ; the MIDI header: UART mode, program AL on channel 1, note on (DX = 330h, AX = 3F90h)
+svc_midi:                     ; MIDI header; ATLAS also adds a clocked rhythm section
     mov dx,330h
     push ax
     mov ax,3FC0h
     out dx,ax
     pop ax
     out dx,al
+%ifdef ATLAS_SHOW
+    push bx
+    mov bx,[fs:46Ch]
+    mov al,99h                ; channel 10: a velocity-shaped closed hi-hat each tick
+    out dx,al
+    mov al,42
+    out dx,al
+    mov al,bl
+    and al,15
+    add al,32
+    out dx,al
+    test bl,3                 ; quarter-note kick/snare, bass and harmony
+    jnz .atlas_lead
+    mov al,bl
+    and al,4
+    shr al,1
+    add al,36                 ; kick 36, snare 38, alternating every four ticks
+    out dx,al
+    mov al,100
+    out dx,al
+    mov al,0C1h               ; channel 2: acoustic bass
+    out dx,al
+    mov al,32
+    out dx,al
+    mov al,91h
+    out dx,al
+    mov al,bl
+    shr al,2
+    and al,14
+    add al,30
+    aam 5
+    aad 6                    ; changing C-pentatonic bass root
+    mov ah,al
+    out dx,al
+    mov al,72
+    out dx,al
+    mov al,0C2h               ; channel 3: short pizzicato root/fifth dyad
+    out dx,al
+    mov al,45
+    out dx,al
+    mov al,92h
+    out dx,al
+    mov al,ah
+    add al,12
+    out dx,al
+    mov al,52
+    out dx,al
+    mov al,ah
+    add al,19
+    out dx,al
+    mov al,44
+    out dx,al
+.atlas_lead:
+    pop bx
+%endif
     mov ax,3F90h
     out dx,al
     retf
@@ -1167,9 +1242,23 @@ credits:
     push ds
     pop es
     mov di,linebuf
+    mov bp,di                 ; start of the current credits row
     mov bx,parts
 .pl:
     lea si,[bx+5]
+    push si
+    call skipz
+    mov ax,si
+    sub ax,bx
+    sub ax,6                  ; next name's length, excluding its terminator
+    add ax,di
+    sub ax,bp
+    cmp ax,70
+    jbe .fits
+    mov byte [di-1],0          ; wrap at a name boundary, never split a name
+    mov bp,di
+.fits:
+    pop si
 .pc:
     lodsb
     stosb
@@ -1182,6 +1271,7 @@ credits:
     cmp bx,parts_end
     jb .pl
     mov byte [di-1],0
+    mov byte [di],0            ; double zero terminates the list of rows
     push word 0B800h
     pop es
     mov si,credit_lines
@@ -1195,7 +1285,13 @@ credits:
     jne .own
     push si
     mov si,linebuf
+.names:
     call putline
+    cmp byte [si],0
+    je .names_done
+    add di,2 * 160
+    jmp .names
+.names_done:
     pop si
     jmp short .adv
 .own:
@@ -1236,32 +1332,39 @@ skipz:                        ; SI past the next zero byte
     ret
 
 ; ---- the programme: dw code, dw length, db seconds, the title, its size, a tagline
-%macro PART 5                 ; label, size, seconds, title, tagline
+%macro PART 6                 ; label, size, seconds, title, tagline, binary path
+    %strlen %%title_length %4
+    %assign CREDITS_BYTES CREDITS_BYTES + %%title_length + 1
+    %if %%title_length > 70
+        %error Part title exceeds the credits row width
+    %endif
     dw %1_bin, %1_end - %1_bin
     db %3, %4, 0, %2, " BYTES", 0, %5, 0
 %endmacro
 %define ENTRY PART
 
 intro:
+%ifdef ATLAS_SHOW
+    db "UBER256", 0, "ATLAS SHOW", 0, SZ_COUNT, " INTROS, 256 BYTES EACH, MUSIC LIVE", 0
+%else
     db "UBER256", 0, "LAB  MEGADEMO", 0, SZ_COUNT, " INTROS, 256 BYTES EACH, MUSIC LIVE", 0
+%endif
 outro:
     db "THE END", 0, SZ_COUNT, " INTROS", 0, "ALL OF THEM TOGETHER: ", SZ_TOTAL, " BYTES", 0
 parts:
-    ENTRY flowtex, SZ_FLOWTEX, 16, "FLOWTEX", "ITS OWN MACHINE CODE, AS SATIN - HARP"
-    ENTRY selftex, SZ_SELFTEX, 16, "SELFTEX", "A RIVER OF MACHINE CODE - KALIMBA"
-    ENTRY goldtex, SZ_GOLDTEX, 16, "GOLDTEX", "POLISHED GOLD ON CODE - GLOCKENSPIEL"
-    ENTRY order,   SZ_ORDER,   16, "ORDER",   "SHAPES FROM ORDERINGS - PIZZICATO"
-    ENTRY galaxy,  SZ_GALAXY,  20, "GALAXY",  "A DE JONG ATTRACTOR - VIBRAPHONE"
-    ENTRY cliff,   SZ_CLIFF,   16, "CLIFF",   "A CLIFFORD ATTRACTOR - MARIMBA"
-    ENTRY fire,    SZ_FIRE,    16, "FIRE",    "FEEDBACK AND HEAT - GUITAR"
-    ENTRY roots,   SZ_ROOTS,   16, "ROOTS",   "A CUBIC'S MIGRATING ROOTS - STEEL DRUMS"
-    ENTRY julia,   SZ_JULIA,   20, "JULIA",   "A JULIA SET, IN SLOW MOTION - CELESTA"
-    ENTRY latch,   SZ_LATCH,   16, "LATCH",   "COMPUTED BY THE VGA ITSELF - MUSIC BOX"
-    ENTRY warp,    SZ_WARP,    24, "WARP",    "THE CREDITS, BENT - ELECTRIC PIANO"
+%assign CREDITS_BYTES 1
+%include PROGRAM_FILE
 parts_end:
+%if CREDITS_BYTES > 256
+    %error Playlist exceeds the credits buffer
+%endif
 
 credit_lines:
+%ifdef ATLAS_SHOW
+    db "U B E R 2 5 6 - L A B   A T L A S   S H O W", 0
+%else
     db "U B E R 2 5 6 - L A B   M E G A D E M O", 0
+%endif
     db SZ_COUNT, " intros of 256 bytes or less, each playing its own music", 0
     db 1                      ; the parts, read from the programme above
     db "code and music: djayuffe & Claude", 0
@@ -1273,24 +1376,23 @@ hint:   db "SPACE: NEXT PART     ESC: QUIT", 0
 thanks: db "THANKS FOR WATCHING", 0
 of_n:   db " OF ", SZ_COUNT, 0
 bye:
+%ifdef ATLAS_SHOW
+    db "uber256-lab atlas show. Thanks for watching.", 13, 10, "$"
+%else
     db "uber256-lab megademo. Thanks for watching.", 13, 10, "$"
+%endif
 
 %macro BIN 2
 %1_bin:
     incbin %2
 %1_end:
 %endmacro
-    BIN flowtex, "build/FLOWTEX.MEG"
-    BIN selftex, "build/SELFTEX.MEG"
-    BIN goldtex, "build/GOLDTEX.MEG"
-    BIN order,   "build/ORDER.MEG"
-    BIN galaxy,  "build/GALAXY.MEG"
-    BIN cliff,   "build/CLIFF.MEG"
-    BIN fire,    "build/FIRE.MEG"
-    BIN roots,   "build/ROOTS.MEG"
-    BIN julia,   "build/JULIA.MEG"
-    BIN latch,   "build/LATCH.MEG"
-    BIN warp,    "build/WARP.MEG"
+%undef ENTRY
+%macro ENTRY 6
+    BIN %1, %6
+%endmacro
+%include PROGRAM_FILE
+%unmacro ENTRY 6
 
 section .bss
 pseg:    resw 1
@@ -1325,5 +1427,5 @@ save_sp: resw 1
 scale:   resb 1
 solid:   resb 1
 phase:   resb 1
-linebuf: resb 100
+linebuf: resb 256             ; room for the full atlas playlist and wrapped rows
 dac:     resb 768

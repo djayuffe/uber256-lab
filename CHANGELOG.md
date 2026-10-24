@@ -1,5 +1,56 @@
 # Changelog
 
+## [Unreleased]
+
+- Give every atlas effect an individual General MIDI voice and add a two-octave
+  image-derived response while retaining the 256-byte limit. Add a four-channel
+  ATLAS.COM arrangement with lead, pizzicato dyads, acoustic bass and drums.
+- Add exact MIDI-stream tests and a complete score/instrument reference.
+- Add TIMELENS, EMBOSS, SURGERY, BRACKET, ORBIT and CRITICAL (204–251 bytes),
+  with vivid palettes, generated music, captures and independent pixel equations.
+- Expand ATLAS.COM to 27 timed parts and derive show checks from the playlist.
+  Track 28 adapted proposal IDs; 122 remain unimplemented.
+- Verify a real two-dimensional component split in SURGERY and ORBIT's finite
+  return bound for every byte seed/mask pair.
+- Handle an existing test virtualenv that is missing Unicorn using python -m pip.
+
+- Add ATLAS.COM: a continuous 27-part show with timed effects, titles, fades,
+  progress, chimes, wrapped credits, Space skip and Escape exit.
+- Define MEGA/ATLAS metadata and embedded binaries from shared playlist entries;
+  add compile-time credits bounds and runtime show/control regression tests.
+- Optimize RANK lane generation, RUNS bit counting and finite RING evolution;
+  remove a redundant SIGNED assignment while preserving pixel-reference results.
+- Add launcher help/listing, an atlas-show target and fresh builds before playback.
+  Drop old autoexec commands when preparing the temporary DOSBox configuration.
+
+- Give the 27 atlas demos seven vivid palette families with smooth VGA channel
+  ramps and effect-specific contrast. Spectrum palettes cycle on BIOS time.
+- Fold Spectrum channels without branches and reuse y*y once per scanline in
+  CAUSAL/HORIZON, removing 63,800 y multiplications per rendered frame.
+- Refresh atlas captures and sizes, document palette mechanisms, and test
+  channel continuity, DAC bounds, cycle direction and exact wrapping.
+
+- Add thirteen more <=256-byte atlas adaptations: HYSTER, RESIDUAL, SIGNED,
+  RUNS, BYTEVM, REVERSO, BIFURC, TERRACE, LOOM, RING, PREFIX, RANK and BALLOT.
+- Test every framebuffer pixel at clock boundaries, persistent history over ten
+  frames, bounded interpreter/collective execution and the full 16-bit inverse.
+- Add capture selection by name and preserve state for HYSTER/LOOM captures.
+  Document all 150 proposals and the current adaptation status in a coverage ledger.
+
+- Add six DOS atlas adaptations: HORIZON, COMMUTE, LIFT, MIRROR, RESFIELD
+  and SHUFFLE (190–234 bytes), with standalone launcher integration.
+- Add independent pixel references, exhaustive byte-pair reversibility checks,
+  lane permutation tests, emulator captures and a 150-proposal coverage ledger.
+
+- Add CAUSAL (196 bytes): distance-delayed animation and chronology shells.
+- Add PHASE (224 bytes): interference of three time-shifted triangle waves.
+- Include both in the DOSBox launcher and after ROOTS in the thirteen-part MEGA
+  sequence, with title cards, fades, credits and skip/exit support.
+- Wrap the expanded credits list at effect-name boundaries so it stays within
+  the 80-column text screen; cover both rows with a regression test.
+- Add pixel-reference, clock-wrap, MIDI and exit tests, plus emulator captures
+  and documented mapping to atlas proposals A02, A05 and A08.
+
 ## [2.10.0]
 - **MEGA.COM: eye candy and controls.** The title cards sit on a bronze background that flows: one field of four sines, computed on the x87 once at start-up into its own segment, coloured 1..63 and palette-cycled through a sine table every frame, so it moves under the text at no cost. Every line of text has a drop shadow. Each card says `PART n OF 11` over a gold progress bar; the opening card shows the keys (`SPACE: NEXT PART   ESC: QUIT`), the closing card a full bar and `THANKS FOR WATCHING`. **Space** ends the part now playing (or cuts a card's hold short) and goes on to the next; Esc still ends the show. 6,205 bytes.
 - Tests: 277 (Space during a part unhooks it and the show goes on). The emulator maps 448 KB for the program's segments.

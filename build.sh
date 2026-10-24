@@ -22,11 +22,17 @@ for src in src/*.asm; do
     size=$(wc -c < "$upper.COM" | tr -d ' ')
     printf '%%define SZ_%s "%s"\n' "$upper" "$size" >> build/sizes.inc
 done
-total=0; count=0                  # the megademo's own parts: the ENTRY lines of src/mega/mega.asm
-for name in $(sed -n 's/^ *ENTRY \([a-z]*\),.*/\1/p' src/mega/mega.asm); do
-    total=$((total + $(wc -c < "$(echo "$name" | tr 'a-z' 'A-Z').COM" | tr -d ' '))); count=$((count + 1))
+for show in mega atlas; do
+    total=0; count=0
+    for name in $(sed -n 's/^ *ENTRY \([a-z]*\),.*/\1/p' "src/mega/${show}_program.inc"); do
+        total=$((total + $(wc -c < "$(echo "$name" | tr 'a-z' 'A-Z').COM" | tr -d ' '))); count=$((count + 1))
+    done
+    prefix=""
+    [ "$show" = mega ] || prefix="ATLAS_"
+    printf '%%define SZ_%sTOTAL "%s"\n%%define SZ_%sCOUNT "%s"\n' "$prefix" "$total" "$prefix" "$count" >> build/sizes.inc
 done
-printf '%%define SZ_TOTAL "%s"\n%%define SZ_COUNT "%s"\n' "$total" "$count" >> build/sizes.inc
 nasm -f bin -Wall -Werror -Isrc/ -Ibuild/ src/mega/mega.asm -o MEGA.COM
 printf '%-14s %s bytes (the megademo: its parts, with titles and fades)\n' MEGA.COM "$(wc -c < MEGA.COM | tr -d ' ')"
+nasm -f bin -Wall -Werror -DATLAS_SHOW -Isrc/ -Ibuild/ src/mega/mega.asm -o ATLAS.COM
+printf '%-14s %s bytes (the continuous atlas show)\n' ATLAS.COM "$(wc -c < ATLAS.COM | tr -d ' ')"
 if command -v sha256sum >/dev/null 2>&1; then sha256sum *.COM > SHA256SUMS; else shasum -a 256 *.COM > SHA256SUMS; fi

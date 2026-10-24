@@ -1,0 +1,5 @@
+#!/bin/sh
+# Test double: print only the generated startup commands; never launch a GUI.
+set -eu
+[ "$#" -eq 2 ] && [ "$1" = -conf ]
+sed -n '/^\[autoexec\]/,$p' "$2"
