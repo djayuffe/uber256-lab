@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Add a browser player: `web/` runs MEGA.COM or ATLAS.COM in DOS Wasm X (DOSBox-X in
+  WebAssembly, vendored MIT build) at max cycles, with a show picker, fullscreen and rerun;
+  `./run-web.sh` builds, copies both shows into `web/` and serves it locally. Silent: the
+  emulator build has no General MIDI synth.
 - Give every atlas effect an individual General MIDI voice and add a two-octave
   image-derived response while retaining the 256-byte limit. Add a four-channel
   ATLAS.COM arrangement with lead, pizzicato dyads, acoustic bass and drums.

@@ -146,6 +146,12 @@ Or build from source (needs [NASM](https://www.nasm.us/); on macOS `brew install
 ./run-dosbox.sh mega    # thirteen parts with titles, fades and credits
 ```
 
+**In the browser:** `./run-web.sh` builds, copies `MEGA.COM` and `ATLAS.COM` into [`web/`](web/) and serves it on
+`http://localhost:8256/`, where [DOS Wasm X](https://github.com/nbarkhina/DosWasmX) (DOSBox-X compiled to
+WebAssembly, MIT, its `main.js`/`main.wasm` vendored in `web/`) boots straight into the chosen show at `cycles=max`,
+70 frames a second in Chromium. Pick MEGA or ATLAS under the screen (`#atlas` in the URL preselects it); Space and Esc
+work as in DOSBox. That build has no General MIDI synthesizer, so the shows are silent there.
+
 **Esc** quits each demo cleanly (with several, it starts the next one, each in a fresh DOSBox so a held Esc cannot skip one): it restores text mode 3, puts the timer vector back and returns to DOS (JULIA draws
 about thirteen frames a second, so hold Esc for a moment). `DOSBOX.CONF` sets `cycles=max` and spells out DOSBox's default
 MIDI set-up (`mpu401=intelligent`, `mididevice=default`), which is all the music needs: on macOS and Windows DOSBox
