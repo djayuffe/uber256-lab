@@ -21,6 +21,12 @@
 - Add a responsive raw-assembly side view with line numbers and dependency-free NASM
   syntax highlighting. It follows thumbnail, button, keyboard and timed part changes;
   all forty sources are embedded into the offline/Pages HTML.
+- Harden standalone publishing with a verifiable content fingerprint, exact embedded
+  source validation, duplicate-ID and external-dependency checks, reproducible-build
+  enforcement in CI, and a final verification gate in GitHub Pages.
+- Replace the generic rounded-card web treatment and external web fonts with a compact,
+  square-edged DOS intro workbench: factual hardware/runtime labels, native monospace
+  type, direct program controls and an unfiltered VGA framebuffer.
 - Add a browser player: `web/` runs MEGA.COM or ATLAS.COM in DOS Wasm X (DOSBox-X in
   WebAssembly, vendored MIT build) at max cycles, with a show picker, fullscreen and rerun;
   `./run-web.sh` builds, copies both shows into `web/` and serves it locally.

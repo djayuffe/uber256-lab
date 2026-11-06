@@ -26,6 +26,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Verify self-contained player
+        run: python3 tools/build_web_bundle.py --verify dist/uber256-lab.html
       - name: Prepare site
         run: |
           mkdir _site

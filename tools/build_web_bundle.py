@@ -13,6 +13,9 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 DEFAULT_OUTPUT = ROOT / "dist" / "uber256-lab.html"
+BANNER_RE = re.compile(
+    r"<!-- self-contained content sha256:([0-9a-f]{64}) \(excludes this comment\) -->\n"
+)
 ASSETS = {
     "MEGA": WEB / "MEGA.COM",
     "ATLAS": WEB / "ATLAS.COM",
@@ -24,6 +27,16 @@ ASSETS = {
 
 def encoded(path: pathlib.Path) -> str:
     return base64.b64encode(path.read_bytes()).decode("ascii")
+
+
+def json_for_script(value: object, *, ascii_only: bool = True) -> str:
+    """Serialize data without allowing an embedded value to end the script tag."""
+    return (
+        json.dumps(value, ensure_ascii=ascii_only, separators=(",", ":"))
+        .replace("&", r"\u0026")
+        .replace("<", r"\u003c")
+        .replace(">", r"\u003e")
+    )
 
 
 def build(output: pathlib.Path) -> None:
@@ -55,12 +68,12 @@ def build(output: pathlib.Path) -> None:
     }
     bootstrap = (
         "<script>\n"
-        f"window.EMBEDDED_COM={json.dumps(payload['COM'], separators=(',', ':'))};\n"
-        f"window.EMBEDDED_TTF={json.dumps(payload['TTF'])};\n"
-        f"window.EMBEDDED_WASM={json.dumps(payload['WASM'])};\n"
-        f"window.EMBEDDED_MAIN_JS={json.dumps(payload['MAIN_JS'])};\n"
-        f"window.EMBEDDED_THUMBNAILS={json.dumps(payload['THUMBNAILS'], separators=(',', ':'))};\n"
-        f"window.EMBEDDED_ASM={json.dumps(payload['ASM'], ensure_ascii=False, separators=(',', ':'))};\n"
+        f"window.EMBEDDED_COM={json_for_script(payload['COM'])};\n"
+        f"window.EMBEDDED_TTF={json_for_script(payload['TTF'])};\n"
+        f"window.EMBEDDED_WASM={json_for_script(payload['WASM'])};\n"
+        f"window.EMBEDDED_MAIN_JS={json_for_script(payload['MAIN_JS'])};\n"
+        f"window.EMBEDDED_THUMBNAILS={json_for_script(payload['THUMBNAILS'])};\n"
+        f"window.EMBEDDED_ASM={json_for_script(payload['ASM'], ascii_only=False)};\n"
         "</script>\n<script>\n" + midi + "\n</script>"
     )
     html = template.replace(marker, bootstrap, 1)
@@ -68,7 +81,8 @@ def build(output: pathlib.Path) -> None:
     # The standalone build makes no network request for decorative web fonts.
     html = "\n".join(line for line in html.splitlines() if "fonts.googleapis.com" not in line)
     digest = hashlib.sha256(html.encode("utf-8")).hexdigest()
-    html = html.replace("<!doctype html>", f"<!doctype html>\n<!-- self-contained build sha256:{digest} -->", 1)
+    banner = f"<!-- self-contained content sha256:{digest} (excludes this comment) -->"
+    html = html.replace("<!doctype html>", f"<!doctype html>\n{banner}", 1)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(html, encoding="utf-8")
     verify(output)
@@ -76,6 +90,46 @@ def build(output: pathlib.Path) -> None:
 
 def verify(output: pathlib.Path) -> None:
     html = output.read_text(encoding="utf-8")
+    banner_match = BANNER_RE.search(html)
+    if not banner_match:
+        raise SystemExit("Invalid standalone HTML: missing content fingerprint")
+    content = BANNER_RE.sub("", html, count=1)
+    actual_fingerprint = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    if banner_match.group(1) != actual_fingerprint:
+        raise SystemExit("Invalid standalone HTML: content fingerprint mismatch")
+
+    assignment_re = re.compile(r"^window\.([A-Z_]+)=(.*);$", re.MULTILINE)
+    embedded = {name: json.loads(value) for name, value in assignment_re.findall(html)}
+    expected_asm = {
+        path.stem.upper(): path.read_text(encoding="utf-8")
+        for path in sorted((ROOT / "src").glob("*.asm"))
+    }
+    if embedded.get("EMBEDDED_ASM") != expected_asm:
+        raise SystemExit("Invalid standalone HTML: assembly source map mismatch")
+
+    template = (WEB / "index.html").read_text(encoding="utf-8")
+    thumb_names = sorted(set(re.findall(r"\['[A-Z0-9]+','([^']+\.(?:jpg|png))'\]", template)))
+    expected_thumbnails = {
+        name: (
+            f"data:image/{'jpeg' if pathlib.Path(name).suffix.lower() == '.jpg' else 'png'};base64,"
+            f"{encoded(ROOT / 'docs' / name)}"
+        )
+        for name in thumb_names
+    }
+    if embedded.get("EMBEDDED_THUMBNAILS") != expected_thumbnails:
+        raise SystemExit("Invalid standalone HTML: thumbnail map mismatch")
+
+    ids = re.findall(r'\bid="([^"]+)"', html)
+    duplicate_ids = sorted({item for item in ids if ids.count(item) > 1})
+    if duplicate_ids:
+        raise SystemExit("Invalid standalone HTML: duplicate element IDs: " + ", ".join(duplicate_ids))
+
+    external_scripts = re.findall(r"<script\b[^>]*\bsrc\s*=", html, flags=re.IGNORECASE)
+    external_styles = re.findall(
+        r"<link\b(?=[^>]*\brel\s*=\s*['\"]stylesheet['\"])[^>]*\bhref\s*=",
+        html,
+        flags=re.IGNORECASE,
+    )
     checks = {
         "MEGA.COM": f'"MEGA":"{encoded(ASSETS["MEGA"])}"',
         "ATLAS.COM": f'"ATLAS":"{encoded(ASSETS["ATLAS"])}"',
@@ -87,11 +141,16 @@ def verify(output: pathlib.Path) -> None:
         "assembly source map": "window.EMBEDDED_ASM=",
     }
     failed = [name for name, needle in checks.items() if needle not in html]
-    if failed or 'src="midi.js"' in html or "fonts.googleapis.com" in html:
+    if failed or external_scripts or external_styles or "fonts.googleapis.com" in html:
         raise SystemExit("Invalid standalone HTML: " + ", ".join(failed or ["external dependency remained"]))
 
 
 if __name__ == "__main__":
-    target = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else DEFAULT_OUTPUT
-    build(target)
-    print(f"{target} ({target.stat().st_size:,} bytes, all runtime assets embedded)")
+    if len(sys.argv) > 1 and sys.argv[1] == "--verify":
+        target = pathlib.Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else DEFAULT_OUTPUT
+        verify(target)
+        print(f"{target} verified ({target.stat().st_size:,} bytes, all runtime assets embedded)")
+    else:
+        target = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else DEFAULT_OUTPUT
+        build(target)
+        print(f"{target} ({target.stat().st_size:,} bytes, all runtime assets embedded)")

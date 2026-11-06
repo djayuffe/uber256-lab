@@ -22,6 +22,9 @@ scrollable screenshot shortcut panel for every MEGA or ATLAS part, show selectio
 fullscreen, synchronized status, volume and mute controls. A responsive source side
 view follows the active effect and renders its complete raw NASM with line numbers and
 syntax highlighting; **Show code / Hide code** toggles it without stopping the demo.
+The published HTML is deterministic and self-contained. Its embedded content
+fingerprint, complete source map, unique DOM IDs and lack of external script/style
+dependencies are verified again by the Pages workflow before deployment.
 
 ## Continuous atlas show
 

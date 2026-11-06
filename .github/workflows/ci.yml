@@ -13,6 +13,8 @@ jobs:
         run: ./build.sh
       - name: Build self-contained browser player
         run: ./build-web-standalone.sh
+      - name: Verify generated player is committed and reproducible
+        run: git diff --exit-code -- dist/uber256-lab.html
       - name: Behavioural tests (emulated 16-bit CPU)
         run: tests/run_tests.sh
       - uses: actions/upload-artifact@v4
