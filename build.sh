@@ -8,9 +8,9 @@ command -v nasm >/dev/null 2>&1 || { echo 'ERROR: NASM is required.' >&2; exit 1
 # warning fatal and demote only this documented compatibility warning when the
 # installed assembler knows the class (older NASM rejects unknown classes).
 set -- -Wall -Werror
-if nasm -f bin -o /dev/null -Wno-error=reloc-abs-word /dev/null >/dev/null 2>&1; then
-    set -- "$@" -Wno-error=reloc-abs-word
-fi
+case "$(nasm -v)" in
+    "NASM version 3."*) set -- "$@" -Wno-error=reloc-abs-word ;;
+esac
 fail=0
 for src in src/*.asm; do
     name=$(basename "$src" .asm); upper=$(echo "$name" | tr 'a-z' 'A-Z')
