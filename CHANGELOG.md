@@ -18,6 +18,9 @@
 - Add a responsive thumbnail shortcut panel, previous/next controls and ←/→ navigation.
   Browser commands travel through the signed Wasm-memory bridge so direct jumps remain
   synchronized with DOS cards, visuals, instrument selection and the 18.206512 Hz score.
+- Add a responsive raw-assembly side view with line numbers and dependency-free NASM
+  syntax highlighting. It follows thumbnail, button, keyboard and timed part changes;
+  all forty sources are embedded into the offline/Pages HTML.
 - Add a browser player: `web/` runs MEGA.COM or ATLAS.COM in DOS Wasm X (DOSBox-X in
   WebAssembly, vendored MIT build) at max cycles, with a show picker, fullscreen and rerun;
   `./run-web.sh` builds, copies both shows into `web/` and serves it locally.

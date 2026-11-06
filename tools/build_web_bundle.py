@@ -48,6 +48,10 @@ def build(output: pathlib.Path) -> None:
             name: f"data:image/{'jpeg' if path.suffix.lower() == '.jpg' else 'png'};base64,{encoded(path)}"
             for name, path in thumbnails.items()
         },
+        "ASM": {
+            path.stem.upper(): path.read_text(encoding="utf-8")
+            for path in sorted((ROOT / "src").glob("*.asm"))
+        },
     }
     bootstrap = (
         "<script>\n"
@@ -56,9 +60,11 @@ def build(output: pathlib.Path) -> None:
         f"window.EMBEDDED_WASM={json.dumps(payload['WASM'])};\n"
         f"window.EMBEDDED_MAIN_JS={json.dumps(payload['MAIN_JS'])};\n"
         f"window.EMBEDDED_THUMBNAILS={json.dumps(payload['THUMBNAILS'], separators=(',', ':'))};\n"
+        f"window.EMBEDDED_ASM={json.dumps(payload['ASM'], ensure_ascii=False, separators=(',', ':'))};\n"
         "</script>\n<script>\n" + midi + "\n</script>"
     )
     html = template.replace(marker, bootstrap, 1)
+    html = html.replace('<script src="sources.js"></script>', '', 1)
     # The standalone build makes no network request for decorative web fonts.
     html = "\n".join(line for line in html.splitlines() if "fonts.googleapis.com" not in line)
     digest = hashlib.sha256(html.encode("utf-8")).hexdigest()
@@ -78,6 +84,7 @@ def verify(output: pathlib.Path) -> None:
         "main.ttf": f'window.EMBEDDED_TTF="{encoded(ASSETS["font"])}"',
         "MIDI engine": "const SCHEDULE_AHEAD = 0.03;",
         "thumbnail menu": "window.EMBEDDED_THUMBNAILS=",
+        "assembly source map": "window.EMBEDDED_ASM=",
     }
     failed = [name for name, needle in checks.items() if needle not in html]
     if failed or 'src="midi.js"' in html or "fonts.googleapis.com" in html:

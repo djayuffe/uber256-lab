@@ -40,4 +40,5 @@ printf '%-14s %s bytes (the continuous atlas show)\n' ATLAS.COM "$(wc -c < ATLAS
 # The release COM files above do not contain this integration channel.
 nasm -f bin -Wall -Werror -DWEB_SYNC -Isrc/ -Ibuild/ src/mega/mega.asm -o web/MEGA.COM
 nasm -f bin -Wall -Werror -DWEB_SYNC -DATLAS_SHOW -Isrc/ -Ibuild/ src/mega/mega.asm -o web/ATLAS.COM
+python3 tools/build_web_sources.py web/sources.js >/dev/null
 if command -v sha256sum >/dev/null 2>&1; then sha256sum *.COM > SHA256SUMS; else shasum -a 256 *.COM > SHA256SUMS; fi

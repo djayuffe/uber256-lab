@@ -19,7 +19,9 @@ generated from 16-bit real-mode code: pixels, palettes, motion and MIDI.
 
 The browser player includes previous/next buttons, ←/→ keyboard navigation, a
 scrollable screenshot shortcut panel for every MEGA or ATLAS part, show selection,
-fullscreen, synchronized status, volume and mute controls.
+fullscreen, synchronized status, volume and mute controls. A responsive source side
+view follows the active effect and renders its complete raw NASM with line numbers and
+syntax highlighting; **Show code / Hide code** toggles it without stopping the demo.
 
 ## Continuous atlas show
 
@@ -1115,6 +1117,7 @@ tools/equiv.py      frame-by-frame comparison of two builds
 tools/cost.py       controlled instruction counts per frame (not hardware timing)
 tools/synth13.py    the mode-13h kernel search (no demo shipped)
 tools/build_web_bundle.py  embeds and verifies every browser runtime asset
+tools/build_web_sources.py  generates the modular player's raw ASM source map
 docs/               DOSBox screenshots, GIFs, MP4 recordings with sound, the showreel
 docs/music/         the MIDI each demo sent during its recording
 CHANGELOG.md        release notes
