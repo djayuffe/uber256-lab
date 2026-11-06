@@ -7,8 +7,6 @@ ORG 100h
 
     mov al,13h
     int 10h
-    push word 0A000h
-    pop es
     mov dx,3C9h
 .pal:
     mov al,bl
@@ -20,6 +18,8 @@ ORG 100h
     inc bl
     jnz .pal
     HOOK_TICK isr
+    push word 0A000h               ; HOOK_TICK returns the old vector in ES:BX
+    pop es
     mov bx,data
 
 frame:
