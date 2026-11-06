@@ -7,7 +7,6 @@ set -eu
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PORT=${1:-8256}
 "$DIR/build.sh" >/dev/null
-cp "$DIR/MEGA.COM" "$DIR/ATLAS.COM" "$DIR/web/"
 URL="http://localhost:$PORT/"
 echo "serving $DIR/web on $URL  (Ctrl+C stops)"
 ( sleep 1; command -v open >/dev/null 2>&1 && open "$URL" || { command -v xdg-open >/dev/null 2>&1 && xdg-open "$URL"; } ) >/dev/null 2>&1 &

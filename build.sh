@@ -35,5 +35,9 @@ nasm -f bin -Wall -Werror -Isrc/ -Ibuild/ src/mega/mega.asm -o MEGA.COM
 printf '%-14s %s bytes (the megademo: its parts, with titles and fades)\n' MEGA.COM "$(wc -c < MEGA.COM | tr -d ' ')"
 nasm -f bin -Wall -Werror -DATLAS_SHOW -Isrc/ -Ibuild/ src/mega/mega.asm -o ATLAS.COM
 printf '%-14s %s bytes (the continuous atlas show)\n' ATLAS.COM "$(wc -c < ATLAS.COM | tr -d ' ')"
-cp MEGA.COM ATLAS.COM web/ 2>/dev/null || true   # the browser player (run-web.sh) loads them from there
+# Browser-only variants publish exact card/part transitions through a signed
+# record in emulated memory.
+# The release COM files above do not contain this integration channel.
+nasm -f bin -Wall -Werror -DWEB_SYNC -Isrc/ -Ibuild/ src/mega/mega.asm -o web/MEGA.COM
+nasm -f bin -Wall -Werror -DWEB_SYNC -DATLAS_SHOW -Isrc/ -Ibuild/ src/mega/mega.asm -o web/ATLAS.COM
 if command -v sha256sum >/dev/null 2>&1; then sha256sum *.COM > SHA256SUMS; else shasum -a 256 *.COM > SHA256SUMS; fi

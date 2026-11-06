@@ -46,6 +46,9 @@ ORG 100h
     mov [partno],al
     mov [lastkey],al
     mov [bgph],ax
+%ifdef WEB_SYNC
+    call sync_open             ; web build: expose card/part transitions in emulated memory
+%endif
     mov si,parts              ; count the parts
     xor bx,bx
 .cnt:
@@ -99,6 +102,10 @@ ORG 100h
     pop bx
 %endif
 .run:
+%ifdef WEB_SYNC
+    mov al,[partno]
+    call sync_emit             ; 1-based part number; emitted immediately before its first frame
+%endif
     call run_part
     mov byte [afterpart],1
     mov es,[pseg]
@@ -122,6 +129,10 @@ ORG 100h
     loop .credits_hold
 %endif
 quit:
+%ifdef WEB_SYNC
+    xor al,al
+    call sync_emit
+%endif
     mov ax,3
     int 10h
     mov dx,bye
@@ -406,6 +417,10 @@ fade_out:
 ;      another wipe to black. Each wipe has its own shape (see gen_map) and a burning edge. Returns SI after the third
 ;      line, CF = 1 on Esc.
 card:
+%ifdef WEB_SYNC
+    xor al,al
+    call sync_emit             ; zero means title/transition card: silence the browser score
+%endif
     push cx
     push si
     mov ah,0Fh
@@ -517,12 +532,33 @@ card:
     pop cx
     stc
 .x: ret
+
 .frame:                       ; one frame of the card: CF = 1 on Esc
     call vsync
     jc .r
     call card_pal
     clc
 .r: ret
+
+%ifdef WEB_SYNC
+; The vendored WebAssembly DOSBox has no host MIDI backend. The web-only show
+; updates a signed transition record that the page can read from Wasm memory without
+; guessing from elapsed time. Byte 0 is a monotonically increasing event id;
+; byte 1 is zero for a card or the 1-based part number. Native MEGA.COM and
+; ATLAS.COM are built without WEB_SYNC and remain unchanged.
+sync_open:
+    mov byte [sync_record],0
+    xor al,al
+    call sync_emit
+    ret
+
+sync_emit:                    ; AL = 0 card, or 1-based part number
+    pushf
+    mov [sync_record+1],al
+    inc byte [sync_record]
+    popf
+    ret
+%endif
 
 ; ---- drain the mode-13h picture on screen to sepia: the DAC crossfades from the part's palette to the luminance of
 ;      each colour (24 frames), then, racing the beam down from the top of a retrace, every pixel is moved to colour
@@ -1380,6 +1416,10 @@ bye:
     db "uber256-lab atlas show. Thanks for watching.", 13, 10, "$"
 %else
     db "uber256-lab megademo. Thanks for watching.", 13, 10, "$"
+%endif
+%ifdef WEB_SYNC
+sync_magic: db "UBSYNC"
+sync_record: db 0,0
 %endif
 
 %macro BIN 2

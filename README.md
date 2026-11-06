@@ -150,7 +150,13 @@ Or build from source (needs [NASM](https://www.nasm.us/); on macOS `brew install
 `http://localhost:8256/`, where [DOS Wasm X](https://github.com/nbarkhina/DosWasmX) (DOSBox-X compiled to
 WebAssembly, MIT, its `main.js`/`main.wasm` vendored in `web/`) boots straight into the chosen show at `cycles=max`,
 70 frames a second in Chromium. Pick MEGA or ATLAS under the screen (`#atlas` in the URL preselects it); Space and Esc
-work as in DOSBox. That build has no General MIDI synthesizer, so the shows are silent there.
+work as in DOSBox. Because the vendored Wasm core has no host MIDI backend, `web/midi.js` provides an honest browser
+companion score: it samples the live framebuffer on an 18.2 Hz clock and reproduces the atlas lead/response, effect
+voices, bass, root/fifth harmony and drums through Web Audio. The player includes live volume/mute controls and pauses
+its scheduler when the tab is hidden. Web-specific COM builds signal every real card and part boundary through DOSBox's
+in-memory filesystem, so timed transitions, show changes and Space skips remain synchronized instead of relying on a
+wall-clock estimate. Native DOSBox still plays the exact MPU-401 stream. See the
+[browser MIDI architecture](docs/WEB_MIDI.md) for the exact data flow, limitations and extension points.
 
 **Esc** quits each demo cleanly (with several, it starts the next one, each in a fresh DOSBox so a held Esc cannot skip one): it restores text mode 3, puts the timer vector back and returns to DOS (JULIA draws
 about thirteen frames a second, so hold Esc for a moment). `DOSBOX.CONF` sets `cycles=max` and spells out DOSBox's default
@@ -1012,7 +1018,8 @@ so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it 
 graphics-controller and sequencer write, frame by frame; it is how the "pixel-identical" claims above were checked.
 
 An emulator cannot judge how a demo looks or sounds, so each one was also run in real DOSBox 0.74-3 (the recordings
-above, with the MIDI DOSBox actually sent). Needs Python 3; the script installs `unicorn` into `./.venv`.
+above, with the MIDI DOSBox actually sent). Needs Python 3; the script installs `unicorn` into `./.venv` and verifies
+that its x86 engine can initialize on the host CPU before starting the suite.
 
 ## Releases and CI
 
@@ -1065,10 +1072,13 @@ src/groove.inc      the rhythm section shared by FIRE, GOLDTEX, LATCH, ORDER and
 build.sh            NASM build + 256-byte gate + both continuous shows + SHA256SUMS
 run-dosbox.sh       DOSBox launcher: demos, patterns, groups, both shows, help and listing
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
+web/index.html      browser player, framebuffer bridge, show controls and Web Audio integration
+web/midi.js         tested, dependency-free browser MIDI sequencer and synthesizer
 tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture, the video mode
 tests/test_lab.py   original demos and thirteen-part MEGA regression checks
 tests/test_atlas_show.py  playlist-driven atlas show, credits, Space and Escape
 tests/test_launcher.py  selection and stale-build prevention without a GUI
+tests/test_web_midi.js  browser score, instrument boundary and harmony checks
 tools/equiv.py      frame-by-frame comparison of two builds
 tools/cost.py       controlled instruction counts per frame (not hardware timing)
 tools/synth13.py    the mode-13h kernel search (no demo shipped)

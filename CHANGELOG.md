@@ -2,10 +2,17 @@
 
 ## [Unreleased]
 
+- Enable live music in the browser player with a dependency-free Web Audio MIDI
+  engine. It samples the rendered framebuffer on the 18.2 Hz DOS music clock and
+  recreates effect voices, octave response, pentatonic bass, harmony and drums.
+  Add volume/mute controls, duplicate-timer protection, hidden-tab lifecycle handling,
+  instrument-boundary tests and an architecture/limitations reference. Replace estimated
+  part timing with a web-only signed emulated-memory transition channel and use the exact PIT-derived
+  BIOS clock, keeping cards, timed changes and Space skips synchronized. Make rerun/show
+  switching load a clean emulator instance instead of queuing commands behind an active COM.
 - Add a browser player: `web/` runs MEGA.COM or ATLAS.COM in DOS Wasm X (DOSBox-X in
   WebAssembly, vendored MIT build) at max cycles, with a show picker, fullscreen and rerun;
-  `./run-web.sh` builds, copies both shows into `web/` and serves it locally. Silent: the
-  emulator build has no General MIDI synth.
+  `./run-web.sh` builds, copies both shows into `web/` and serves it locally.
 - Give every atlas effect an individual General MIDI voice and add a two-octave
   image-derived response while retaining the 256-byte limit. Add a four-channel
   ATLAS.COM arrangement with lead, pizzicato dyads, acoustic bass and drums.
@@ -17,6 +24,8 @@
 - Verify a real two-dimensional component split in SURGERY and ORBIT's finite
   return bound for every byte seed/mask pair.
 - Handle an existing test virtualenv that is missing Unicorn using python -m pip.
+- Fail the test runner early with a useful diagnostic when the installed Unicorn
+  library cannot initialize its x86 engine on the host CPU.
 
 - Add ATLAS.COM: a continuous 27-part show with timed effects, titles, fades,
   progress, chimes, wrapped credits, Space skip and Escape exit.
