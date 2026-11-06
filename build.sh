@@ -35,10 +35,22 @@ nasm -f bin -Wall -Werror -Isrc/ -Ibuild/ src/mega/mega.asm -o MEGA.COM
 printf '%-14s %s bytes (the megademo: its parts, with titles and fades)\n' MEGA.COM "$(wc -c < MEGA.COM | tr -d ' ')"
 nasm -f bin -Wall -Werror -DATLAS_SHOW -Isrc/ -Ibuild/ src/mega/mega.asm -o ATLAS.COM
 printf '%-14s %s bytes (the continuous atlas show)\n' ATLAS.COM "$(wc -c < ATLAS.COM | tr -d ' ')"
+# Preserve and build the complete earlier UBER256/UBERSHOW line that was merged
+# from uber256-megademo. UBER70 avoids the historical UBER256.COM name collision
+# with the independently developed rotozoomer.
+python3 archive/uber256-megademo/audit.py >/dev/null
+python3 archive/uber256-megademo/audit_final.py >/dev/null
+nasm -f bin -Wall -Werror archive/uber256-megademo/intro256.asm -o UBER70.COM
+nasm -f bin -Wall -Werror archive/uber256-megademo/showcase.asm -o UBERSHOW.COM
+[ "$(wc -c < UBER70.COM | tr -d ' ')" -le 256 ] || { echo "ERROR: UBER70.COM is over 256 bytes" >&2; exit 2; }
+printf '%-14s %s bytes (preserved original tiny intro)\n' UBER70.COM "$(wc -c < UBER70.COM | tr -d ' ')"
+printf '%-14s %s bytes (preserved 18-scene engine)\n' UBERSHOW.COM "$(wc -c < UBERSHOW.COM | tr -d ' ')"
 # Browser-only variants publish exact card/part transitions through a signed
 # record in emulated memory.
 # The release COM files above do not contain this integration channel.
 nasm -f bin -Wall -Werror -DWEB_SYNC -Isrc/ -Ibuild/ src/mega/mega.asm -o web/MEGA.COM
 nasm -f bin -Wall -Werror -DWEB_SYNC -DATLAS_SHOW -Isrc/ -Ibuild/ src/mega/mega.asm -o web/ATLAS.COM
+cp UBER70.COM web/UBER70.COM
+cp UBERSHOW.COM web/UBERSHOW.COM
 python3 tools/build_web_sources.py web/sources.js >/dev/null
 if command -v sha256sum >/dev/null 2>&1; then sha256sum *.COM > SHA256SUMS; else shasum -a 256 *.COM > SHA256SUMS; fi

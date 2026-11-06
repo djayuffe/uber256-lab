@@ -4,7 +4,7 @@
 [![GitHub Pages](https://github.com/djayuffe/uber256-lab/actions/workflows/pages.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/pages.yml)
 [![Latest release](https://img.shields.io/github/v/release/djayuffe/uber256-lab?display_name=tag)](https://github.com/djayuffe/uber256-lab/releases/latest)
 
-Forty audiovisual DOS intros in 256 bytes or less, two continuous shows, and a
+Forty-two audiovisual DOS intros in 256 bytes or less, three continuous shows, and a
 self-contained browser edition with synchronized Web Audio music. Everything is
 generated from 16-bit real-mode code: pixels, palettes, motion and MIDI.
 
@@ -12,13 +12,14 @@ generated from 16-bit real-mode code: pixels, palettes, motion and MIDI.
 
 | Run mode | Command or link | Result |
 |---|---|---|
-| Browser | [Launch the live demo](https://djayuffe.github.io/uber256-lab/) | MEGA/ATLAS, fullscreen, synchronized music; no installation |
+| Browser | [Launch the live demo](https://djayuffe.github.io/uber256-lab/) | MEGA, ATLAS, UBERSHOW and UBER70; no installation |
 | One offline file | [`dist/uber256-lab.html`](dist/uber256-lab.html) | Complete player with COM, JavaScript, Wasm and font embedded |
 | Native DOSBox | `./run-dosbox.sh mega` | Exact MPU-401 MIDI stream from the DOS program |
 | Local web development | `./run-web.sh` | Modular player at `http://localhost:8256/` |
 
 The browser player includes previous/next buttons, ←/→ keyboard navigation, a
-scrollable screenshot shortcut panel for every MEGA or ATLAS part, show selection,
+scrollable screenshot shortcut panel for every current-show part, selection across all
+four integrated DOS programs,
 fullscreen, synchronized status, volume and mute controls. A responsive source side
 view follows the active effect and renders its complete raw NASM with line numbers and
 syntax highlighting; **Show code / Hide code** toggles it without stopping the demo.
@@ -71,14 +72,18 @@ Two additional standalone demos adapt the supplied GPU-effects atlas to DOS:
 **PHASE (228 B)** combines three time-shifted triangle waves as interference.
 Both include generated MIDI music, fit the 256-byte limit, and run with
 `./run-dosbox.sh causal phase`. They also appear after ROOTS in the expanded
-thirteen-part MEGA show, with titles, fades and Space-to-skip controls. There are
-now forty standalone demos. Only CAUSAL and PHASE were added to MEGA; it still
-contains thirteen parts. See [temporal formulas, captures and tests](docs/TEMPORAL_ATLAS.md).
+fifteen-part MEGA show, with titles, fades and Space-to-skip controls. There are
+now forty-two current standalone demos. MOIRE and ROTOZOOM were merged from their
+former repositories and are full MEGA parts. See
+[temporal formulas, captures and tests](docs/TEMPORAL_ATLAS.md).
 
 ![Temporal shell experiment](docs/causal-atlas.png)
 ![Temporal phase interference](docs/phase-atlas.png)
 
-**The original thirteen DOS demos, each at most 256 bytes with generated music:** two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, a picture made only of orderings, the migrating roots of a polynomial, a river, a field of golden blocks and slow satin flows made of the program's own machine code. The twenty-seven atlas adaptations above bring the standalone collection to forty.
+**The fifteen-part MEGA set, each at most 256 bytes with generated music:** the original
+thirteen plus MOIRE's orbiting ring interference and ROTOZOOM's multiplier-free rotating
+XOR texture. The twenty-seven atlas adaptations bring the current standalone collection
+to forty-two.
 
 ![All thirteen demos in DOSBox: GALAXY, CLIFF, CHLADNI, FIRE, JULIA, SELFTEX, ESCHER, LATCH, WARP, ORDER, ROOTS, GOLDTEX and FLOWTEX](docs/gallery.jpg)
 
@@ -89,10 +94,11 @@ libraries, and no DOS calls except setting the video mode, hooking the timer tic
 palette colour and every note is computed by a few hundred bytes of code. The music goes out as General MIDI through an
 MPU-401, which DOSBox provides out of the box (and plays through the system's synthesizer on macOS and Windows).
 
-**The megademo:** [`MEGA.COM`](src/mega/mega.asm) now plays thirteen of them in one show, with
+**The megademo:** [`MEGA.COM`](src/mega/mega.asm) now plays fifteen of them in one show, with
 a golden title card over flowing bronze before each part that burns in and out through shaped, glowing wipes, and WARP
 bending the credits at the end (Space: next part, Esc: quit):
-[`docs/mega.mp4`](docs/mega.mp4) is an earlier DOSBox recording of the eleven-part version with its music; it does not include CAUSAL or PHASE. `./run-dosbox.sh mega` runs the current thirteen-part show.
+[`docs/mega.mp4`](docs/mega.mp4) is an earlier DOSBox recording of the eleven-part version.
+`./run-dosbox.sh mega` runs the current fifteen-part show.
 
 **Watch and listen:** [`docs/uber256-lab-showreel.mp4`](docs/uber256-lab-showreel.mp4) is 91 seconds of the original thirteen, recorded
 in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General MIDI soundfont.
@@ -112,6 +118,8 @@ in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General
 | [`SELFTEX.COM`](src/selftex.asm) | 254 B | 386, VGA, MPU-401 | A river made of the program's own machine code: a perspective floor with a river winding across it into the distance, its water code bytes stretched into streaks that flow towards you, its banks fields of code-byte blocks, under a sky ramp. Every texel is a byte of the program. | The same bytes in order, on a kalimba: the score is the program. |
 | [`GOLDTEX.COM`](src/goldtex.asm) | 253 B | 386, VGA, MPU-401 | The classic SELFTEX effect, `code[x*y/64 + t]` (hyperbolic bands of machine code in a flowing palette), with polished gold blocks: the screen is a 16x16 grid and the program's own bytes decide which blocks are gold; they hop across the grid, and a band of white-gold light sweeps over every tile. | The program's bytes in order on a glockenspiel, doubled an octave up, over drums and a walking bass. |
 | [`FLOWTEX.COM`](src/flowtex.asm) | 219 B | 386, VGA, MPU-401 | The classic SELFTEX bands again, in one sepia-to-ivory ramp and sixteen times bigger: `code[x*y/1024 + t]`, with 32 interpolated steps between neighbouring code bytes, so the machine code flows past as slow satin ridges. Five instructions a pixel. | A harp plays the four code bytes flowing in at the corner as an arpeggio, each note doubled two octaves down. |
+| [`MOIRE.COM`](src/moire.asm) | 184 B | 386, VGA, MPU-401 | Two squared-distance ring families, one screen-centred and one orbiting on triangle waves, combined with XOR into moving interference. | A crystal arpeggio on alternating BIOS ticks. |
+| [`ROTOZOOM.COM`](src/rotozoom.asm) | 224 B | 386, VGA, MPU-401 | A centred XOR texture rotated with a 16.16 Minsky oscillator: no sine table and no multiply in the pixel loop. | A saw lead follows the same clock as the rotating colour phase. |
 
 ## Contents
 
@@ -150,6 +158,19 @@ in DOSBox with the MIDI they actually sent, rendered through the FluidR3 General
 - [Limitations](#limitations)
 - [Layout](#layout)
 
+## Unified project lineage
+
+This repository now contains the complete histories and latest trees of the three
+retired repositories under [`archive/`](archive/):
+
+- `uber256-megademo` → [`archive/uber256-megademo`](archive/uber256-megademo), including the 70-byte intro and 18-scene `UBERSHOW.COM` engine.
+- `uber256-dos-intro` → [`archive/uber256-dos-intro`](archive/uber256-dos-intro), whose MOIRE effect is now [`src/moire.asm`](src/moire.asm) and part 13 of MEGA.
+- `uber256-rotozoomer` → [`archive/uber256-rotozoomer`](archive/uber256-rotozoomer), whose effect is now [`src/rotozoom.asm`](src/rotozoom.asm) and part 14 of MEGA.
+
+The subtree merge commits retain the original Git histories. The root build also
+assembles the earlier line as `UBER70.COM` and `UBERSHOW.COM`, so no source or
+buildable production disappears when the former repositories are removed.
+
 ## Run it
 
 Download the `.COM` files from the [latest release](../../releases/latest) and run one in
@@ -165,9 +186,10 @@ Or build from source (needs [NASM](https://www.nasm.us/); on macOS `brew install
 
 ```sh
 ./build.sh              # assembles src/*.asm, enforces the 256-byte limit, writes SHA256SUMS
-./run-dosbox.sh galaxy  # any of: galaxy cliff chladni fire escher julia latch order roots selftex goldtex flowtex warp
+./run-dosbox.sh galaxy  # any listed effect, including moire and rotozoom
 ./run-dosbox.sh '*tex'  # several in a row (here SELFTEX, GOLDTEX, FLOWTEX); also names, or 'all'
-./run-dosbox.sh mega    # thirteen parts with titles, fades and credits
+./run-dosbox.sh mega    # fifteen parts with titles, fades and credits
+./run-dosbox.sh ubershow # preserved earlier 18-scene engine
 ```
 
 **In the browser:** `./run-web.sh` builds the web-specific `MEGA.COM` and `ATLAS.COM` variants and serves [`web/`](web/) on
@@ -718,9 +740,10 @@ The music: every other tick a harp plays one of the four code bytes now entering
 
 ## The megademo
 
-[`MEGA.COM`](src/mega/mega.asm) (6,778 bytes) is thirteen of the intros as one show, in an order chosen to flow: the three
-code textures (FLOWTEX, SELFTEX, GOLDTEX), then ORDER, the two attractors, FIRE, ROOTS, CAUSAL, PHASE, JULIA, LATCH, and WARP last,
-bending the credits. CAUSAL and PHASE add 32 seconds of effects plus their transitions to the earlier show; Space skips to the next part, Esc ends it at any point. ESCHER and CHLADNI are left out of the show (2.8.1);
+[`MEGA.COM`](src/mega/mega.asm) (7,301 bytes) is fifteen of the intros as one show, in an order chosen to flow: the three
+code textures (FLOWTEX, SELFTEX, GOLDTEX), then ORDER, the two attractors, FIRE, ROOTS, CAUSAL, PHASE, JULIA, LATCH,
+the merged MOIRE and ROTOZOOM effects, and WARP last, bending the credits. Space skips to the next part and Esc ends it
+at any point. ESCHER and CHLADNI are left out of the show;
 they are still in the collection as standalone intros. The programme is the `ENTRY` list in `src/mega/mega_program.inc`: `build.sh`
 reads it for the part count and total size on the closing card.
 
@@ -771,21 +794,21 @@ on the x87 for each wipe, with square pixels (Y scaled by 1.2) and a phase that 
 The card text uses the BIOS 8x8 font (INT 10h AX = 1130h) scaled five times, each glyph row its own gradient step
 from ivory to deep gold, with the size of the 256-byte build and a line on what it is and what plays it. Before WARP
 the megademo writes the credits to the text screen, the list of parts read from the programme itself, and WARP, which
-bends whatever text is there, bends them. The show ends on a card with the total: the thirteen intros in it come to
-3,144 bytes.
+bends whatever text is there, bends them. The show ends on a card with the total: the fifteen intros in it come to
+3,560 bytes.
 
 **The card.** Behind the text is a bronze field, `sin(0.031x) + sin(0.043y + 0.019x) + sin(0.024(x - y)) + sin(0.06r)`,
 computed on the x87 once at start-up into a segment of its own and mapped to colours 1..63; each frame the card's
 palette cycles those 63 colours through a sine table (brightness 3..15, warm), so the background flows under the text
 without a pixel being redrawn. Every line of text is drawn twice, first in black a pixel or two down and right, then in
 its gradient, so it stands off the background. Under the tagline a gold progress bar (colours 64.., on a dark track)
-grows by one part per card, with `PART n OF 13` beneath it; the opening card has the keys instead, the closing card a full
+grows by one part per card, with `PART n OF 15` beneath it; the opening card has the keys instead, the closing card a full
 bar and `THANKS FOR WATCHING`. **Space** (the key's make code, edge-triggered, so a held key counts once) ends the part
 playing through the same path as its time running out, or cuts a card's hold short; the wipes still play.
 
 ![GALAXY's card burning in and out](docs/mega-wipes.gif)
 
-**Tests.** The emulator runs the whole show, advancing the clock as it goes: all thirteen parts play in order (their
+**Tests.** The emulator runs the whole show, advancing the clock as it goes: all fifteen parts play in order (their
 General MIDI programs, in sequence), every card rings its chime, every part hooks and unhooks the timer, LATCH gets its mode 0Dh and WARP its
 credits, Space during a part ends it and the show goes on, Esc during a part ends everything cleanly, and the program
 returns to DOS.
@@ -835,7 +858,7 @@ flows 18 times a second in the tick handler whatever the frame rate. The music n
 through far calls, the programme is packed (no padding), and the credits list the parts from it; each card now rings
 a chime.
 
-All thirteen intros in one program, `MEGA.COM`, with title cards, fades and credits; see [The megademo](#the-megademo).
+All fifteen intros in one program, `MEGA.COM`, with title cards, fades and credits; see [The megademo](#the-megademo).
 `build.sh` builds it from the same sources (with `-DMEGA`) after the 256-byte binaries, which are unchanged.
 
 ## Version 2.7: FLOWTEX
@@ -1041,7 +1064,7 @@ so a handler that trusts DS fails); an MPU-401 whose bytes are captured once it 
 - **SELFTEX:** a sky ramp above the horizon; every ground pixel is a code byte (water, fields) or the shore; water in
   every row, wide in front and narrow far away; the river bends; it moves with the clock; the melody is the program's
   bytes in order.
-- **MEGA:** all thirteen parts in order (by their MIDI programs); a title card with a chime before each, burning in and out;
+- **MEGA:** all fifteen parts in order (by their MIDI programs); a title card with a chime before each, burning in and out;
   each mode-13h part drained to sepia after it; each part fades in from black; LATCH's mode, the credits
   for WARP, the closing card; 13 timer hooks and 13 unhooks; Space skips a part; Esc ends the show; a clean return to DOS.
 - **The groove** (FIRE, GOLDTEX, LATCH, ORDER, WARP): drums every fourth tick in the kick, hat, snare, hat order, and a
@@ -1100,11 +1123,14 @@ src/julia.asm       integer Julia set with an orbiting constant, mirrored + the 
 src/selftex.asm     a river made of the program's own code + the code as a riff
 src/goldtex.asm     classic SELFTEX code bands + golden blocks chosen by the code
 src/flowtex.asm     classic SELFTEX code bands, interpolated, big and sepia + a harp on the code
+src/moire.asm       merged orbiting-ring XOR moire + crystal lead
+src/rotozoom.asm    merged multiplier-free XOR rotozoomer + saw lead
 src/mega/mega.asm   shared MEGA/ATLAS host: titles, fades, timed parts and credits
 src/mega/*_program.inc  playlists shared by metadata generation and binary embedding
 src/dos.inc         shared macros: HOOK_TICK, ESC_OR_LOOP, MIDI_START (the last two as far calls in the megademo), PENTA
 src/groove.inc      the rhythm section shared by FIRE, GOLDTEX, LATCH, ORDER and WARP: GM drums + walking bass
-build.sh            NASM build + 256-byte gate + both continuous shows + SHA256SUMS
+archive/             full source trees and Git histories of the three retired repositories
+build.sh            NASM build + 256-byte gate + current and preserved continuous shows + SHA256SUMS
 build-web-standalone.sh  one-file offline HTML builder
 run-dosbox.sh       DOSBox launcher: demos, patterns, groups, both shows, help and listing
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
@@ -1112,7 +1138,7 @@ web/index.html      browser player, framebuffer bridge, show controls and Web Au
 web/midi.js         tested, dependency-free browser MIDI sequencer and synthesizer
 dist/uber256-lab.html  tracked, self-contained offline player deployed by GitHub Pages
 tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture, the video mode
-tests/test_lab.py   original demos and thirteen-part MEGA regression checks
+tests/test_lab.py   original demos, MOIRE/ROTOZOOM and fifteen-part MEGA regression checks
 tests/test_atlas_show.py  playlist-driven atlas show, credits, Space and Escape
 tests/test_launcher.py  selection and stale-build prevention without a GUI
 tests/test_web_midi.js  browser score, instrument boundary and harmony checks

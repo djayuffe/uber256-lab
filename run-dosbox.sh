@@ -3,13 +3,14 @@
 #   ./run-dosbox.sh galaxy             one demo
 #   ./run-dosbox.sh selftex goldtex    several, in the order given
 #   ./run-dosbox.sh '*tex'             a pattern (quoted), matched in the order below: SELFTEX, GOLDTEX, FLOWTEX
-#   ./run-dosbox.sh all                all forty standalone demos
+#   ./run-dosbox.sh all                all forty-two current standalone demos
 #   ./run-dosbox.sh atlas              the twenty-seven atlas adaptations
 #   ./run-dosbox.sh atlas-show         continuous atlas show: timed parts, Space skips
 #   ./run-dosbox.sh --list             list demos without starting DOSBox
-#   ./run-dosbox.sh mega               the megademo (MEGA.COM): thirteen with title cards, fades and credits
+#   ./run-dosbox.sh mega               the current megademo (MEGA.COM): fifteen parts
+#   ./run-dosbox.sh ubershow           the preserved earlier 18-scene engine
 set -eu
-ORDER="galaxy cliff chladni fire escher julia latch order roots selftex goldtex flowtex causal phase horizon commute lift mirror resfield shuffle hyster residual signed runs bytevm reverso bifurc terrace loom ring prefix rank ballot timelens emboss surgery bracket orbit critical warp"
+ORDER="galaxy cliff chladni fire escher julia latch order roots selftex goldtex flowtex moire rotozoom causal phase horizon commute lift mirror resfield shuffle hyster residual signed runs bytevm reverso bifurc terrace loom ring prefix rank ballot timelens emboss surgery bracket orbit critical warp"
 ATLAS="causal phase horizon commute lift mirror resfield shuffle hyster residual signed runs bytevm reverso bifurc terrace loom ring prefix rank ballot timelens emboss surgery bracket orbit critical"
 usage() {
     echo "usage: $0 NAME|PATTERN|all|atlas|atlas-show|mega ..."
@@ -18,7 +19,7 @@ usage() {
 [ $# -ge 1 ] || { usage >&2; exit 1; }
 case $1 in
     --help|-h) usage; exit 0 ;;
-    --list) printf '%s\n' $ORDER; echo 'mega (13-part show)'; echo 'atlas-show (27-part show)'; exit 0 ;;
+    --list) printf '%s\n' $ORDER; echo 'mega (15-part show)'; echo 'atlas-show (27-part show)'; echo 'uber70 (preserved 70-byte intro)'; echo 'ubershow (preserved 18-scene engine)'; exit 0 ;;
 esac
 DOSBOX_BIN=${DOSBOX_BIN:-dosbox}
 if ! command -v "$DOSBOX_BIN" >/dev/null 2>&1; then
@@ -32,6 +33,8 @@ for arg in "$@"; do
     [ "$pat" = atlas-show ] && { LIST="$LIST atlas"; continue; }
     [ "$pat" = atlas ] && { LIST="$LIST $ATLAS"; continue; }
     [ "$pat" = mega ] && { LIST="$LIST mega"; continue; }   # the megademo: all of them in one program
+    [ "$pat" = uber70 ] && { LIST="$LIST uber70"; continue; }
+    [ "$pat" = ubershow ] && { LIST="$LIST ubershow"; continue; }
     hit=""
     for n in $ORDER; do
         case $n in $pat) LIST="$LIST $n"; hit=1 ;; esac

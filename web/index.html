@@ -114,7 +114,7 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
   </div>
   <div class="controls">
     <label for="prog" class="pick">Program</label>
-    <select id="prog"><option value="MEGA">MEGA.COM / 13-PART SHOW</option><option value="ATLAS">ATLAS.COM / 27-PART SHOW</option></select>
+    <select id="prog"><option value="MEGA">MEGA.COM / 15-PART SHOW</option><option value="ATLAS">ATLAS.COM / 27-PART SHOW</option><option value="UBERSHOW">UBERSHOW.COM / PRESERVED 18-SCENE ENGINE</option><option value="UBER70">UBER70.COM / PRESERVED 70-BYTE INTRO</option></select>
     <button id="prev" type="button" disabled aria-label="Previous part">← Prev</button>
     <button id="next" type="button" disabled aria-label="Next part">Next →</button>
     <button id="fs" type="button" disabled>Full screen</button>
@@ -122,14 +122,14 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     <button id="restart" type="button" disabled>Reset MEGA.COM</button>
     <label class="volume pick" for="midiVolume">MIDI <input id="midiVolume" type="range" min="0" max="100" value="68" aria-label="Browser MIDI volume"></label>
     <button id="mute" type="button" disabled>Mute</button>
-    <span><kbd>←</kbd>/<kbd>→</kbd> swap part &nbsp; <kbd>Space</kbd> next &nbsp; <kbd>Esc</kbd> quit</span>
+    <span id="keyHint"><kbd>←</kbd>/<kbd>→</kbd> swap part &nbsp; <kbd>Space</kbd> next &nbsp; <kbd>Esc</kbd> quit</span>
     <span id="status">idle</span>
   </div>
   <details class="panel" id="shortcuts" open>
     <summary>PART INDEX <span id="shortcutMeta">13 PROGRAMS / DIRECT JUMP</span></summary>
     <div class="shortcut-grid" id="shortcutGrid" aria-label="Part shortcuts"></div>
   </details>
-  <p class="note">RUNTIME: DOSBOX-X/WASM · CPU: MAX CYCLES · VIDEO: VGA MODE 13H · CLOCK: BIOS 18.2065 HZ · AUDIO: DOS-SYNCHRONIZED WEB MIDI</p>
+  <p class="note">RUNTIME: DOSBOX-X/WASM · CPU: MAX CYCLES · VIDEO: VGA MODE 13H · CLOCK: BIOS 18.2065 HZ · AUDIO: DOS OUTPUT + SYNCHRONIZED WEB MIDI</p>
   <aside class="code-panel" id="codePanel" aria-label="Highlighted assembly source">
     <div class="code-head"><strong id="codeTitle">FLOWTEX.ASM</strong><span id="codeMeta">RAW NASM / LIVE PART FOLLOW</span><button id="codeClose" type="button">CLOSE</button></div>
     <pre class="asm-view" id="asmView"><code id="asmCode"></code></pre>
@@ -151,16 +151,18 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
   const nextBtn = document.getElementById('next');
   const shortcutGrid = document.getElementById('shortcutGrid');
   const shortcutMeta = document.getElementById('shortcutMeta');
+  const keyHint = document.getElementById('keyHint');
   const codeToggle = document.getElementById('codeToggle');
   const codeClose = document.getElementById('codeClose');
   const codePanel = document.getElementById('codePanel');
   const codeTitle = document.getElementById('codeTitle');
+  const codeMeta = document.getElementById('codeMeta');
   const asmView = document.getElementById('asmView');
   const asmCode = document.getElementById('asmCode');
   const volumeEl = document.getElementById('midiVolume');
   const muteBtn = document.getElementById('mute');
   const say = t => { statusEl.textContent = t; };
-  let fw = 640, fh = 400, img = null, frames = 0, audio = null, midi = null;
+  let fw = 640, fh = 400, img = null, frames = 0, audio = null, dosGain = null, midi = null;
   let syncEvent = -1, syncPart = 0, syncLabel = 'waiting for DOS sync';
   let syncOffsets = [], syncValues = new Map(), syncHeapLength = 0, lastSyncScan = 0;
   let activeSyncOffset = -1, currentPart = 0;
@@ -170,7 +172,7 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
       ['FLOWTEX','flowtex.jpg'], ['SELFTEX','selftex.jpg'], ['GOLDTEX','gallery.jpg'], ['ORDER','order.jpg'],
       ['GALAXY','galaxy-early.jpg'], ['CLIFF','cliff.jpg'], ['FIRE','fire.jpg'], ['ROOTS','roots.jpg'],
       ['CAUSAL','causal-atlas.png'], ['PHASE','phase-atlas.png'], ['JULIA','julia-a.jpg'],
-      ['LATCH','latch-a.jpg'], ['WARP','warp-a.jpg']
+      ['LATCH','latch-a.jpg'], ['MOIRE','moire.jpg'], ['ROTOZOOM','rotozoom.jpg'], ['WARP','warp-a.jpg']
     ],
     ATLAS: [
       ['CAUSAL','causal-atlas.png'], ['TIMELENS','timelens-atlas.png'], ['HORIZON','horizon-atlas.png'],
@@ -182,7 +184,9 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
       ['REVERSO','reverso-atlas.png'], ['ORBIT','orbit-atlas.png'], ['RUNS','runs-atlas.png'],
       ['BYTEVM','bytevm-atlas.png'], ['SHUFFLE','shuffle-atlas.png'], ['BALLOT','ballot-atlas.png'],
       ['PREFIX','prefix-atlas.png'], ['RANK','rank-atlas.png'], ['RING','ring-atlas.png']
-    ]
+    ],
+    UBERSHOW: [['UBERSHOW','ubershow.jpg']],
+    UBER70: [['UBER70','ubershow.jpg']]
   };
   const ASM_OPS = new Set(('aaa aad aam aas adc add and arpl bound bsf bsr bswap bt btc btr bts call cbw cdq clc cld cli cmc cmp cmpsb cmpsd cmpsw cwd cwde daa das dec div enter hlt idiv imul in inc insb insd insw int into invd invlpg iret iretd ja jae jb jbe jc jcxz je jecxz jg jge jl jle jmp jna jnae jnb jnbe jnc jne jng jnge jnl jnle jno jnp jns jnz jo jp jpe jpo js jz lahf lar lds lea leave les lfs lgdt lgs lidt lldt lmsw lock lodsb lodsd lodsw loop loope loopne loopnz loopz lsl lss ltr mov movsb movsd movsw movsx movzx mul neg nop not or out outsb outsd outsw pop popa popad popf popfd push pusha pushad pushf pushfd rcl rcr rep repe repne repnz repz ret retf rol ror sahf sal sar sbb scasb scasd scasw seta setae setb setbe setc sete setg setge setl setle setna setnae setnb setnbe setnc setne setng setnge setnl setnle setno setnp setns setnz seto setp setpe setpo sets setz sgdt shl shld shr shrd sidt sldt smsw stc std sti stosb stosd stosw str sub test verr verw wait wbinvd xadd xchg xlat xor f2xm1 fabs fadd faddp fbld fbstp fchs fclex fcom fcomp fcompp fcos fdecstp fdiv fdivp fdivr fdivrp ffree fiadd ficom ficomp fidiv fidivr fild fimul fincstp finit fist fistp fisub fisubr fld fld1 fldcw fldenv fldl2e fldl2t fldlg2 fldln2 fldpi fldz fmul fmulp fnclex fninit fnop fnsave fnstcw fnstenv fnstsw fpatan fprem fprem1 fptan frndint frstor fsave fscale fsin fsincos fsqrt fst fstcw fstenv fstp fstsw fsub fsubp fsubr fsubrp ftst fucom fucomp fucompp fxam fxch fxtract fyl2x fyl2xp1').split(' '));
   const ASM_REGS = new Set(('al ah ax eax bl bh bx ebx cl ch cx ecx dl dh dx edx si esi di edi sp esp bp ebp ip eip cs ds es fs gs ss cr0 cr2 cr3 cr4 dr0 dr1 dr2 dr3 dr6 dr7 st st0 st1 st2 st3 st4 st5 st6 st7').split(' '));
@@ -213,6 +217,7 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     const entry = SHOW_PARTS[prog()][Math.max(0, (part || 1) - 1)] || SHOW_PARTS[prog()][0];
     const name = entry[0], source = window.EMBEDDED_ASM && window.EMBEDDED_ASM[name];
     codeTitle.textContent = name + '.ASM';
+    codeMeta.textContent = hasPartControl() ? 'RAW NASM / LIVE PART FOLLOW' : 'RAW NASM / COMPLETE PRESERVED PROGRAM';
     asmCode.innerHTML = source ? highlightAsm(source) : '<span class="asm-line" data-line="1">Source map missing; run ./build.sh</span>';
     asmView.scrollTop = 0;
   }
@@ -234,6 +239,7 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     '[render]', 'scaler=none',
     '[autoexec]', 'mount c /demo', 'c:', 'cls', '%PROG%.COM', ''
   ].join('\r\n');
+  const hasPartControl = () => prog() === 'MEGA' || prog() === 'ATLAS';
 
   // Calls the DOSBox-X build makes into the page; everything not used here is a no-op.
   const app = {
@@ -286,10 +292,13 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
           else { L[s] = 0; R[s] = 0; }
         }
       };
-      node.connect(ac.destination);
+      dosGain = ac.createGain();
+      dosGain.gain.value = volumeEl.value / 100;
+      node.connect(dosGain);
+      dosGain.connect(ac.destination);
       audio = ac;
-      midi = new BrowserMidi(ac, visualSample, () => prog());
-      midi.setVolume(volumeEl.value / 100);
+      midi = hasPartControl() ? new BrowserMidi(ac, visualSample, () => prog()) : null;
+      if (midi) midi.setVolume(volumeEl.value / 100);
     } catch (e) { console.log('audio', e); }
   }
 
@@ -350,8 +359,8 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     const getCom = n => window.EMBEDDED_COM && window.EMBEDDED_COM[n]
       ? Promise.resolve(embeddedBytes(window.EMBEDDED_COM[n]).buffer)
       : fetch(n + '.COM?websync=1', { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(n + '.COM missing: run ./run-web.sh'); return r.arrayBuffer(); });
-    const [mega, atlas, ttf] = await Promise.all([
-      getCom('MEGA'), getCom('ATLAS').catch(() => null),
+    const [program, ttf] = await Promise.all([
+      getCom(prog()),
       window.EMBEDDED_TTF ? Promise.resolve(embeddedBytes(window.EMBEDDED_TTF).buffer)
         : fetch('main.ttf').then(r => r.ok ? r.arrayBuffer() : null).catch(() => null)
     ]);
@@ -366,15 +375,14 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
         const FS = Module.FS;
         for (const d of ['/uploaded', '/res', '/save', '/demo']) { try { FS.mkdir(d); } catch (e) {} }
         if (ttf) FS.writeFile('/res/arial.ttf', new Uint8Array(ttf));
-        FS.writeFile('/demo/MEGA.COM', new Uint8Array(mega));
-        if (atlas) FS.writeFile('/demo/ATLAS.COM', new Uint8Array(atlas));
+        FS.writeFile('/demo/' + prog() + '.COM', new Uint8Array(program));
         FS.writeFile('dosbox.conf', conf.replace('%PROG%', prog()));
         FS.writeFile('config.txt', '0\r\n0\r\n0\r\n0\r\n0\r\n0\r\n0\r\n');
         startBtn.hidden = true;
         fsBtn.disabled = false; restartBtn.disabled = false; muteBtn.disabled = false;
-        prevBtn.disabled = false; nextBtn.disabled = false; renderShortcuts();
+        prevBtn.disabled = !hasPartControl(); nextBtn.disabled = !hasPartControl(); renderShortcuts();
         canvas.focus();
-        say('running · browser MIDI on');
+        say('running · ' + (hasPartControl() ? 'browser MIDI on' : 'native DOS audio'));
         Module.callMain();
       }
     };
@@ -402,6 +410,7 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
   volumeEl.addEventListener('input', () => {
     if (+volumeEl.value) volumeBeforeMute = volumeEl.value;
     if (midi) midi.setVolume(volumeEl.value / 100);
+    if (dosGain) dosGain.gain.setTargetAtTime(volumeEl.value / 100, audio.currentTime, 0.02);
     muteBtn.textContent = +volumeEl.value ? 'Mute' : 'Unmute';
   });
   muteBtn.addEventListener('click', () => {
@@ -423,7 +432,7 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     SHOW_PARTS[prog()].forEach(([name, image], index) => {
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'shortcut'; button.dataset.part = index + 1;
-      button.disabled = !startBtn.hidden; button.title = 'Jump to part ' + (index + 1) + ': ' + name;
+      button.disabled = !startBtn.hidden || !hasPartControl(); button.title = (hasPartControl() ? 'Jump to part ' : 'Source for ') + (index + 1) + ': ' + name;
       button.style.backgroundImage = 'url("' + thumb(image) + '")';
       button.innerHTML = '<span><b>' + String(index + 1).padStart(2, '0') + '</b>' + name + '</span>';
       button.addEventListener('click', () => goPart(index + 1));
@@ -449,14 +458,22 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
   nextBtn.addEventListener('click', () => movePart(1));
   const label = () => {
     if (!startBtn.hidden) startBtn.querySelector('b').textContent = 'BOOT ' + prog() + '.COM';
-    document.getElementById('startsub').textContent = 'DOSBOX-X/WASM · 640×400 OUTPUT · BROWSER MIDI';
+    document.getElementById('startsub').textContent = hasPartControl()
+      ? 'DOSBOX-X/WASM · 640×400 OUTPUT · BROWSER MIDI'
+      : 'DOSBOX-X/WASM · 640×400 OUTPUT · NATIVE DOS AUDIO';
     restartBtn.textContent = 'Reset ' + prog() + '.COM';
-    shortcutMeta.textContent = SHOW_PARTS[prog()].length + ' PROGRAMS / DIRECT JUMP';
+    shortcutMeta.textContent = hasPartControl()
+      ? SHOW_PARTS[prog()].length + ' PROGRAMS / DIRECT JUMP'
+      : '1 PRESERVED PROGRAM / SOURCE VIEW';
+    keyHint.innerHTML = hasPartControl()
+      ? '<kbd>←</kbd>/<kbd>→</kbd> swap part &nbsp; <kbd>Space</kbd> next &nbsp; <kbd>Esc</kbd> quit'
+      : '<kbd>Esc</kbd> quit';
     renderShortcuts();
     showAsm(currentPart || 1);
   };
-  if (location.hash === '#atlas') progEl.value = 'ATLAS';
-  progEl.addEventListener('change', () => { label(); try { history.replaceState(null, '', prog() === 'ATLAS' ? '#atlas' : '#mega'); } catch (e) {} if (!startBtn.hidden) return; restartBtn.click(); });
+  const hashProgram = location.hash.slice(1).toUpperCase();
+  if (SHOW_PARTS[hashProgram]) progEl.value = hashProgram;
+  progEl.addEventListener('change', () => { label(); try { history.replaceState(null, '', '#' + prog().toLowerCase()); } catch (e) {} if (!startBtn.hidden) return; restartBtn.click(); });
   label();
   // Keep Space from scrolling the page while the demo has focus.
   window.addEventListener('keydown', e => {
@@ -471,7 +488,12 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     if (document.hidden) midi.pause();
     else if (syncPart) midi.resume();
   });
-  setInterval(() => { if (frames) { say('running · ' + frames + ' fps · ' + syncLabel); frames = 0; } }, 1000);
+  setInterval(() => {
+    if (frames) {
+      say('running · ' + frames + ' fps · ' + (hasPartControl() ? syncLabel : 'native DOS audio'));
+      frames = 0;
+    }
+  }, 1000);
 })();
 </script>
 </body>

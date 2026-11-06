@@ -19,6 +19,8 @@ BANNER_RE = re.compile(
 ASSETS = {
     "MEGA": WEB / "MEGA.COM",
     "ATLAS": WEB / "ATLAS.COM",
+    "UBER70": WEB / "UBER70.COM",
+    "UBERSHOW": WEB / "UBERSHOW.COM",
     "font": WEB / "main.ttf",
     "wasm": WEB / "main.wasm",
     "main_js": WEB / "main.js",
@@ -53,7 +55,7 @@ def build(output: pathlib.Path) -> None:
         raise SystemExit("web/index.html or web/midi.js is not safe for deterministic inlining")
 
     payload = {
-        "COM": {"MEGA": encoded(ASSETS["MEGA"]), "ATLAS": encoded(ASSETS["ATLAS"])},
+        "COM": {name: encoded(ASSETS[name]) for name in ("MEGA", "ATLAS", "UBER70", "UBERSHOW")},
         "TTF": encoded(ASSETS["font"]),
         "WASM": encoded(ASSETS["wasm"]),
         "MAIN_JS": encoded(ASSETS["main_js"]),
@@ -66,6 +68,10 @@ def build(output: pathlib.Path) -> None:
             for path in sorted((ROOT / "src").glob("*.asm"))
         },
     }
+    payload["ASM"].update({
+        "UBER70": (ROOT / "archive" / "uber256-megademo" / "intro256.asm").read_text(encoding="utf-8"),
+        "UBERSHOW": (ROOT / "archive" / "uber256-megademo" / "showcase.asm").read_text(encoding="utf-8"),
+    })
     bootstrap = (
         "<script>\n"
         f"window.EMBEDDED_COM={json_for_script(payload['COM'])};\n"
@@ -104,6 +110,10 @@ def verify(output: pathlib.Path) -> None:
         path.stem.upper(): path.read_text(encoding="utf-8")
         for path in sorted((ROOT / "src").glob("*.asm"))
     }
+    expected_asm.update({
+        "UBER70": (ROOT / "archive" / "uber256-megademo" / "intro256.asm").read_text(encoding="utf-8"),
+        "UBERSHOW": (ROOT / "archive" / "uber256-megademo" / "showcase.asm").read_text(encoding="utf-8"),
+    })
     if embedded.get("EMBEDDED_ASM") != expected_asm:
         raise SystemExit("Invalid standalone HTML: assembly source map mismatch")
 
@@ -133,6 +143,8 @@ def verify(output: pathlib.Path) -> None:
     checks = {
         "MEGA.COM": f'"MEGA":"{encoded(ASSETS["MEGA"])}"',
         "ATLAS.COM": f'"ATLAS":"{encoded(ASSETS["ATLAS"])}"',
+        "UBER70.COM": f'"UBER70":"{encoded(ASSETS["UBER70"])}"',
+        "UBERSHOW.COM": f'"UBERSHOW":"{encoded(ASSETS["UBERSHOW"])}"',
         "main.wasm": f'window.EMBEDDED_WASM="{encoded(ASSETS["wasm"])}"',
         "main.js": f'window.EMBEDDED_MAIN_JS="{encoded(ASSETS["main_js"])}"',
         "main.ttf": f'window.EMBEDDED_TTF="{encoded(ASSETS["font"])}"',

@@ -9,7 +9,7 @@
   const HZ = 1193182 / 65536;
   const SCHEDULE_AHEAD = 0.03;
   const ATLAS_PROGRAMS = [10, 11, 12, 13, 9, 15, 24, 25, 26, 27, 28, 29, 30, 31, 45, 46, 104, 105, 106, 107, 108, 114, 115, 116, 117, 118, 119];
-  const MEGA_PROGRAMS = [46, 108, 9, 45, 11, 12, 24, 114, 10, 9, 8, 10, 4];
+  const MEGA_PROGRAMS = [46, 108, 9, 45, 11, 12, 24, 114, 10, 9, 8, 10, 98, 81, 4];
 
   function penta(value) {
     const v = value & 254;

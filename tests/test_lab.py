@@ -373,10 +373,24 @@ notes = music("ROOTS", r, 114)
 check(all(b[0] - a[0] == 1 for a, b in zip(notes, notes[1:])), "ROOTS: steel drums on every tick, playing T (the patched coefficient) as a pentatonic line")
 leaves("ROOTS", Run("ROOTS.COM"))
 
+for name, program in (("MOIRE", 98), ("ROTOZOOM", 81)):
+    print(f"\n== {name} ==")
+    r = Run(name + ".COM").frames(3); common(name, r)
+    palette = r.dac()[:768]
+    check(all(palette[3*i:3*i+3] == [i & 63, (2*i) & 63, (4*i) & 63] for i in range(256)),
+          f"{name}: dense streamed palette i -> (i, 2i, 4i) in the DAC's six bits")
+    s1 = r.screen()[:64000]; r.frames(8); s2 = r.screen()[:64000]
+    check(len(set(s1)) > 64 and sum(a != b for a, b in zip(s1, s2)) > 10000,
+          f"{name}: full-colour animated 320x200 field")
+    notes = mel(music(name, r, program))
+    check(notes and all(t % 2 == 0 for t, _, _, _ in notes),
+          f"{name}: synchronized pentatonic lead every other BIOS tick")
+    leaves(name, Run(name + ".COM"), 2)
+
 print("\n== MEGA ==")
 def mega_run(esc_after=None):
     r = Run("MEGA.COM"); steps = 0
-    while not r.exited and steps < 1500:
+    while not r.exited and steps < 1800:
         r.step(3_000_000); r.tick(30); steps += 1
         if esc_after is not None and steps == esc_after: r.p60 = 1
     return r
@@ -384,16 +398,16 @@ r = mega_run()
 seq = []
 for ch, p in r.programs():
     if not seq or seq[-1] != p: seq.append(p)
-order = [46, 108, 9, 45, 11, 12, 24, 114, 10, 9, 8, 10, 4]
+order = [46, 108, 9, 45, 11, 12, 24, 114, 10, 9, 8, 10, 98, 81, 4]
 chimes = sum(1 for ch, p in r.programs() if p == 14)
-check(chimes == 15, f"MEGA: a chime (tubular bells) on each of the 15 title cards ({chimes})")
+check(chimes == 17, f"MEGA: a chime (tubular bells) on each of the 17 title cards ({chimes})")
 seq = [p for p in seq if p != 14]
-check(seq == order, f"MEGA: its thirteen parts play, in order: FLOWTEX, SELFTEX, GOLDTEX, ORDER, GALAXY, CLIFF, FIRE, ROOTS, CAUSAL, PHASE, JULIA, LATCH, WARP (programs {seq})")
+check(seq == order, f"MEGA: its fifteen parts play in order, including merged MOIRE and ROTOZOOM (programs {seq})")
 modes = [a for n, a in r.ints if n == 0x10 and a >> 8 == 0]
-check(modes.count(0x13) == 14 and 0x0D in modes and modes[-3:] == [3, 0x13, 3],
-      "MEGA: mode 13h set at start, by eleven mode-13h parts and for two cards; LATCH uses mode 0Dh; credits and exit use text mode")
+check(modes.count(0x13) == 16 and 0x0D in modes and modes[-3:] == [3, 0x13, 3],
+      "MEGA: mode 13h includes MOIRE and ROTOZOOM; LATCH uses mode 0Dh; credits and exit use text mode")
 hooks = [v for v in r.vec_sets if v[0] == 0x1C]
-check(len(hooks) == 26 and r.vector(0x1C) == BIOS_1C, "MEGA: each part hooks the timer and puts it back (13 hooks, 13 unhooks); the BIOS handler is in place at the end")
+check(len(hooks) == 30 and r.vector(0x1C) == BIOS_1C, "MEGA: each part hooks and restores the timer (15 hooks, 15 unhooks)")
 pel = [v for p, v in r.outs if p == 0x3C6]
 opens, masked = [], False
 for i, (p, v) in enumerate(r.outs):                  # the first opening of the mask after each part starts masked
@@ -402,17 +416,17 @@ for i, (p, v) in enumerate(r.outs):                  # the first opening of the 
 def first_step(i):                                   # the 768 DAC values written just before the PEL mask opens
     vals = [v for p, v in r.outs[max(0, i - 2000):i] if p == 0x3C9]
     return vals[-768:]
-check(pel.count(0) == 13 and len(opens) == 13 and all(len(first_step(i)) == 768 and max(first_step(i)) <= 2 for i in opens),
+check(pel.count(0) == 15 and len(opens) == 15 and all(len(first_step(i)) == 768 and max(first_step(i)) <= 2 for i in opens),
       "MEGA: every part starts masked (PEL mask 0) and fades in from black: its first palette is written at 1/32 brightness")
 idx = [v for p, v in r.outs if p == 0x3C8]
-check(idx.count(224) == 15, f"MEGA: every one of the 15 cards burns in and out ({idx.count(224)})")
-check(idx.count(128) >= 15 + 11, f"MEGA: all eleven mode-13h parts drain to sepia ({idx.count(128)} ramp writes)")
+check(idx.count(224) == 17, f"MEGA: every one of the 17 cards burns in and out ({idx.count(224)})")
+check(idx.count(128) >= 17 + 13, f"MEGA: all thirteen mode-13h parts drain to sepia ({idx.count(128)} ramp writes)")
 text = bytes(r.uc.mem_read(0xB8000, 4000))[0::2]
 check(b"M E G A D E M O" in text and b"djayuffe" in text, "MEGA: WARP bends the credits, which the megademo wrote to the text screen")
 credit_rows = [text[i:i + 80].strip(b" \x00") for i in range(0, 2000, 80)]
 check(b"FLOWTEX SELFTEX GOLDTEX ORDER GALAXY CLIFF FIRE ROOTS CAUSAL PHASE" in credit_rows
-      and b"JULIA LATCH WARP" in credit_rows,
-      "MEGA: all thirteen names wrap at word boundaries onto centred credits rows")
+      and b"JULIA LATCH MOIRE ROTOZOOM WARP" in credit_rows,
+      "MEGA: all fifteen names wrap at word boundaries onto centred credits rows")
 check(r.exited and not r.unmapped, "MEGA: returns to DOS at the end, touching only its segments and video RAM")
 r = Run("MEGA.COM"); steps = 0                      # Space: on to the next part, without waiting for its time
 while 46 not in [p for ch, p in r.programs()] and steps < 200:

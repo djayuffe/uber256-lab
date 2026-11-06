@@ -4,7 +4,7 @@ const fs = require('fs');
 const { HZ, SCHEDULE_AHEAD, ATLAS_PROGRAMS, MEGA_PROGRAMS, penta, visualNote, programme, MidiSequence } = require('../web/midi.js');
 
 assert.strictEqual(ATLAS_PROGRAMS.length, 27);
-assert.strictEqual(MEGA_PROGRAMS.length, 13);
+assert.strictEqual(MEGA_PROGRAMS.length, 15);
 assert.deepStrictEqual([...new Set(ATLAS_PROGRAMS)], ATLAS_PROGRAMS);
 assert(Math.abs(HZ - 18.206512451171875) < 1e-12);
 assert(SCHEDULE_AHEAD <= 0.03);
@@ -32,6 +32,10 @@ for (const show of ['MEGA', 'ATLAS']) {
     `${show}.COM release binary must not contain the web sync channel`);
   assert(fs.readFileSync(`web/${show}.COM`).includes(Buffer.from('UBSYNC')),
     `web/${show}.COM must contain the signed sync record`);
+}
+for (const show of ['UBER70', 'UBERSHOW']) {
+  assert(fs.readFileSync(`${show}.COM`).equals(fs.readFileSync(`web/${show}.COM`)),
+    `web/${show}.COM must be the exact preserved DOS binary`);
 }
 const player = fs.readFileSync('web/index.html', 'utf8');
 for (const token of ['id="prev"', 'id="next"', 'id="shortcutGrid"', 'id="codePanel"', 'highlightAsm', 'ArrowLeft', 'ArrowRight', 'EMBEDDED_THUMBNAILS'])
