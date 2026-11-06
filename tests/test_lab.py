@@ -377,11 +377,13 @@ for name, program in (("MOIRE", 98), ("ROTOZOOM", 81)):
     print(f"\n== {name} ==")
     r = Run(name + ".COM").frames(3); common(name, r)
     palette = r.dac()[:768]
-    check(all(palette[3*i:3*i+3] == [i & 63, (2*i) & 63, (4*i) & 63] for i in range(256)),
-          f"{name}: dense streamed palette i -> (i, 2i, 4i) in the DAC's six bits")
+    expected_palette = [component & 255 for i in range(256) for component in (i, 2*i, 4*i)]
+    check(palette == expected_palette,
+          f"{name}: streams palette i -> (i, 2i, 4i); VGA DAC keeps each component's low six bits ({len(palette)} writes)")
     s1 = r.screen()[:64000]; r.frames(8); s2 = r.screen()[:64000]
-    check(len(set(s1)) > 64 and sum(a != b for a, b in zip(s1, s2)) > 10000,
-          f"{name}: full-colour animated 320x200 field")
+    unique = len(set(s1)); changed = sum(a != b for a, b in zip(s1, s2))
+    check(unique > 64 and changed > 10000,
+          f"{name}: full-colour animated 320x200 field ({unique} indices, {changed} changed pixels)")
     notes = mel(music(name, r, program))
     check(notes and all(t % 2 == 0 for t, _, _, _ in notes),
           f"{name}: synchronized pentatonic lead every other BIOS tick")
