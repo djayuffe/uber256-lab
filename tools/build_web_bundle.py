@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import json
 import pathlib
@@ -106,6 +107,19 @@ def verify(output: pathlib.Path) -> None:
 
     assignment_re = re.compile(r"^window\.([A-Z_]+)=(.*);$", re.MULTILINE)
     embedded = {name: json.loads(value) for name, value in assignment_re.findall(html)}
+    embedded_com = embedded.get("EMBEDDED_COM", {})
+    for name in ("MEGA", "ATLAS", "UBER70", "UBERSHOW"):
+        value = embedded_com.get(name)
+        if not isinstance(value, str) or not value:
+            raise SystemExit(f"Invalid standalone HTML: missing embedded {name}.COM")
+        try:
+            binary = base64.b64decode(value, validate=True)
+        except (ValueError, binascii.Error) as error:
+            raise SystemExit(f"Invalid standalone HTML: corrupt embedded {name}.COM") from error
+        if not binary:
+            raise SystemExit(f"Invalid standalone HTML: empty embedded {name}.COM")
+        if ASSETS[name].is_file() and value != encoded(ASSETS[name]):
+            raise SystemExit(f"Invalid standalone HTML: embedded {name}.COM mismatch")
     expected_asm = {
         path.stem.upper(): path.read_text(encoding="utf-8")
         for path in sorted((ROOT / "src").glob("*.asm"))
@@ -141,10 +155,6 @@ def verify(output: pathlib.Path) -> None:
         flags=re.IGNORECASE,
     )
     checks = {
-        "MEGA.COM": f'"MEGA":"{encoded(ASSETS["MEGA"])}"',
-        "ATLAS.COM": f'"ATLAS":"{encoded(ASSETS["ATLAS"])}"',
-        "UBER70.COM": f'"UBER70":"{encoded(ASSETS["UBER70"])}"',
-        "UBERSHOW.COM": f'"UBERSHOW":"{encoded(ASSETS["UBERSHOW"])}"',
         "main.wasm": f'window.EMBEDDED_WASM="{encoded(ASSETS["wasm"])}"',
         "main.js": f'window.EMBEDDED_MAIN_JS="{encoded(ASSETS["main_js"])}"',
         "main.ttf": f'window.EMBEDDED_TTF="{encoded(ASSETS["font"])}"',
