@@ -1,5 +1,22 @@
 # uber256-lab
 
+[![CI](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml)
+[![GitHub Pages](https://github.com/djayuffe/uber256-lab/actions/workflows/pages.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/pages.yml)
+[![Latest release](https://img.shields.io/github/v/release/djayuffe/uber256-lab?display_name=tag)](https://github.com/djayuffe/uber256-lab/releases/latest)
+
+Forty audiovisual DOS intros in 256 bytes or less, two continuous shows, and a
+self-contained browser edition with synchronized Web Audio music. Everything is
+generated from 16-bit real-mode code: pixels, palettes, motion and MIDI.
+
+### [▶ Play UBER256 Lab online](https://djayuffe.github.io/uber256-lab/)
+
+| Run mode | Command or link | Result |
+|---|---|---|
+| Browser | [Launch the live demo](https://djayuffe.github.io/uber256-lab/) | MEGA/ATLAS, fullscreen, synchronized music; no installation |
+| One offline file | [`dist/uber256-lab.html`](dist/uber256-lab.html) | Complete player with COM, JavaScript, Wasm and font embedded |
+| Native DOSBox | `./run-dosbox.sh mega` | Exact MPU-401 MIDI stream from the DOS program |
+| Local web development | `./run-web.sh` | Modular player at `http://localhost:8256/` |
+
 ## Continuous atlas show
 
 All 27 atlas effects now play automatically in **ATLAS.COM**, with timed parts,
@@ -53,8 +70,6 @@ contains thirteen parts. See [temporal formulas, captures and tests](docs/TEMPOR
 ![Temporal phase interference](docs/phase-atlas.png)
 
 **The original thirteen DOS demos, each at most 256 bytes with generated music:** two strange attractors and a Chladni plate on the x87 FPU, a framebuffer-feedback fire, an integer-only Julia set, a picture animated only by the CRT controller, a cellular automaton computed by the VGA's own logic unit, the DOS screen warped by two CRTC registers, a picture made only of orderings, the migrating roots of a polynomial, a river, a field of golden blocks and slow satin flows made of the program's own machine code. The twenty-seven atlas adaptations above bring the standalone collection to forty.
-
-[![CI](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/djayuffe/uber256-lab/actions/workflows/ci.yml)
 
 ![All thirteen demos in DOSBox: GALAXY, CLIFF, CHLADNI, FIRE, JULIA, SELFTEX, ESCHER, LATCH, WARP, ORDER, ROOTS, GOLDTEX and FLOWTEX](docs/gallery.jpg)
 
@@ -146,16 +161,16 @@ Or build from source (needs [NASM](https://www.nasm.us/); on macOS `brew install
 ./run-dosbox.sh mega    # thirteen parts with titles, fades and credits
 ```
 
-**In the browser:** `./run-web.sh` builds, copies `MEGA.COM` and `ATLAS.COM` into [`web/`](web/) and serves it on
+**In the browser:** `./run-web.sh` builds the web-specific `MEGA.COM` and `ATLAS.COM` variants and serves [`web/`](web/) on
 `http://localhost:8256/`, where [DOS Wasm X](https://github.com/nbarkhina/DosWasmX) (DOSBox-X compiled to
 WebAssembly, MIT, its `main.js`/`main.wasm` vendored in `web/`) boots straight into the chosen show at `cycles=max`,
 70 frames a second in Chromium. Pick MEGA or ATLAS under the screen (`#atlas` in the URL preselects it); Space and Esc
 work as in DOSBox. Because the vendored Wasm core has no host MIDI backend, `web/midi.js` provides an honest browser
-companion score: it samples the live framebuffer on an 18.2 Hz clock and reproduces the atlas lead/response, effect
+companion score: it samples the live framebuffer on the exact PIT-derived 18.206512 Hz BIOS clock and reproduces the atlas lead/response, effect
 voices, bass, root/fifth harmony and drums through Web Audio. The player includes live volume/mute controls and pauses
-its scheduler when the tab is hidden. Web-specific COM builds signal every real card and part boundary through DOSBox's
-in-memory filesystem, so timed transitions, show changes and Space skips remain synchronized instead of relying on a
-wall-clock estimate. Native DOSBox still plays the exact MPU-401 stream. See the
+its scheduler when the tab is hidden. Web-specific COM builds update a signed `UBSYNC` transition record in emulated
+DOS memory; the page reads it from the Wasm heap, so cards, timed transitions and Space skips remain synchronized
+instead of relying on a wall-clock estimate. Native DOSBox still plays the exact MPU-401 stream. See the
 [browser MIDI architecture](docs/WEB_MIDI.md) for the exact data flow, limitations and extension points.
 
 **As one portable file:** `./build-web-standalone.sh` writes `dist/uber256-lab.html`. The player, MIDI engine,
@@ -164,7 +179,8 @@ directly from disk; it needs neither a web server nor a network connection. CI p
 and tagged releases attach it alongside the native `.COM` files.
 
 **Play online:** [djayuffe.github.io/uber256-lab](https://djayuffe.github.io/uber256-lab/) serves that exact integrated
-HTML through GitHub Pages. A dedicated workflow republishes it whenever the bundled file changes on `master`.
+HTML through HTTPS on GitHub Pages. The least-privilege Pages workflow republishes it whenever the bundled file changes
+on `master`; the deployed page is therefore the same artifact that can be opened offline.
 
 **Esc** quits each demo cleanly (with several, it starts the next one, each in a fresh DOSBox so a held Esc cannot skip one): it restores text mode 3, puts the timer vector back and returns to DOS (JULIA draws
 about thirteen frames a second, so hold Esc for a moment). `DOSBOX.CONF` sets `cycles=max` and spells out DOSBox's default
@@ -1038,7 +1054,9 @@ add a section to `CHANGELOG.md` and push a tag:
 git tag v2.0.0 && git push origin v2.0.0
 ```
 
-The release workflow rebuilds, re-tests, and attaches the `.COM` files, `SHA256SUMS` and the gallery image, with that section as the notes.
+The release workflow rebuilds, re-tests, and attaches the `.COM` files, `SHA256SUMS`, gallery image and self-contained
+`uber256-lab.html`, with that section as the notes. The separate Pages workflow copies the tracked integrated HTML to
+`index.html` and deploys it to [the live site](https://djayuffe.github.io/uber256-lab/).
 
 ## Limitations
 
@@ -1083,6 +1101,7 @@ run-dosbox.sh       DOSBox launcher: demos, patterns, groups, both shows, help a
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
 web/index.html      browser player, framebuffer bridge, show controls and Web Audio integration
 web/midi.js         tested, dependency-free browser MIDI sequencer and synthesizer
+dist/uber256-lab.html  tracked, self-contained offline player deployed by GitHub Pages
 tests/emu.py        the emulated DOS PC: CPU, IVT, timer tick, retrace, MPU-401 capture, the video mode
 tests/test_lab.py   original demos and thirteen-part MEGA regression checks
 tests/test_atlas_show.py  playlist-driven atlas show, credits, Space and Escape
@@ -1095,7 +1114,7 @@ tools/build_web_bundle.py  embeds and verifies every browser runtime asset
 docs/               DOSBox screenshots, GIFs, MP4 recordings with sound, the showreel
 docs/music/         the MIDI each demo sent during its recording
 CHANGELOG.md        release notes
-.github/workflows/  CI and tag-driven releases
+.github/workflows/  CI, GitHub Pages deployment and tag-driven releases
 ```
 
 ## Related
