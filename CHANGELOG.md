@@ -10,6 +10,9 @@
   part timing with a web-only signed emulated-memory transition channel and use the exact PIT-derived
   BIOS clock, keeping cards, timed changes and Space skips synchronized. Make rerun/show
   switching load a clean emulator instance instead of queuing commands behind an active COM.
+- Add `build-web-standalone.sh`: it generates a verified, serverless HTML containing
+  both shows, the MIDI engine, font, DOSBox JavaScript and Wasm core. Publish it from
+  CI and attach it to tagged releases.
 - Add a browser player: `web/` runs MEGA.COM or ATLAS.COM in DOS Wasm X (DOSBox-X in
   WebAssembly, vendored MIT build) at max cycles, with a show picker, fullscreen and rerun;
   `./run-web.sh` builds, copies both shows into `web/` and serves it locally.

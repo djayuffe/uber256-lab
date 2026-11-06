@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>UBER256 Megademo</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0b08'/%3E%3Cpath d='M7 7v12c0 8 18 8 18 0V7h-5v12c0 3-8 3-8 0V7z' fill='%23e0b453'/%3E%3C/svg%3E">
 <!-- web player: DOS Wasm X (github.com/nbarkhina/DosWasmX, MIT) runs MEGA.COM / ATLAS.COM.
      ./run-web.sh builds, copies the .COMs here and serves this folder; any static server works. -->
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -176,6 +177,12 @@ p.note { margin: 0; color: var(--dim); font-size: 12px; max-width: 70ch; }
     } catch (e) { console.log('audio', e); }
   }
 
+  function embeddedBytes(base64) {
+    const raw = atob(base64), bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    return bytes;
+  }
+
   // WEB_SYNC builds update "UBSYNC" + event/state in their own emulated memory.
   // This follows DOS execution (including Space skips) instead of estimating time.
   function scanSyncRecords(heap) {
@@ -221,16 +228,18 @@ p.note { margin: 0; color: var(--dim); font-size: 12px; max-width: 70ch; }
     startBtn.querySelector('b').textContent = 'LOADING';
     say('loading');
     const getCom = n => window.EMBEDDED_COM && window.EMBEDDED_COM[n]
-      ? Promise.resolve(Uint8Array.from(atob(window.EMBEDDED_COM[n]), c => c.charCodeAt(0)).buffer)
+      ? Promise.resolve(embeddedBytes(window.EMBEDDED_COM[n]).buffer)
       : fetch(n + '.COM?websync=1', { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(n + '.COM missing: run ./run-web.sh'); return r.arrayBuffer(); });
     const [mega, atlas, ttf] = await Promise.all([
       getCom('MEGA'), getCom('ATLAS').catch(() => null),
-      fetch('main.ttf').then(r => r.ok ? r.arrayBuffer() : null).catch(() => null)
+      window.EMBEDDED_TTF ? Promise.resolve(embeddedBytes(window.EMBEDDED_TTF).buffer)
+        : fetch('main.ttf').then(r => r.ok ? r.arrayBuffer() : null).catch(() => null)
     ]);
     say('loading emulator');
     window.Module = {
       noInitialRun: true,
       canvas,
+      wasmBinary: window.EMBEDDED_WASM ? embeddedBytes(window.EMBEDDED_WASM) : undefined,
       print: t => console.log(t),
       printErr: t => console.log(t),
       onRuntimeInitialized() {
@@ -249,7 +258,8 @@ p.note { margin: 0; color: var(--dim); font-size: 12px; max-width: 70ch; }
       }
     };
     const s = document.createElement('script');
-    s.src = 'main.js';
+    if (window.EMBEDDED_MAIN_JS) s.textContent = atob(window.EMBEDDED_MAIN_JS);
+    else s.src = 'main.js';
     s.onerror = () => say('could not load main.js');
     document.body.appendChild(s);
   }

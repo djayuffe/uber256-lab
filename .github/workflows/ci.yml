@@ -11,6 +11,8 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y nasm
       - name: Build (enforces each size budget)
         run: ./build.sh
+      - name: Build self-contained browser player
+        run: ./build-web-standalone.sh
       - name: Behavioural tests (emulated 16-bit CPU)
         run: tests/run_tests.sh
       - uses: actions/upload-artifact@v4
@@ -19,3 +21,4 @@ jobs:
           path: |
             *.COM
             SHA256SUMS
+            dist/uber256-lab.html

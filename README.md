@@ -158,6 +158,11 @@ in-memory filesystem, so timed transitions, show changes and Space skips remain 
 wall-clock estimate. Native DOSBox still plays the exact MPU-401 stream. See the
 [browser MIDI architecture](docs/WEB_MIDI.md) for the exact data flow, limitations and extension points.
 
+**As one portable file:** `./build-web-standalone.sh` writes `dist/uber256-lab.html`. The player, MIDI engine,
+web-specific MEGA/ATLAS binaries, emulator JavaScript, Wasm core and DOS font are embedded in that HTML. Open it
+directly from disk; it needs neither a web server nor a network connection. CI publishes the same file as an artifact,
+and tagged releases attach it alongside the native `.COM` files.
+
 **Esc** quits each demo cleanly (with several, it starts the next one, each in a fresh DOSBox so a held Esc cannot skip one): it restores text mode 3, puts the timer vector back and returns to DOS (JULIA draws
 about thirteen frames a second, so hold Esc for a moment). `DOSBOX.CONF` sets `cycles=max` and spells out DOSBox's default
 MIDI set-up (`mpu401=intelligent`, `mididevice=default`), which is all the music needs: on macOS and Windows DOSBox
@@ -1070,6 +1075,7 @@ src/mega/*_program.inc  playlists shared by metadata generation and binary embed
 src/dos.inc         shared macros: HOOK_TICK, ESC_OR_LOOP, MIDI_START (the last two as far calls in the megademo), PENTA
 src/groove.inc      the rhythm section shared by FIRE, GOLDTEX, LATCH, ORDER and WARP: GM drums + walking bass
 build.sh            NASM build + 256-byte gate + both continuous shows + SHA256SUMS
+build-web-standalone.sh  one-file offline HTML builder
 run-dosbox.sh       DOSBox launcher: demos, patterns, groups, both shows, help and listing
 DOSBOX.CONF         DOSBox settings (cycles=max, MPU-401 MIDI)
 web/index.html      browser player, framebuffer bridge, show controls and Web Audio integration
@@ -1082,6 +1088,7 @@ tests/test_web_midi.js  browser score, instrument boundary and harmony checks
 tools/equiv.py      frame-by-frame comparison of two builds
 tools/cost.py       controlled instruction counts per frame (not hardware timing)
 tools/synth13.py    the mode-13h kernel search (no demo shipped)
+tools/build_web_bundle.py  embeds and verifies every browser runtime asset
 docs/               DOSBox screenshots, GIFs, MP4 recordings with sound, the showreel
 docs/music/         the MIDI each demo sent during its recording
 CHANGELOG.md        release notes

@@ -3,3 +3,5 @@
 SHA256SUMS
 __pycache__/
 build/
+dist/*
+!dist/uber256-lab.html
