@@ -13,6 +13,8 @@
 - Add `build-web-standalone.sh`: it generates a verified, serverless HTML containing
   both shows, the MIDI engine, font, DOSBox JavaScript and Wasm core. Publish it from
   CI and attach it to tagged releases.
+- Publish the integrated HTML at `https://djayuffe.github.io/uber256-lab/` through a
+  least-privilege GitHub Pages workflow.
 - Add a browser player: `web/` runs MEGA.COM or ATLAS.COM in DOS Wasm X (DOSBox-X in
   WebAssembly, vendored MIT build) at max cycles, with a show picker, fullscreen and rerun;
   `./run-web.sh` builds, copies both shows into `web/` and serves it locally.

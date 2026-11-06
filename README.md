@@ -163,6 +163,9 @@ web-specific MEGA/ATLAS binaries, emulator JavaScript, Wasm core and DOS font ar
 directly from disk; it needs neither a web server nor a network connection. CI publishes the same file as an artifact,
 and tagged releases attach it alongside the native `.COM` files.
 
+**Play online:** [djayuffe.github.io/uber256-lab](https://djayuffe.github.io/uber256-lab/) serves that exact integrated
+HTML through GitHub Pages. A dedicated workflow republishes it whenever the bundled file changes on `master`.
+
 **Esc** quits each demo cleanly (with several, it starts the next one, each in a fresh DOSBox so a held Esc cannot skip one): it restores text mode 3, puts the timer vector back and returns to DOS (JULIA draws
 about thirteen frames a second, so hold Esc for a moment). `DOSBOX.CONF` sets `cycles=max` and spells out DOSBox's default
 MIDI set-up (`mpu401=intelligent`, `mididevice=default`), which is all the music needs: on macOS and Windows DOSBox
