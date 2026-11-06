@@ -33,6 +33,9 @@ for (const show of ['MEGA', 'ATLAS']) {
   assert(fs.readFileSync(`web/${show}.COM`).includes(Buffer.from('UBSYNC')),
     `web/${show}.COM must contain the signed sync record`);
 }
+const player = fs.readFileSync('web/index.html', 'utf8');
+for (const token of ['id="prev"', 'id="next"', 'id="shortcutGrid"', 'ArrowLeft', 'ArrowRight', 'EMBEDDED_THUMBNAILS'])
+  assert(player.includes(token), `browser control missing: ${token}`);
 
 const atlas = new MidiSequence('ATLAS', 5);
 let events = [];

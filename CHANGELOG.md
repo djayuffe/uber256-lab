@@ -15,6 +15,9 @@
   CI and attach it to tagged releases.
 - Publish the integrated HTML at `https://djayuffe.github.io/uber256-lab/` through a
   least-privilege GitHub Pages workflow.
+- Add a responsive thumbnail shortcut panel, previous/next controls and ←/→ navigation.
+  Browser commands travel through the signed Wasm-memory bridge so direct jumps remain
+  synchronized with DOS cards, visuals, instrument selection and the 18.206512 Hz score.
 - Add a browser player: `web/` runs MEGA.COM or ATLAS.COM in DOS Wasm X (DOSBox-X in
   WebAssembly, vendored MIT build) at max cycles, with a show picker, fullscreen and rerun;
   `./run-web.sh` builds, copies both shows into `web/` and serves it locally.

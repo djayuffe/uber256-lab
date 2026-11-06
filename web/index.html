@@ -59,6 +59,20 @@ canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; 
 .volume { display: inline-flex; align-items: center; gap: 7px; }
 #midiVolume { width: 90px; accent-color: var(--gold); }
 .controls button:disabled { opacity: .4; cursor: default; }
+.panel { background: var(--bezel); border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; }
+.panel summary { cursor: pointer; color: var(--gold); font: 400 13px/1 var(--display); letter-spacing: .04em; padding: 12px 14px; }
+.panel summary span { color: var(--dim); font: 11px/1 var(--mono); margin-left: 10px; }
+.shortcut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; max-height: 280px; overflow: auto; padding: 0 12px 12px; }
+.shortcut {
+  position: relative; min-height: 74px; overflow: hidden; cursor: pointer; border: 1px solid var(--edge); border-radius: 5px;
+  background-color: #16110b; background-position: center; background-size: cover; color: white; text-align: left; padding: 0;
+}
+.shortcut::after { content: ''; position: absolute; inset: 40% 0 0; background: linear-gradient(transparent, rgba(0,0,0,.92)); }
+.shortcut span { position: absolute; z-index: 1; left: 7px; right: 7px; bottom: 5px; font: 500 11px/1 var(--mono); text-shadow: 0 1px 2px #000; }
+.shortcut b { color: var(--gold); font-weight: 500; margin-right: 4px; }
+.shortcut:hover { border-color: var(--gold); }
+.shortcut[aria-current="true"] { border: 2px solid var(--gold); box-shadow: 0 0 0 1px #000, 0 0 12px #e0b45366; }
+.shortcut:disabled { filter: grayscale(.7); opacity: .55; cursor: default; }
 kbd { font: 500 11px/1 var(--mono); border: 1px solid var(--edge); border-bottom-width: 2px; border-radius: 3px; padding: 2px 5px; color: var(--fg); }
 #status { color: var(--dim); font-size: 12px; margin-left: auto; font-variant-numeric: tabular-nums; min-width: 0; }
 p.note { margin: 0; color: var(--dim); font-size: 12px; max-width: 70ch; }
@@ -81,13 +95,19 @@ p.note { margin: 0; color: var(--dim); font-size: 12px; max-width: 70ch; }
   <div class="controls">
     <label for="prog" class="pick">Show</label>
     <select id="prog"><option value="MEGA">MEGA.COM, the megademo</option><option value="ATLAS">ATLAS.COM, the atlas show</option></select>
+    <button id="prev" type="button" disabled aria-label="Previous part">← Prev</button>
+    <button id="next" type="button" disabled aria-label="Next part">Next →</button>
     <button id="fs" type="button" disabled>Fullscreen</button>
     <button id="restart" type="button" disabled>Run MEGA.COM</button>
     <label class="volume pick" for="midiVolume">Music <input id="midiVolume" type="range" min="0" max="100" value="68" aria-label="Browser MIDI volume"></label>
     <button id="mute" type="button" disabled>Mute</button>
-    <span><kbd>Space</kbd> next part &nbsp; <kbd>Esc</kbd> quit</span>
+    <span><kbd>←</kbd>/<kbd>→</kbd> swap part &nbsp; <kbd>Space</kbd> next &nbsp; <kbd>Esc</kbd> quit</span>
     <span id="status">idle</span>
   </div>
+  <details class="panel" id="shortcuts" open>
+    <summary>Part shortcuts <span>thumbnail menu · click any effect</span></summary>
+    <div class="shortcut-grid" id="shortcutGrid" aria-label="Part shortcuts"></div>
+  </details>
   <p class="note">The 256-byte intros with title cards, burning wipes and credits run in DOS Wasm X at max cycles. A Web Audio MIDI companion follows explicit DOS part markers and samples the live framebuffer on the exact 18.2065 Hz BIOS clock, with effect voices, octave response, bass, harmony and drums.</p>
 </main>
 
@@ -100,12 +120,36 @@ p.note { margin: 0; color: var(--dim); font-size: 12px; max-width: 70ch; }
   const startBtn = document.getElementById('start');
   const fsBtn = document.getElementById('fs');
   const restartBtn = document.getElementById('restart');
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+  const shortcutGrid = document.getElementById('shortcutGrid');
   const volumeEl = document.getElementById('midiVolume');
   const muteBtn = document.getElementById('mute');
   const say = t => { statusEl.textContent = t; };
   let fw = 640, fh = 400, img = null, frames = 0, audio = null, midi = null;
   let syncEvent = -1, syncPart = 0, syncLabel = 'waiting for DOS sync';
   let syncOffsets = [], syncValues = new Map(), syncHeapLength = 0, lastSyncScan = 0;
+  let activeSyncOffset = -1, currentPart = 0;
+
+  const SHOW_PARTS = {
+    MEGA: [
+      ['FLOWTEX','flowtex.jpg'], ['SELFTEX','selftex.jpg'], ['GOLDTEX','gallery.jpg'], ['ORDER','order.jpg'],
+      ['GALAXY','galaxy-early.jpg'], ['CLIFF','cliff.jpg'], ['FIRE','fire.jpg'], ['ROOTS','roots.jpg'],
+      ['CAUSAL','causal-atlas.png'], ['PHASE','phase-atlas.png'], ['JULIA','julia-a.jpg'],
+      ['LATCH','latch-a.jpg'], ['WARP','warp-a.jpg']
+    ],
+    ATLAS: [
+      ['CAUSAL','causal-atlas.png'], ['TIMELENS','timelens-atlas.png'], ['HORIZON','horizon-atlas.png'],
+      ['EMBOSS','emboss-atlas.png'], ['PHASE','phase-atlas.png'], ['SURGERY','surgery-atlas.png'],
+      ['COMMUTE','commute-atlas.png'], ['BRACKET','bracket-atlas.png'], ['MIRROR','mirror-atlas.png'],
+      ['SIGNED','signed-atlas.png'], ['RESFIELD','resfield-atlas.png'], ['TERRACE','terrace-atlas.png'],
+      ['RESIDUAL','residual-atlas.png'], ['BIFURC','bifurc-atlas.png'], ['CRITICAL','critical-atlas.png'],
+      ['HYSTER','hyster-atlas.png'], ['LOOM','loom-atlas.png'], ['LIFT','lift-atlas.png'],
+      ['REVERSO','reverso-atlas.png'], ['ORBIT','orbit-atlas.png'], ['RUNS','runs-atlas.png'],
+      ['BYTEVM','bytevm-atlas.png'], ['SHUFFLE','shuffle-atlas.png'], ['BALLOT','ballot-atlas.png'],
+      ['PREFIX','prefix-atlas.png'], ['RANK','rank-atlas.png'], ['RING','ring-atlas.png']
+    ]
+  };
 
   const conf = [
     '[sdl]', 'autolock=false', 'showdetails=false', 'showmenu=false',
@@ -205,20 +249,23 @@ p.note { margin: 0; color: var(--dim); font-size: 12px; max-width: 70ch; }
     for (const offset of syncOffsets) {
       const event = heap[offset], state = heap[offset + 1], previous = syncValues.get(offset);
       syncValues.set(offset, event);
-      if (event && event !== previous) transition = [event, state];
+      if (event && event !== previous) transition = [event, state, offset];
     }
     if (!transition || transition[0] === syncEvent) return;
     syncEvent = transition[0]; syncPart = transition[1];
+    if (activeSyncOffset < 0) activeSyncOffset = transition[2];
     {
       if (!syncPart) {
         syncLabel = 'card · synced chime';
         midi.enterCard(!document.hidden);
       }
       else {
+        currentPart = syncPart;
         syncLabel = 'part ' + syncPart + ' · synced MIDI';
         midi.enterPart(prog(), syncPart - 1);
         if (!document.hidden) midi.resume();
       }
+      updateShortcutState();
     }
   }
   setInterval(pollSync, 10);
@@ -252,6 +299,7 @@ p.note { margin: 0; color: var(--dim); font-size: 12px; max-width: 70ch; }
         FS.writeFile('config.txt', '0\r\n0\r\n0\r\n0\r\n0\r\n0\r\n0\r\n');
         startBtn.hidden = true;
         fsBtn.disabled = false; restartBtn.disabled = false; muteBtn.disabled = false;
+        prevBtn.disabled = false; nextBtn.disabled = false; renderShortcuts();
         canvas.focus();
         say('running · browser MIDI on');
         Module.callMain();
@@ -291,15 +339,56 @@ p.note { margin: 0; color: var(--dim); font-size: 12px; max-width: 70ch; }
   });
   const progEl = document.getElementById('prog');
   const prog = () => progEl.value;
+  const thumb = image => window.EMBEDDED_THUMBNAILS && window.EMBEDDED_THUMBNAILS[image]
+    ? window.EMBEDDED_THUMBNAILS[image] : '../docs/' + image;
+  function updateShortcutState() {
+    for (const button of shortcutGrid.querySelectorAll('.shortcut'))
+      button.setAttribute('aria-current', +button.dataset.part === currentPart ? 'true' : 'false');
+  }
+  function renderShortcuts() {
+    shortcutGrid.textContent = '';
+    SHOW_PARTS[prog()].forEach(([name, image], index) => {
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'shortcut'; button.dataset.part = index + 1;
+      button.disabled = !startBtn.hidden; button.title = 'Jump to part ' + (index + 1) + ': ' + name;
+      button.style.backgroundImage = 'url("' + thumb(image) + '")';
+      button.innerHTML = '<span><b>' + String(index + 1).padStart(2, '0') + '</b>' + name + '</span>';
+      button.addEventListener('click', () => goPart(index + 1));
+      shortcutGrid.appendChild(button);
+    });
+    updateShortcutState();
+  }
+  function goPart(part) {
+    const heap = window.Module && Module.HEAPU8;
+    if (!heap || activeSyncOffset < 0) return;
+    const count = SHOW_PARTS[prog()].length;
+    part = ((part - 1) % count + count) % count + 1;
+    heap[activeSyncOffset + 2] = part;
+    syncLabel = 'jumping to part ' + part;
+    canvas.focus();
+  }
+  function movePart(delta) {
+    const count = SHOW_PARTS[prog()].length;
+    goPart(currentPart ? currentPart + delta : (delta > 0 ? 1 : count));
+  }
+  prevBtn.addEventListener('click', () => movePart(-1));
+  nextBtn.addEventListener('click', () => movePart(1));
   const label = () => {
     document.getElementById('startsub').textContent = 'loads the emulator, then runs ' + prog() + '.COM with browser MIDI';
     restartBtn.textContent = 'Reload ' + prog() + '.COM';
+    renderShortcuts();
   };
   if (location.hash === '#atlas') progEl.value = 'ATLAS';
   progEl.addEventListener('change', () => { label(); try { history.replaceState(null, '', prog() === 'ATLAS' ? '#atlas' : '#mega'); } catch (e) {} if (!startBtn.hidden) return; restartBtn.click(); });
   label();
   // Keep Space from scrolling the page while the demo has focus.
-  window.addEventListener('keydown', e => { if (e.code === 'Space' && !startBtn.hidden) return; if (e.code === 'Space') e.preventDefault(); });
+  window.addEventListener('keydown', e => {
+    if (!startBtn.hidden && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) {
+      e.preventDefault(); movePart(e.code === 'ArrowLeft' ? -1 : 1); return;
+    }
+    if (e.code === 'Space' && !startBtn.hidden) return;
+    if (e.code === 'Space') e.preventDefault();
+  });
   document.addEventListener('visibilitychange', () => {
     if (!midi) return;
     if (document.hidden) midi.pause();

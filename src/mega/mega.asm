@@ -48,6 +48,7 @@ ORG 100h
     mov [bgph],ax
 %ifdef WEB_SYNC
     call sync_open             ; web build: expose card/part transitions in emulated memory
+    mov [web_target],al
 %endif
     mov si,parts              ; count the parts
     xor bx,bx
@@ -84,6 +85,15 @@ ORG 100h
     mov cl,200                ; held longer
     call card
     jc quit
+%ifdef WEB_SYNC
+    mov al,[web_target]
+    test al,al
+    jz .first
+    call select_part
+    mov byte [web_target],0
+    jmp .next
+.first:
+%endif
     mov bx,parts
 .next:                        ; BX -> a part: dw code, dw length, db seconds, then the card's three lines
     push bx
@@ -93,6 +103,15 @@ ORG 100h
     call card                 ; leaves SI at the next part
     pop bx
     jc quit
+%ifdef WEB_SYNC
+    mov al,[web_target]
+    test al,al
+    jz .run_current
+    call select_part
+    mov byte [web_target],0
+    jmp .next
+.run_current:
+%endif
     push si
 %ifndef ATLAS_SHOW
     cmp word [bx],warp_bin
@@ -110,8 +129,18 @@ ORG 100h
     mov byte [afterpart],1
     mov es,[pseg]
     cmp byte [es:5Eh],0
+%ifdef WEB_SYNC
+    mov al,[es:5Fh]
+%endif
     pop bx
     jne quit                  ; Esc during the part
+%ifdef WEB_SYNC
+    test al,al
+    jz .automatic
+    call select_part
+    jmp .next
+.automatic:
+%endif
     cmp bx,parts_end
     jb .next
     mov word [line4],thanks
@@ -219,6 +248,16 @@ svc_check:                    ; once per frame: CF = 1 when the part's time is u
 .go:
     push ds
     mov ds,[cs:pseg]
+%ifdef WEB_SYNC
+    mov al,[cs:sync_command]
+    test al,al
+    jz .keyboard
+    mov byte [cs:sync_command],0
+    mov [5Fh],al              ; requested 1-based part; host consumes it after this part returns
+    stc
+    jmp short .x
+.keyboard:
+%endif
     in al,60h
     cmp al,1
     jne .k
@@ -359,6 +398,17 @@ svc_groove:                   ; the rhythm section, one copy for FIRE, GOLDTEX, 
 vsync:
     push ax
     push dx
+%ifdef WEB_SYNC
+    mov al,[sync_command]
+    test al,al
+    jz .hardware
+    mov [web_target],al       ; a shortcut used during a card takes effect before the part starts
+    mov byte [sync_command],0
+    mov [skip],al
+    clc
+    jmp .c
+.hardware:
+%endif
     mov dx,3DAh
 .a: in al,dx
     test al,8
@@ -557,6 +607,38 @@ sync_emit:                    ; AL = 0 card, or 1-based part number
     mov [sync_record+1],al
     inc byte [sync_record]
     popf
+    ret
+
+select_part:                  ; AL = requested 1-based part -> BX entry, partno ready for progress
+    cmp al,1
+    jae .positive
+    mov al,1
+.positive:
+    cmp al,[nparts]
+    jbe .bounded
+    mov al,[nparts]
+.bounded:
+    mov dl,al
+    mov cl,al
+    dec cl
+    mov si,parts
+.advance:
+    test cl,cl
+    jz .found
+    call next_entry
+    dec cl
+    jmp .advance
+.found:
+    mov bx,si
+    dec dl
+    mov [partno],dl
+    ret
+
+next_entry:                   ; SI -> following variable-length playlist entry
+    add si,5
+    call skipz
+    call skipz
+    call skipz
     ret
 %endif
 
@@ -1420,6 +1502,7 @@ bye:
 %ifdef WEB_SYNC
 sync_magic: db "UBSYNC"
 sync_record: db 0,0
+sync_command: db 0
 %endif
 
 %macro BIN 2
@@ -1443,6 +1526,9 @@ line4:   resw 1
 partno:  resb 1
 nparts:  resb 1
 lastkey: resb 1
+%ifdef WEB_SYNC
+web_target: resb 1
+%endif
 skip:    resb 1
 bgph:    resb 1
 bgph_hi: resb 1               ; (always 0: bgph is read as a word)

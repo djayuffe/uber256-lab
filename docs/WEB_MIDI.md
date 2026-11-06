@@ -25,13 +25,19 @@ BIOS-rate scheduler (18.2 Hz) -> MidiSequence -> MIDI-shaped messages
 ```
 
 The web-specific MEGA.COM and ATLAS.COM builds update a signed `UBSYNC` record in
-their own emulated DOS memory: an event counter and either zero for a title card or
-the one-based part number. The page locates that record in the Wasm heap and checks it
+their own emulated DOS memory: an event counter, either zero for a title card or the
+one-based part number, and a browser-command byte. The page locates that record in the Wasm heap and checks it
 every 10 ms. This makes show selection, title cards, timed transitions and Space skips
 authoritative; the browser never guesses a part from elapsed time. Release COM files are
 built without this channel. Rerun/show selection reloads a clean emulator instance with
 the selection preserved in the URL. This deliberately requires another user start gesture,
 which both satisfies Web Audio policy and prevents stale DOS vectors or queued shell input.
+
+The third byte is the reverse control path. Thumbnail clicks, previous/next buttons and
+←/→ keys write a bounded one-based target part there. The DOS host consumes it at its
+next frame boundary, restores the current part's timer hook, shows the requested title
+card and emits a new transition record. Visuals, instrument choice and score tick therefore
+change together; the controls never fake a browser-only part number.
 
 At every active-part score tick the sampler reads one deterministic point from the current logical
 320x200 image. Brightness is quantised to the C-major pentatonic scale. The sequence

@@ -17,6 +17,10 @@ generated from 16-bit real-mode code: pixels, palettes, motion and MIDI.
 | Native DOSBox | `./run-dosbox.sh mega` | Exact MPU-401 MIDI stream from the DOS program |
 | Local web development | `./run-web.sh` | Modular player at `http://localhost:8256/` |
 
+The browser player includes previous/next buttons, ←/→ keyboard navigation, a
+scrollable screenshot shortcut panel for every MEGA or ATLAS part, show selection,
+fullscreen, synchronized status, volume and mute controls.
+
 ## Continuous atlas show
 
 All 27 atlas effects now play automatically in **ATLAS.COM**, with timed parts,
