@@ -35,7 +35,10 @@ def assemble(replacements=(), tag="v"):
         assert old in src, f"pattern not found: {old!r}"
         src = src.replace(old, new, 1)
     (d / "v.asm").write_text(src)
-    subprocess.run(["nasm", "-f", "bin", "-Wall", "-Werror", "-l", str(d / "v.lst"),
+    warnings = ["-Wall", "-Werror"]
+    if subprocess.check_output(["nasm", "-v"], text=True).startswith("NASM version 3."):
+        warnings.append("-Wno-error=reloc-abs-word")
+    subprocess.run(["nasm", "-f", "bin", *warnings, "-l", str(d / "v.lst"),
                     str(d / "v.asm"), "-o", str(d / "v.com")], check=True)
     return d / "v.com", (d / "v.lst").read_text()
 

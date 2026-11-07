@@ -10,8 +10,9 @@
   Add every COM, individual thumbnail, ASM highlighting, 4–8 / 9–16 / 17–128 /
   129–256 byte filters, native launcher groups and the 11,179-byte 3D/OPL2 show.
   Resolve only the two real name collisions as `MIRROR8.COM` and `UBER40K.COM`.
-- Make the preserved UBER40K build NASM 3.x-compatible by demoting only the
-  flat-binary `reloc-abs-word` diagnostic while retaining all other fatal warnings.
+- Make the preserved UBER40K build and variant-building behavioural tests NASM
+  3.x-compatible by demoting only the flat-binary `reloc-abs-word` diagnostic
+  while retaining all other fatal warnings.
 
 - Turn the browser edition into a complete 46-program workbench: embed and boot all
   42 current standalone COM files alongside MEGA, ATLAS, UBERSHOW and UBER70. Add a
