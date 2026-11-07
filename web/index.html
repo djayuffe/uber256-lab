@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>UBER256 // DOS Intro Lab</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0b08'/%3E%3Cpath d='M7 7v12c0 8 18 8 18 0V7h-5v12c0 3-8 3-8 0V7z' fill='%23e0b453'/%3E%3C/svg%3E">
-<!-- web player: DOS Wasm X (github.com/nbarkhina/DosWasmX, MIT) runs MEGA.COM / ATLAS.COM.
-     ./run-web.sh builds, copies the .COMs here and serves this folder; any static server works. -->
+<!-- web player: DOS Wasm X (github.com/nbarkhina/DosWasmX, MIT) runs every
+     current standalone and integrated show. ./run-web.sh builds the catalogue,
+     copies the .COMs here and serves this folder; any static server works. -->
 <style>
 :root {
   --bg: #090a08;
@@ -63,6 +64,11 @@ canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; 
 .panel { background: var(--panel); border: 1px solid var(--edge); overflow: hidden; }
 .panel summary { cursor: pointer; color: var(--amber); font: 700 12px/1 var(--display); letter-spacing: .03em; padding: 10px 12px; }
 .panel summary span { color: var(--dim); font: 11px/1 var(--mono); margin-left: 10px; }
+.catalog-tools { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 12px 10px; }
+.catalog-tools[hidden] { display: none; }
+.catalog-tools input, .catalog-tools select { box-sizing: border-box; color: var(--fg); background: #090a08; border: 1px solid var(--edge-hi); padding: 7px 8px; font: 11px/1 var(--mono); }
+.catalog-tools input { flex: 1 1 180px; min-width: 0; }
+.catalog-tools output { align-self: center; color: var(--dim); font-size: 11px; }
 .shortcut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; max-height: 280px; overflow: auto; padding: 0 12px 12px; }
 .shortcut {
   position: relative; min-height: 74px; overflow: hidden; cursor: pointer; border: 1px solid var(--edge);
@@ -70,6 +76,7 @@ canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; 
 }
 .shortcut span { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; padding: 5px 6px; background: rgba(0,0,0,.88); font: 700 11px/1 var(--mono); }
 .shortcut b { color: var(--amber); font-weight: 700; margin-right: 5px; }
+.shortcut i { float: right; color: #bbb8a6; font-style: normal; font-weight: 400; }
 .shortcut:hover { border-color: var(--amber); }
 .shortcut[aria-current="true"] { border: 2px solid var(--amber); }
 .shortcut:disabled { filter: grayscale(.7); opacity: .55; cursor: default; }
@@ -104,7 +111,7 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
 <main id="app" class="code-open">
   <header>
     <h1>UBER256 // DOS INTRO LAB</h1>
-    <div class="meta" id="meta">REAL-MODE X86 · MODE 13H · 256-BYTE SOURCES</div>
+    <div class="meta" id="meta">REAL-MODE X86 · VGA · 70–256 BYTE DEMOS</div>
   </header>
   <div class="bezel">
     <div class="screen" id="screen">
@@ -114,7 +121,7 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
   </div>
   <div class="controls">
     <label for="prog" class="pick">Program</label>
-    <select id="prog"><option value="MEGA">MEGA.COM / 15-PART SHOW</option><option value="ATLAS">ATLAS.COM / 27-PART SHOW</option><option value="UBERSHOW">UBERSHOW.COM / PRESERVED 18-SCENE ENGINE</option><option value="UBER70">UBER70.COM / PRESERVED 70-BYTE INTRO</option></select>
+    <select id="prog" aria-label="DOS program"></select>
     <button id="prev" type="button" disabled aria-label="Previous part">← Prev</button>
     <button id="next" type="button" disabled aria-label="Next part">Next →</button>
     <button id="fs" type="button" disabled>Full screen</button>
@@ -126,16 +133,22 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     <span id="status">idle</span>
   </div>
   <details class="panel" id="shortcuts" open>
-    <summary>PART INDEX <span id="shortcutMeta">13 PROGRAMS / DIRECT JUMP</span></summary>
+    <summary>PROGRAM INDEX <span id="shortcutMeta">LOADING CATALOGUE</span></summary>
+    <div class="catalog-tools" id="catalogTools" hidden>
+      <input id="demoSearch" type="search" placeholder="FILTER BY NAME" aria-label="Filter demos by name">
+      <select id="sizeFilter" aria-label="Filter demos by size"><option value="all">ALL SIZES</option><option value="128">≤128 BYTES</option><option value="256">129–256 BYTES</option></select>
+      <output id="filterCount"></output>
+    </div>
     <div class="shortcut-grid" id="shortcutGrid" aria-label="Part shortcuts"></div>
   </details>
-  <p class="note">RUNTIME: DOSBOX-X/WASM · CPU: MAX CYCLES · VIDEO: VGA MODE 13H · CLOCK: BIOS 18.2065 HZ · AUDIO: DOS OUTPUT + SYNCHRONIZED WEB MIDI</p>
+  <p class="note" id="runtimeNote">RUNTIME: DOSBOX-X/WASM · CPU: MAX CYCLES · VIDEO: VGA MODE 13H · CLOCK: BIOS 18.2065 HZ · AUDIO: DOS OUTPUT + SYNCHRONIZED WEB MIDI</p>
   <aside class="code-panel" id="codePanel" aria-label="Highlighted assembly source">
     <div class="code-head"><strong id="codeTitle">FLOWTEX.ASM</strong><span id="codeMeta">RAW NASM / LIVE PART FOLLOW</span><button id="codeClose" type="button">CLOSE</button></div>
     <pre class="asm-view" id="asmView"><code id="asmCode"></code></pre>
   </aside>
 </main>
 
+<script src="catalog.js"></script>
 <script src="sources.js"></script>
 <script src="midi.js"></script>
 <script>
@@ -151,6 +164,10 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
   const nextBtn = document.getElementById('next');
   const shortcutGrid = document.getElementById('shortcutGrid');
   const shortcutMeta = document.getElementById('shortcutMeta');
+  const catalogTools = document.getElementById('catalogTools');
+  const demoSearch = document.getElementById('demoSearch');
+  const sizeFilter = document.getElementById('sizeFilter');
+  const filterCount = document.getElementById('filterCount');
   const keyHint = document.getElementById('keyHint');
   const codeToggle = document.getElementById('codeToggle');
   const codeClose = document.getElementById('codeClose');
@@ -161,33 +178,37 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
   const asmCode = document.getElementById('asmCode');
   const volumeEl = document.getElementById('midiVolume');
   const muteBtn = document.getElementById('mute');
+  const progEl = document.getElementById('prog');
+  const runtimeNote = document.getElementById('runtimeNote');
   const say = t => { statusEl.textContent = t; };
   let fw = 640, fh = 400, img = null, frames = 0, audio = null, dosGain = null, midi = null;
   let syncEvent = -1, syncPart = 0, syncLabel = 'waiting for DOS sync';
   let syncOffsets = [], syncValues = new Map(), syncHeapLength = 0, lastSyncScan = 0;
   let activeSyncOffset = -1, currentPart = 0;
 
-  const SHOW_PARTS = {
-    MEGA: [
-      ['FLOWTEX','flowtex.jpg'], ['SELFTEX','selftex.jpg'], ['GOLDTEX','gallery.jpg'], ['ORDER','order.jpg'],
-      ['GALAXY','galaxy-early.jpg'], ['CLIFF','cliff.jpg'], ['FIRE','fire.jpg'], ['ROOTS','roots.jpg'],
-      ['CAUSAL','causal-atlas.png'], ['PHASE','phase-atlas.png'], ['JULIA','julia-a.jpg'],
-      ['LATCH','latch-a.jpg'], ['MOIRE','moire.jpg'], ['ROTOZOOM','rotozoom.jpg'], ['WARP','warp-a.jpg']
-    ],
-    ATLAS: [
-      ['CAUSAL','causal-atlas.png'], ['TIMELENS','timelens-atlas.png'], ['HORIZON','horizon-atlas.png'],
-      ['EMBOSS','emboss-atlas.png'], ['PHASE','phase-atlas.png'], ['SURGERY','surgery-atlas.png'],
-      ['COMMUTE','commute-atlas.png'], ['BRACKET','bracket-atlas.png'], ['MIRROR','mirror-atlas.png'],
-      ['SIGNED','signed-atlas.png'], ['RESFIELD','resfield-atlas.png'], ['TERRACE','terrace-atlas.png'],
-      ['RESIDUAL','residual-atlas.png'], ['BIFURC','bifurc-atlas.png'], ['CRITICAL','critical-atlas.png'],
-      ['HYSTER','hyster-atlas.png'], ['LOOM','loom-atlas.png'], ['LIFT','lift-atlas.png'],
-      ['REVERSO','reverso-atlas.png'], ['ORBIT','orbit-atlas.png'], ['RUNS','runs-atlas.png'],
-      ['BYTEVM','bytevm-atlas.png'], ['SHUFFLE','shuffle-atlas.png'], ['BALLOT','ballot-atlas.png'],
-      ['PREFIX','prefix-atlas.png'], ['RANK','rank-atlas.png'], ['RING','ring-atlas.png']
-    ],
-    UBERSHOW: [['UBERSHOW','ubershow.jpg']],
-    UBER70: [['UBER70','ubershow.jpg']]
+  const CATALOG = window.UBER256_CATALOG;
+  if (!CATALOG || !CATALOG.standalone || !CATALOG.shows) throw new Error('Browser catalogue missing; run ./build.sh');
+  const SHOW_PARTS = CATALOG.shows;
+  const STANDALONE = CATALOG.standalone;
+  const DEMOS = [SHOW_PARTS.UBER70[0], ...STANDALONE];
+  const DEMO_NAMES = new Set(DEMOS.map(entry => entry[0]));
+  const showLabels = {
+    MEGA: 'MEGA.COM / 15-PART SHOW', ATLAS: 'ATLAS.COM / 27-PART SHOW',
+    UBERSHOW: 'UBERSHOW.COM / PRESERVED 18-SCENE ENGINE', UBER70: 'UBER70.COM / PRESERVED 70-BYTE INTRO'
   };
+  const showGroup = document.createElement('optgroup'); showGroup.label = 'Integrated shows';
+  for (const name of ['MEGA', 'ATLAS', 'UBERSHOW']) {
+    const option = document.createElement('option'); option.value = name; option.textContent = showLabels[name] || name + '.COM';
+    showGroup.appendChild(option);
+  }
+  const tinyGroup = document.createElement('optgroup'); tinyGroup.label = 'Tiny intros (128 bytes or less)';
+  const tiny = document.createElement('option'); tiny.value = 'UBER70'; tiny.textContent = 'UBER70.COM · 70 B'; tinyGroup.appendChild(tiny);
+  const standaloneGroup = document.createElement('optgroup'); standaloneGroup.label = '256-byte demos (129–256 bytes)';
+  for (const [name, _image, size] of STANDALONE) {
+    const option = document.createElement('option'); option.value = name; option.textContent = name + '.COM · ' + size + ' B';
+    (size <= 128 ? tinyGroup : standaloneGroup).appendChild(option);
+  }
+  progEl.append(showGroup, tinyGroup, standaloneGroup);
   const ASM_OPS = new Set(('aaa aad aam aas adc add and arpl bound bsf bsr bswap bt btc btr bts call cbw cdq clc cld cli cmc cmp cmpsb cmpsd cmpsw cwd cwde daa das dec div enter hlt idiv imul in inc insb insd insw int into invd invlpg iret iretd ja jae jb jbe jc jcxz je jecxz jg jge jl jle jmp jna jnae jnb jnbe jnc jne jng jnge jnl jnle jno jnp jns jnz jo jp jpe jpo js jz lahf lar lds lea leave les lfs lgdt lgs lidt lldt lmsw lock lodsb lodsd lodsw loop loope loopne loopnz loopz lsl lss ltr mov movsb movsd movsw movsx movzx mul neg nop not or out outsb outsd outsw pop popa popad popf popfd push pusha pushad pushf pushfd rcl rcr rep repe repne repnz repz ret retf rol ror sahf sal sar sbb scasb scasd scasw seta setae setb setbe setc sete setg setge setl setle setna setnae setnb setnbe setnc setne setng setnge setnl setnle setno setnp setns setnz seto setp setpe setpo sets setz sgdt shl shld shr shrd sidt sldt smsw stc std sti stosb stosd stosw str sub test verr verw wait wbinvd xadd xchg xlat xor f2xm1 fabs fadd faddp fbld fbstp fchs fclex fcom fcomp fcompp fcos fdecstp fdiv fdivp fdivr fdivrp ffree fiadd ficom ficomp fidiv fidivr fild fimul fincstp finit fist fistp fisub fisubr fld fld1 fldcw fldenv fldl2e fldl2t fldlg2 fldln2 fldpi fldz fmul fmulp fnclex fninit fnop fnsave fnstcw fnstenv fnstsw fpatan fprem fprem1 fptan frndint frstor fsave fscale fsin fsincos fsqrt fst fstcw fstenv fstp fstsw fsub fsubp fsubr fsubrp ftst fucom fucomp fucompp fxam fxch fxtract fyl2x fyl2xp1').split(' '));
   const ASM_REGS = new Set(('al ah ax eax bl bh bx ebx cl ch cx ecx dl dh dx edx si esi di edi sp esp bp ebp ip eip cs ds es fs gs ss cr0 cr2 cr3 cr4 dr0 dr1 dr2 dr3 dr6 dr7 st st0 st1 st2 st3 st4 st5 st6 st7').split(' '));
   const escapeHtml = text => text.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
@@ -214,10 +235,13 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     }).join('');
   }
   function showAsm(part) {
-    const entry = SHOW_PARTS[prog()][Math.max(0, (part || 1) - 1)] || SHOW_PARTS[prog()][0];
-    const name = entry[0], source = window.EMBEDDED_ASM && window.EMBEDDED_ASM[name];
+    const entries = SHOW_PARTS[prog()];
+    const name = hasPartControl()
+      ? (entries[Math.max(0, (part || 1) - 1)] || entries[0])[0]
+      : prog();
+    const source = window.EMBEDDED_ASM && window.EMBEDDED_ASM[name];
     codeTitle.textContent = name + '.ASM';
-    codeMeta.textContent = hasPartControl() ? 'RAW NASM / LIVE PART FOLLOW' : 'RAW NASM / COMPLETE PRESERVED PROGRAM';
+    codeMeta.textContent = hasPartControl() ? 'RAW NASM / LIVE PART FOLLOW' : 'RAW NASM / COMPLETE PROGRAM';
     asmCode.innerHTML = source ? highlightAsm(source) : '<span class="asm-line" data-line="1">Source map missing; run ./build.sh</span>';
     asmView.scrollTop = 0;
   }
@@ -240,6 +264,13 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     '[autoexec]', 'mount c /demo', 'c:', 'cls', '%PROG%.COM', ''
   ].join('\r\n');
   const hasPartControl = () => prog() === 'MEGA' || prog() === 'ATLAS';
+  const isDemo = () => DEMO_NAMES.has(prog());
+  const catalogueEntries = () => {
+    if (!isDemo()) return SHOW_PARTS[prog()];
+    const query = demoSearch.value.trim().toUpperCase(), size = sizeFilter.value;
+    return DEMOS.filter(([name, _image, bytes]) => (!query || name.includes(query))
+      && (size === 'all' || (size === '128' ? bytes <= 128 : bytes > 128)));
+  };
 
   // Calls the DOSBox-X build makes into the page; everything not used here is a no-op.
   const app = {
@@ -382,7 +413,7 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
         fsBtn.disabled = false; restartBtn.disabled = false; muteBtn.disabled = false;
         prevBtn.disabled = !hasPartControl(); nextBtn.disabled = !hasPartControl(); renderShortcuts();
         canvas.focus();
-        say('running · ' + (hasPartControl() ? 'browser MIDI on' : 'native DOS audio'));
+        say('running · ' + (hasPartControl() ? 'browser MIDI on' : 'exact DOS program'));
         Module.callMain();
       }
     };
@@ -419,33 +450,48 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     volumeEl.dispatchEvent(new Event('input'));
     canvas.focus();
   });
-  const progEl = document.getElementById('prog');
   const prog = () => progEl.value;
   const thumb = image => window.EMBEDDED_THUMBNAILS && window.EMBEDDED_THUMBNAILS[image]
     ? window.EMBEDDED_THUMBNAILS[image] : '../docs/' + image;
   function updateShortcutState() {
-    for (const button of shortcutGrid.querySelectorAll('.shortcut'))
-      button.setAttribute('aria-current', +button.dataset.part === currentPart ? 'true' : 'false');
+    for (const button of shortcutGrid.querySelectorAll('.shortcut')) {
+      const current = isDemo()
+        ? button.dataset.program === prog()
+        : +button.dataset.part === currentPart;
+      button.setAttribute('aria-current', current ? 'true' : 'false');
+    }
   }
   function renderShortcuts() {
     shortcutGrid.textContent = '';
-    SHOW_PARTS[prog()].forEach(([name, image], index) => {
+    catalogueEntries().forEach(([name, image, size], index) => {
       const button = document.createElement('button');
-      button.type = 'button'; button.className = 'shortcut'; button.dataset.part = index + 1;
-      button.disabled = !startBtn.hidden || !hasPartControl(); button.title = (hasPartControl() ? 'Jump to part ' : 'Source for ') + (index + 1) + ': ' + name;
+      button.type = 'button'; button.className = 'shortcut'; button.dataset.part = index + 1; button.dataset.program = name;
+      button.title = isDemo() ? 'Load ' + name + '.COM and show its source'
+        : (hasPartControl() ? 'Show or jump to part ' : 'Source for ') + (index + 1) + ': ' + name;
       button.style.backgroundImage = 'url("' + thumb(image) + '")';
-      button.innerHTML = '<span><b>' + String(index + 1).padStart(2, '0') + '</b>' + name + '</span>';
-      button.addEventListener('click', () => goPart(index + 1));
+      button.innerHTML = '<span><b>' + String(index + 1).padStart(2, '0') + '</b>' + name + '<i>' + size + ' B</i></span>';
+      button.addEventListener('click', () => isDemo() ? selectProgram(name) : goPart(index + 1));
       shortcutGrid.appendChild(button);
     });
+    if (isDemo()) filterCount.textContent = catalogueEntries().length + ' / ' + DEMOS.length;
     updateShortcutState();
   }
+  function selectProgram(name) {
+    if (!Array.from(progEl.options).some(option => option.value === name)) return;
+    const wasRunning = startBtn.hidden;
+    progEl.value = name; currentPart = 0;
+    try { history.replaceState(null, '', '#' + name.toLowerCase()); } catch (e) {}
+    if (wasRunning) { location.reload(); return; }
+    label();
+  }
   function goPart(part) {
-    const heap = window.Module && Module.HEAPU8;
-    if (!heap || activeSyncOffset < 0) return;
     const count = SHOW_PARTS[prog()].length;
     part = ((part - 1) % count + count) % count + 1;
+    currentPart = part;
     showAsm(part);
+    updateShortcutState();
+    const heap = window.Module && Module.HEAPU8;
+    if (!startBtn.hidden || !heap || activeSyncOffset < 0) return;
     heap[activeSyncOffset + 2] = part;
     syncLabel = 'jumping to part ' + part;
     canvas.focus();
@@ -460,20 +506,33 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     if (!startBtn.hidden) startBtn.querySelector('b').textContent = 'BOOT ' + prog() + '.COM';
     document.getElementById('startsub').textContent = hasPartControl()
       ? 'DOSBOX-X/WASM · 640×400 OUTPUT · BROWSER MIDI'
-      : 'DOSBOX-X/WASM · 640×400 OUTPUT · NATIVE DOS AUDIO';
+      : 'DOSBOX-X/WASM · EXACT COM · SOURCE LINKED';
+    runtimeNote.textContent = hasPartControl()
+      ? 'RUNTIME: DOSBOX-X/WASM · CPU: MAX CYCLES · VIDEO: VGA · CLOCK: BIOS 18.2065 HZ · AUDIO: DOS OUTPUT + SYNCHRONIZED WEB MIDI'
+      : 'RUNTIME: DOSBOX-X/WASM · CPU: MAX CYCLES · VIDEO: VGA · EXACT COM PAYLOAD · COMPLETE ASM SOURCE';
     restartBtn.textContent = 'Reset ' + prog() + '.COM';
     shortcutMeta.textContent = hasPartControl()
-      ? SHOW_PARTS[prog()].length + ' PROGRAMS / DIRECT JUMP'
-      : '1 PRESERVED PROGRAM / SOURCE VIEW';
+      ? SHOW_PARTS[prog()].length + ' PARTS / THUMBNAIL + ASM + DIRECT JUMP'
+      : isDemo()
+        ? DEMOS.length + ' DEMOS / THUMBNAIL + ASM + BOOT'
+        : '1 PRESERVED PROGRAM / THUMBNAIL + ASM';
     keyHint.innerHTML = hasPartControl()
       ? '<kbd>←</kbd>/<kbd>→</kbd> swap part &nbsp; <kbd>Space</kbd> next &nbsp; <kbd>Esc</kbd> quit'
       : '<kbd>Esc</kbd> quit';
+    catalogTools.hidden = !isDemo();
     renderShortcuts();
     showAsm(currentPart || 1);
   };
   const hashProgram = location.hash.slice(1).toUpperCase();
-  if (SHOW_PARTS[hashProgram]) progEl.value = hashProgram;
-  progEl.addEventListener('change', () => { label(); try { history.replaceState(null, '', '#' + prog().toLowerCase()); } catch (e) {} if (!startBtn.hidden) return; restartBtn.click(); });
+  if (Array.from(progEl.options).some(option => option.value === hashProgram)) progEl.value = hashProgram;
+  progEl.addEventListener('change', () => {
+    currentPart = 0;
+    try { history.replaceState(null, '', '#' + prog().toLowerCase()); } catch (e) {}
+    if (startBtn.hidden) { location.reload(); return; }
+    label();
+  });
+  demoSearch.addEventListener('input', renderShortcuts);
+  sizeFilter.addEventListener('change', renderShortcuts);
   label();
   // Keep Space from scrolling the page while the demo has focus.
   window.addEventListener('keydown', e => {
@@ -490,7 +549,7 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
   });
   setInterval(() => {
     if (frames) {
-      say('running · ' + frames + ' fps · ' + (hasPartControl() ? syncLabel : 'native DOS audio'));
+      say('running · ' + frames + ' fps · ' + (hasPartControl() ? syncLabel : 'exact DOS program'));
       frames = 0;
     }
   }, 1000);

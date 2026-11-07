@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
-./build.sh >/dev/null
+./build-web-standalone.sh >/dev/null
+python3 tests/test_web_catalog.py
 if [ ! -x .venv/bin/python ]; then python3 -m venv .venv; fi
 if ! .venv/bin/python -c 'import unicorn' >/dev/null 2>&1; then
     if ! .venv/bin/python -m pip --version >/dev/null 2>&1; then

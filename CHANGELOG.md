@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+- Turn the browser edition into a complete 46-program workbench: embed and boot all
+  42 current standalone COM files alongside MEGA, ATLAS, UBERSHOW and UBER70. Add a
+  generated catalogue with byte sizes, 43-demo thumbnail index, name search,
+  <=128-byte / 129–256-byte filters and source-linked clean program switching.
+- Make every browser entry carry a validated screenshot, exact binary and complete
+  highlighted ASM source. Add cross-layer catalogue tests, GIF thumbnail support and
+  a dedicated browser-player architecture/extension reference.
+- Refactor the README around the shipped collections, run modes, 128/256-byte support,
+  integrated web workflow and documentation map.
 - Enable live music in the browser player with a dependency-free Web Audio MIDI
   engine. It samples the rendered framebuffer on the 18.2 Hz DOS music clock and
   recreates effect voices, octave response, pentatonic bass, harmony and drums.

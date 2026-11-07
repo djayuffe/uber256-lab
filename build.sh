@@ -60,5 +60,10 @@ nasm -f bin "$@" -DWEB_SYNC -Isrc/ -Ibuild/ src/mega/mega.asm -o web/MEGA.COM
 nasm -f bin "$@" -DWEB_SYNC -DATLAS_SHOW -Isrc/ -Ibuild/ src/mega/mega.asm -o web/ATLAS.COM
 cp UBER70.COM web/UBER70.COM
 cp UBERSHOW.COM web/UBERSHOW.COM
+for src in src/*.asm; do
+    name=$(basename "$src" .asm); upper=$(echo "$name" | tr 'a-z' 'A-Z')
+    cp "$upper.COM" "web/$upper.COM"
+done
 python3 tools/build_web_sources.py web/sources.js >/dev/null
+python3 tools/build_web_catalog.py web/catalog.js >/dev/null
 if command -v sha256sum >/dev/null 2>&1; then sha256sum *.COM > SHA256SUMS; else shasum -a 256 *.COM > SHA256SUMS; fi

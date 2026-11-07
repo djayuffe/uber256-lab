@@ -11,17 +11,18 @@ import pathlib
 import re
 import sys
 
+from web_catalog import javascript as catalog_javascript, load_catalog
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 DEFAULT_OUTPUT = ROOT / "dist" / "uber256-lab.html"
+CATALOG = load_catalog(WEB / "catalog.js")
+COM_NAMES = tuple(CATALOG["shows"]) + tuple(entry[0] for entry in CATALOG["standalone"])
 BANNER_RE = re.compile(
     r"<!-- self-contained content sha256:([0-9a-f]{64}) \(excludes this comment\) -->\n"
 )
 ASSETS = {
-    "MEGA": WEB / "MEGA.COM",
-    "ATLAS": WEB / "ATLAS.COM",
-    "UBER70": WEB / "UBER70.COM",
-    "UBERSHOW": WEB / "UBERSHOW.COM",
+    **{name: WEB / f"{name}.COM" for name in COM_NAMES},
     "font": WEB / "main.ttf",
     "wasm": WEB / "main.wasm",
     "main_js": WEB / "main.js",
@@ -44,7 +45,7 @@ def json_for_script(value: object, *, ascii_only: bool = True) -> str:
 
 def build(output: pathlib.Path) -> None:
     template = (WEB / "index.html").read_text(encoding="utf-8")
-    thumb_names = sorted(set(re.findall(r"\['[A-Z0-9]+','([^']+\.(?:jpg|png))'\]", template)))
+    thumb_names = sorted({entry[1] for entries in [CATALOG["standalone"], *CATALOG["shows"].values()] for entry in entries})
     thumbnails = {name: ROOT / "docs" / name for name in thumb_names}
     missing = [str(path) for path in [WEB / "index.html", WEB / "midi.js", *ASSETS.values(), *thumbnails.values()] if not path.is_file()]
     if missing:
@@ -56,12 +57,12 @@ def build(output: pathlib.Path) -> None:
         raise SystemExit("web/index.html or web/midi.js is not safe for deterministic inlining")
 
     payload = {
-        "COM": {name: encoded(ASSETS[name]) for name in ("MEGA", "ATLAS", "UBER70", "UBERSHOW")},
+        "COM": {name: encoded(ASSETS[name]) for name in COM_NAMES},
         "TTF": encoded(ASSETS["font"]),
         "WASM": encoded(ASSETS["wasm"]),
         "MAIN_JS": encoded(ASSETS["main_js"]),
         "THUMBNAILS": {
-            name: f"data:image/{'jpeg' if path.suffix.lower() == '.jpg' else 'png'};base64,{encoded(path)}"
+            name: f"data:image/{'jpeg' if path.suffix.lower() == '.jpg' else path.suffix.lower()[1:]};base64,{encoded(path)}"
             for name, path in thumbnails.items()
         },
         "ASM": {
@@ -84,6 +85,7 @@ def build(output: pathlib.Path) -> None:
         "</script>\n<script>\n" + midi + "\n</script>"
     )
     html = template.replace(marker, bootstrap, 1)
+    html = html.replace('<script src="catalog.js"></script>', '<script>\n' + catalog_javascript() + '</script>', 1)
     html = html.replace('<script src="sources.js"></script>', '', 1)
     # The standalone build makes no network request for decorative web fonts.
     html = "\n".join(line for line in html.splitlines() if "fonts.googleapis.com" not in line)
@@ -105,10 +107,10 @@ def verify(output: pathlib.Path) -> None:
     if banner_match.group(1) != actual_fingerprint:
         raise SystemExit("Invalid standalone HTML: content fingerprint mismatch")
 
-    assignment_re = re.compile(r"^window\.([A-Z_]+)=(.*);$", re.MULTILINE)
+    assignment_re = re.compile(r"^window\.([A-Z0-9_]+)=(.*);$", re.MULTILINE)
     embedded = {name: json.loads(value) for name, value in assignment_re.findall(html)}
     embedded_com = embedded.get("EMBEDDED_COM", {})
-    for name in ("MEGA", "ATLAS", "UBER70", "UBERSHOW"):
+    for name in COM_NAMES:
         value = embedded_com.get(name)
         if not isinstance(value, str) or not value:
             raise SystemExit(f"Invalid standalone HTML: missing embedded {name}.COM")
@@ -130,12 +132,13 @@ def verify(output: pathlib.Path) -> None:
     })
     if embedded.get("EMBEDDED_ASM") != expected_asm:
         raise SystemExit("Invalid standalone HTML: assembly source map mismatch")
+    if embedded.get("UBER256_CATALOG") != CATALOG:
+        raise SystemExit("Invalid standalone HTML: generated program catalogue mismatch")
 
-    template = (WEB / "index.html").read_text(encoding="utf-8")
-    thumb_names = sorted(set(re.findall(r"\['[A-Z0-9]+','([^']+\.(?:jpg|png))'\]", template)))
+    thumb_names = sorted({entry[1] for entries in [CATALOG["standalone"], *CATALOG["shows"].values()] for entry in entries})
     expected_thumbnails = {
         name: (
-            f"data:image/{'jpeg' if pathlib.Path(name).suffix.lower() == '.jpg' else 'png'};base64,"
+            f"data:image/{'jpeg' if pathlib.Path(name).suffix.lower() == '.jpg' else pathlib.Path(name).suffix.lower()[1:]};base64,"
             f"{encoded(ROOT / 'docs' / name)}"
         )
         for name in thumb_names
@@ -160,6 +163,7 @@ def verify(output: pathlib.Path) -> None:
         "main.ttf": f'window.EMBEDDED_TTF="{encoded(ASSETS["font"])}"',
         "MIDI engine": "const SCHEDULE_AHEAD = 0.03;",
         "thumbnail menu": "window.EMBEDDED_THUMBNAILS=",
+        "program catalogue": "window.UBER256_CATALOG=",
         "assembly source map": "window.EMBEDDED_ASM=",
     }
     failed = [name for name, needle in checks.items() if needle not in html]
