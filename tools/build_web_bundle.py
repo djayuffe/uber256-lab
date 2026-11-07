@@ -12,6 +12,7 @@ import re
 import sys
 
 from web_catalog import javascript as catalog_javascript, load_catalog
+from source_catalog import source_text
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
@@ -65,15 +66,8 @@ def build(output: pathlib.Path) -> None:
             name: f"data:image/{'jpeg' if path.suffix.lower() == '.jpg' else path.suffix.lower()[1:]};base64,{encoded(path)}"
             for name, path in thumbnails.items()
         },
-        "ASM": {
-            path.stem.upper(): path.read_text(encoding="utf-8")
-            for path in sorted((ROOT / "src").glob("*.asm"))
-        },
+        "ASM": source_text(),
     }
-    payload["ASM"].update({
-        "UBER70": (ROOT / "archive" / "uber256-megademo" / "intro256.asm").read_text(encoding="utf-8"),
-        "UBERSHOW": (ROOT / "archive" / "uber256-megademo" / "showcase.asm").read_text(encoding="utf-8"),
-    })
     bootstrap = (
         "<script>\n"
         f"window.EMBEDDED_COM={json_for_script(payload['COM'])};\n"
@@ -122,14 +116,7 @@ def verify(output: pathlib.Path) -> None:
             raise SystemExit(f"Invalid standalone HTML: empty embedded {name}.COM")
         if ASSETS[name].is_file() and value != encoded(ASSETS[name]):
             raise SystemExit(f"Invalid standalone HTML: embedded {name}.COM mismatch")
-    expected_asm = {
-        path.stem.upper(): path.read_text(encoding="utf-8")
-        for path in sorted((ROOT / "src").glob("*.asm"))
-    }
-    expected_asm.update({
-        "UBER70": (ROOT / "archive" / "uber256-megademo" / "intro256.asm").read_text(encoding="utf-8"),
-        "UBERSHOW": (ROOT / "archive" / "uber256-megademo" / "showcase.asm").read_text(encoding="utf-8"),
-    })
+    expected_asm = source_text()
     if embedded.get("EMBEDDED_ASM") != expected_asm:
         raise SystemExit("Invalid standalone HTML: assembly source map mismatch")
     if embedded.get("UBER256_CATALOG") != CATALOG:

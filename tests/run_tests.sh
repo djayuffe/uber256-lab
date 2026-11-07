@@ -15,6 +15,10 @@ if ! .venv/bin/python -c 'from unicorn import Uc, UC_ARCH_X86, UC_MODE_16; u=Uc(
     echo 'Use a compatible native Unicorn build, then rerun tests/run_tests.sh.' >&2
     exit 3
 fi
+(cd archive/uber-micro-demos && ../../.venv/bin/python tests/test_micro.py)
+(cd archive/uber10-dos-demo && ../../.venv/bin/python tests/test_demo.py)
+(cd archive/uber128-dos-demo && ../../.venv/bin/python tests/test_demo.py)
+(cd archive/uber40k-dos-demo && ../../.venv/bin/python tests/emu_test.py)
 .venv/bin/python tests/test_lab.py
 .venv/bin/python tests/test_temporal.py
 .venv/bin/python tests/test_atlas_state.py

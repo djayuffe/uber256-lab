@@ -27,7 +27,36 @@ def _standalone_names() -> list[str]:
     return names
 
 
+def _family_names() -> list[str]:
+    launcher = (ROOT / "run-dosbox.sh").read_text(encoding="utf-8")
+    match = re.search(r'^FAMILY="([^"]+)"$', launcher, re.MULTILINE)
+    if not match:
+        raise ValueError("run-dosbox.sh has no FAMILY catalogue")
+    names = [name.upper() for name in match.group(1).split()]
+    expected = set(FAMILY_THUMBNAILS)
+    if len(names) != len(set(names)) or set(names) != expected:
+        raise ValueError("launcher FAMILY and family metadata must contain the same unique demos")
+    return names
+
+
+FAMILY_THUMBNAILS = {
+    **{
+        name: f"micro-{name.lower()}.jpg"
+        for name in (
+            "OVERLAP OVERMAX OVERSUB OVERHEAR STACKMAP STKRAIN BULLETS SNOW "
+            "BREATH BUZZ STATIC TICKER GEIGER TYPER SPECTRUM STRIPE BIG TALL "
+            "KEYSCAN PSPBACK STATE FLUX WEAVE CODEPAL PSPPAL NOISEPAL MODE3 EVO1 EVO2"
+        ).split()
+    },
+    "MIRROR8": "micro-mirror.jpg",
+    "UBER10": "uber10.jpg",
+    "UBER128": "uber128.jpg",
+}
+
+
 def _thumbnail(name: str) -> str:
+    if name in FAMILY_THUMBNAILS:
+        return FAMILY_THUMBNAILS[name]
     stem = name.lower()
     candidates = (
         f"{stem}-atlas.png",
@@ -50,7 +79,7 @@ def _size(name: str) -> int:
 
 
 def build_catalog() -> dict[str, object]:
-    standalone = [[name, _thumbnail(name), _size(name)] for name in _standalone_names()]
+    standalone = [[name, _thumbnail(name), _size(name)] for name in [*_standalone_names(), *_family_names()]]
     by_name = {name: [image, size] for name, image, size in standalone}
     mega = _playlist(ROOT / "src" / "mega" / "mega_program.inc")
     atlas = _playlist(ROOT / "src" / "mega" / "atlas_program.inc")
@@ -61,6 +90,7 @@ def build_catalog() -> dict[str, object]:
             "ATLAS": [[name, *by_name[name]] for name in atlas],
             "UBERSHOW": [["UBERSHOW", "ubershow.jpg", _size("UBERSHOW")]],
             "UBER70": [["UBER70", "ubershow.jpg", _size("UBER70")]],
+            "UBER40K": [["UBER40K", "uber40k.jpg", _size("UBER40K")]],
         },
     }
 

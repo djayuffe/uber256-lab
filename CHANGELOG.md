@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+- Consolidate every remaining DOS/DOSBox repository into this workbench: 30
+  original 4–8 byte micro demos, UBER10, UBER128, the 20-scene UBER40K engine,
+  and the former generated family index. Preserve their complete source trees,
+  documentation, captures, size gates, static audits and Unicorn behavioural tests.
+- Expand the browser from 46 to 79 boot targets and from 44 to 77 source views.
+  Add every COM, individual thumbnail, ASM highlighting, 4–8 / 9–16 / 17–128 /
+  129–256 byte filters, native launcher groups and the 11,179-byte 3D/OPL2 show.
+  Resolve only the two real name collisions as `MIRROR8.COM` and `UBER40K.COM`.
+
 - Turn the browser edition into a complete 46-program workbench: embed and boot all
   42 current standalone COM files alongside MEGA, ATLAS, UBERSHOW and UBER70. Add a
   generated catalogue with byte sizes, 43-demo thumbnail index, name search,

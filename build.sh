@@ -1,5 +1,6 @@
 #!/bin/sh
-# Assemble every demo in src/ with NASM and enforce the 256-byte limit (and 8.3 file names).
+# Assemble the complete DOS collection: the current 256-byte laboratory, the
+# preserved earlier show line, the 4–128-byte family and the 40K show.
 set -eu
 cd "$(dirname "$0")"
 command -v nasm >/dev/null 2>&1 || { echo 'ERROR: NASM is required.' >&2; exit 1; }
@@ -53,6 +54,24 @@ nasm -f bin "$@" archive/uber256-megademo/showcase.asm -o UBERSHOW.COM
 [ "$(wc -c < UBER70.COM | tr -d ' ')" -le 256 ] || { echo "ERROR: UBER70.COM is over 256 bytes" >&2; exit 2; }
 printf '%-14s %s bytes (preserved original tiny intro)\n' UBER70.COM "$(wc -c < UBER70.COM | tr -d ' ')"
 printf '%-14s %s bytes (preserved 18-scene engine)\n' UBERSHOW.COM "$(wc -c < UBERSHOW.COM | tr -d ' ')"
+
+# Consolidated repositories.  Build them in their preserved trees so their
+# original size gates and static audits remain authoritative, then expose the
+# binaries under collision-free names in the unified root.  The original
+# micro MIRROR would collide with this lab's unrelated MIRROR effect.
+for family in uber-micro-demos uber10-dos-demo uber128-dos-demo uber40k-dos-demo; do
+    (cd "archive/$family" && ./build.sh)
+done
+for com in archive/uber-micro-demos/*.COM; do
+    base=$(basename "$com")
+    [ "$base" = MIRROR.COM ] && base=MIRROR8.COM
+    cp "$com" "$base"
+done
+cp archive/uber10-dos-demo/UBER10.COM UBER10.COM
+cp archive/uber128-dos-demo/UBER128.COM UBER128.COM
+cp archive/uber40k-dos-demo/UBERSHOW.COM UBER40K.COM
+printf '%-14s %s bytes (20-scene 3D/OPL2 show; 40K class)\n' UBER40K.COM "$(wc -c < UBER40K.COM | tr -d ' ')"
+
 # Browser-only variants publish exact card/part transitions through a signed
 # record in emulated memory.
 # The release COM files above do not contain this integration channel.
@@ -60,9 +79,13 @@ nasm -f bin "$@" -DWEB_SYNC -Isrc/ -Ibuild/ src/mega/mega.asm -o web/MEGA.COM
 nasm -f bin "$@" -DWEB_SYNC -DATLAS_SHOW -Isrc/ -Ibuild/ src/mega/mega.asm -o web/ATLAS.COM
 cp UBER70.COM web/UBER70.COM
 cp UBERSHOW.COM web/UBERSHOW.COM
+cp UBER40K.COM web/UBER40K.COM
 for src in src/*.asm; do
     name=$(basename "$src" .asm); upper=$(echo "$name" | tr 'a-z' 'A-Z')
     cp "$upper.COM" "web/$upper.COM"
+done
+for name in OVERLAP OVERMAX OVERSUB OVERHEAR STACKMAP STKRAIN BULLETS SNOW BREATH BUZZ STATIC TICKER GEIGER TYPER MIRROR8 SPECTRUM STRIPE BIG TALL KEYSCAN PSPBACK STATE FLUX WEAVE CODEPAL PSPPAL NOISEPAL MODE3 EVO1 EVO2 UBER10 UBER128; do
+    cp "$name.COM" "web/$name.COM"
 done
 python3 tools/build_web_sources.py web/sources.js >/dev/null
 python3 tools/build_web_catalog.py web/catalog.js >/dev/null

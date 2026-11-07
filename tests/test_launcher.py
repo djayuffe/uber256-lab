@@ -18,6 +18,12 @@ def launch(*args, expected=0):
 names = {path.stem for path in (ROOT / 'src').glob('*.asm')}
 listing = launch('--list')
 assert all(name in listing.splitlines() for name in names)
+launcher = (ROOT / 'run-dosbox.sh').read_text()
+family = re.search(r'^FAMILY="([^"]+)"$', launcher, re.M).group(1).split()
+micro = re.search(r'^MICRO="([^"]+)"$', launcher, re.M).group(1).split()
+assert len(family) == 32 and len(set(family)) == 32
+assert len(micro) == 30 and set(micro) < set(family)
+assert all(name in listing.splitlines() for name in family)
 assert 'atlas-show' in listing and 'usage:' in launch('--help')
 launch(expected=1)
 launch('does-not-exist', expected=1)
@@ -26,9 +32,11 @@ show = launch('atlas-show')
 assert re.findall(r'^([A-Z]+\.COM)$', show, re.M) == ['ATLAS.COM']
 assert (ROOT / 'ATLAS.COM').stat().st_mtime_ns > before, 'existing binaries were not rebuilt'
 assert re.findall(r'^([A-Z]+\.COM)$', launch('*tex'), re.M) == ['SELFTEX.COM', 'GOLDTEX.COM', 'FLOWTEX.COM']
+assert re.findall(r'^([A-Z0-9]+\.COM)$', launch('micro'), re.M) == [name.upper() + '.COM' for name in micro]
+assert re.findall(r'^([A-Z0-9]+\.COM)$', launch('uber40k'), re.M) == ['UBER40K.COM']
 atlas = re.findall(r'^([A-Z]+\.COM)$', launch('atlas'), re.M)
 playlist = (ROOT / 'src' / 'mega' / 'atlas_program.inc').read_text()
 atlas_names = re.findall(r'^\s+ENTRY ([a-z]+),', playlist, re.M)
 assert len(atlas) == len(atlas_names) and len(set(atlas)) == len(atlas_names)
 assert all((ROOT / name).is_file() for name in atlas)
-print('Launcher: listing, help, errors, patterns, atlas show and fresh rebuild PASS')
+print('Launcher: listing, help, errors, patterns, micro family, both show lines and fresh rebuild PASS')
