@@ -195,7 +195,8 @@ DOS family, under [`archive/`](archive/):
 The original subtree merge commits retain the first three Git histories. For the
 new consolidation, every latest source, document, test and capture is preserved;
 the root build runs the original size gates and audits before copying collision-free
-binaries. The exact duplicate private `uber256-dos-demo` tree is already preserved
+binaries. UBER40K's archived build wrapper has one integration-only NASM 3.x
+compatibility adjustment; its assembly source is unchanged. The exact duplicate private `uber256-dos-demo` tree is already preserved
 as `archive/uber256-megademo`, verified by matching SHA-256 source hashes.
 
 ## Native DOS and build details
