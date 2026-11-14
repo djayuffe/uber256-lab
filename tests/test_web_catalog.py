@@ -32,11 +32,25 @@ for name, image, size in [*standalone, *shows["UBERSHOW"], *shows["UBER70"], *sh
     assert name in source_names
 
 html = (ROOT / "dist" / "uber256-lab.html").read_text(encoding="utf-8")
+source_html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+assert 'aria-label="Skip to next part">SKIP →</button>' in source_html
+assert "let activeSyncOffset = -1, currentPart = 0, pendingPart = 0;" in source_html
+assert "if (hasPartControl() && !currentPart) currentPart = 1;" in source_html
+assert "heap[activeSyncOffset + 2] = pendingPart;" in source_html
+assert "if (!hasPartControl() || e.target.matches('input, select')) return;" in source_html
+assert "if (e.code === 'ArrowLeft' || e.code === 'ArrowRight')" in source_html
+assert "if (e.code === 'Space')" in source_html and "movePart(1);" in source_html
 assignment = re.compile(r"^window\.([A-Z0-9_]+)=(.*);$", re.MULTILINE)
 embedded = {name: json.loads(value) for name, value in assignment.findall(html)}
 expected_programs = {entry[0] for entry in standalone} | set(shows)
 assert set(embedded["EMBEDDED_COM"]) == expected_programs
 assert set(embedded["EMBEDDED_ASM"]) == source_names
+for name, _image, _size in shows["ATLAS"]:
+    listing = embedded["EMBEDDED_ASM"][name]
+    assert '; ---- begin atlas_effect.inc ----' in listing
+    assert '; ---- begin temporal.inc ----' in listing
+    assert '; ---- begin dos.inc ----' in listing
+    assert '; ---- begin palettes.inc ----' in listing
 assert embedded["UBER256_CATALOG"] == catalog
 assert {entry[1] for entries in [standalone, *shows.values()] for entry in entries} == set(embedded["EMBEDDED_THUMBNAILS"])
 

@@ -1,4 +1,6 @@
-; Shared standalone 256-byte engine. BX=x, SI=y, BP=BIOS time, DI=screen.
+; Shared standalone 256-byte engine.
+; Kernel ABI: BX=x (-160..159), SI=y (-100..99), BP=2*BIOS tick,
+; DI=linear Mode 13h destination. The selected kernel returns colour in AL.
 ; Palette and MIDI are computed; no external assets. FS is explicitly zeroed.
 BITS 16
 CPU 386

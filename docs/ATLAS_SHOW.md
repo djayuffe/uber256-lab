@@ -14,6 +14,13 @@ mode and the original timer handler. Each effect is scheduled for 16 seconds:
 7 minutes 12 seconds of effect time plus titles, transitions and credits. Actual
 elapsed time also depends on the CPU and frame completion time.
 
+The browser workbench sends thumbnail, arrow-key and `SKIP` requests through the
+same host command path. Native DOS still reads the edge-triggered Space make code;
+the standalone effect binaries contain no browser-specific controls. Each effect
+stub declares an ID, title, summary, palette, General MIDI program and exactly one
+kernel flag. `src/atlas_effect.inc` validates that contract before including the
+shared engine. This metadata is preprocessor-only and costs zero output bytes.
+
 `./run-dosbox.sh atlas` still runs the standalone demos one by one, with Escape
 advancing to the next. `./run-dosbox.sh mega` runs the original thirteen-part
 show. Use `--list` to discover the demos and `--help` for launcher syntax.

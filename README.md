@@ -230,14 +230,23 @@ work as in DOSBox. Because the vendored Wasm core has no host MIDI backend, `web
 companion score: it samples the live framebuffer on the exact PIT-derived 18.206512 Hz BIOS clock and reproduces the atlas lead/response, effect
 voices, bass, root/fifth harmony and drums through Web Audio. The player includes live volume/mute controls and pauses
 its scheduler when the tab is hidden. Web-specific COM builds update a signed `UBSYNC` transition record in emulated
-DOS memory; the page reads it from the Wasm heap, so cards, timed transitions and Space skips remain synchronized
-instead of relying on a wall-clock estimate. Native DOSBox still plays the exact MPU-401 stream. See the
+DOS memory; the page reads it from the Wasm heap, so cards, timed transitions and skips remain synchronized
+instead of relying on a wall-clock estimate. Thumbnail clicks, `←`/`→` and the `SKIP` button use that same bounded
+command channel, including a startup queue before the record is discovered. The ATLAS ASM pane expands the selected
+stub and its real shared engine includes, so all 27 parts expose their complete implementation. Native DOSBox still
+plays the exact MPU-401 stream. See the
 [browser MIDI architecture](docs/WEB_MIDI.md) for the exact data flow, limitations and extension points.
 
 **As one portable file:** `./build-web-standalone.sh` writes `dist/uber256-lab.html`. The player, MIDI engine,
 web-specific MEGA/ATLAS binaries, emulator JavaScript, Wasm core and DOS font are embedded in that HTML. Open it
 directly from disk; it needs neither a web server nor a network connection. CI publishes the same file as an artifact,
 and tagged releases attach it alongside the native `.COM` files.
+
+**Source audit:** `python3 tools/audit_effect_sources.py` verifies every published
+program against its `.COM`, exact catalogue size, thumbnail, assembly path and
+browser source listing. The maintained [effect/source report](docs/EFFECT_SOURCE_AUDIT.md)
+contains one row for each of the 77 unique programs; ATLAS entries also verify
+their metadata, single selected kernel and expanded shared engine sources.
 
 **Play online:** [djayuffe.github.io/uber256-lab](https://djayuffe.github.io/uber256-lab/) serves that exact integrated
 HTML through HTTPS on GitHub Pages. The least-privilege Pages workflow republishes it whenever the bundled file changes

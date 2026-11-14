@@ -20,6 +20,15 @@ show = (ROOT / 'src' / 'mega' / 'atlas_program.inc').read_text()
 show_names = re.findall(r'^\s+ENTRY ([a-z]+),', show, re.M)
 assert len(show_names) == len(groups['ATLAS'])
 assert {name.upper() for name in show_names} == set(groups['ATLAS'])
+effect_flags = set(groups['ATLAS'])
+for name in show_names:
+    source = (ROOT / 'src' / f'{name}.asm').read_text()
+    assert re.search(r'^%define EFFECT_ID "'+name+r'"$', source, re.M), name
+    assert re.search(r'^%define EFFECT_TITLE "[^"]+"$', source, re.M), name
+    assert re.search(r'^%define EFFECT_SUMMARY "[^"]+"$', source, re.M), name
+    selected = set(re.findall(r'^%define ([A-Z]+) 1$', source, re.M)) & effect_flags
+    assert selected == {name.upper()}, (name, selected)
+    assert '%include "atlas_effect.inc"' in source, name
 for line in show.splitlines():
     if line.strip().startswith('ENTRY '):
         fields = next(csv.reader([line.strip()[6:]], skipinitialspace=True))

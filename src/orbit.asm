@@ -1,5 +1,8 @@
-; DOS atlas adaptation; formula and limitations are in docs/DOS_ATLAS_FIELDS.md.
+; A compact integer recurrence maps pixels into moving orbital bands.
+%define EFFECT_ID "orbit"
+%define EFFECT_TITLE "Integer Orbit"
+%define EFFECT_SUMMARY "Bounded recurrence rendered as moving orbit bands"
 %define ORBIT 1
 %define PALETTE 4
 %define INSTRUMENT 107        ; koto
-%include "temporal.inc"
+%include "atlas_effect.inc"

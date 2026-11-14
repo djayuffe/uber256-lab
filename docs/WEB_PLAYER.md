@@ -67,18 +67,26 @@ The HTML contains a SHA-256 content fingerprint. Verification decodes every COM,
 checks the catalogue, source and thumbnail maps, rejects empty payloads and external
 scripts/styles, and detects duplicate DOM IDs.
 
+Show commands use a bounded 1-based target in the signed `WEB_SYNC` record. A
+request made before the record is discovered is queued and delivered on the
+first signed transition, so startup input is not lost.
+
 ## Controls
 
 | Control | Standalone | MEGA / ATLAS |
 |---|---|---|
 | Program menu | Select any exact COM | Select a show |
 | Thumbnail | Select program and source | Preview source or jump to a running part |
-| Left / Right | — | Previous / next part |
-| Space | Program-defined | Skip to next part |
+| Left / Right | Preview previous / next source | Jump to previous / next part through the DOS command channel |
+| Space | Preview the first / next source | Skip to the next part through the DOS command channel |
 | Escape | Restore text mode and exit | End the show cleanly |
-| Show / Hide source | Toggle full ASM panel | Toggle live-follow ASM panel |
+| ASM ON / ASM OFF | Toggle full ASM panel | Toggle live-follow ASM panel |
 | Full screen | VGA canvas | VGA canvas |
 | Volume / Mute | DOS output | DOS output plus synchronized browser MIDI |
+
+ATLAS source listings expand `atlas_effect.inc`, `temporal.inc`, `dos.inc` and
+`palettes.inc` in place. The side view therefore shows the selected stub and its
+real shared implementation, while the files used by NASM remain modular.
 
 ## Adding a demo
 

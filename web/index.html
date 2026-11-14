@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>UBER256 // DOS Intro Lab</title>
+<title>UBER256 DOS Workbench</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0b08'/%3E%3Cpath d='M7 7v12c0 8 18 8 18 0V7h-5v12c0 3-8 3-8 0V7z' fill='%23e0b453'/%3E%3C/svg%3E">
 <!-- web player: DOS Wasm X (github.com/nbarkhina/DosWasmX, MIT) runs every
      current standalone and integrated show. ./run-web.sh builds the catalogue,
@@ -11,12 +11,12 @@
 <style>
 :root {
   --bg: #090a08;
-  --panel: #10120e;
-  --edge: #4a4d3d;
-  --edge-hi: #777a60;
-  --fg: #d8d7c5;
+  --panel: #0d0e0c;
+  --edge: #44473a;
+  --edge-hi: #737760;
+  --fg: #d0d0bd;
   --dim: #858674;
-  --amber: #d5a83f;
+  --amber: #d8ad45;
   --display: "Courier New", Courier, monospace;
   --mono: "Courier New", Courier, monospace;
   color-scheme: dark;
@@ -34,7 +34,7 @@ main > header { grid-column: 1 / -1; }
 main > .bezel, main > .controls, main > .panel, main > .note { grid-column: 1; }
 main:not(.code-open) { max-width: 960px; grid-template-columns: minmax(0, 960px); }
 header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; border-bottom: 1px solid var(--edge); padding: 0 2px 8px; }
-h1 { margin: 0; font: 700 clamp(19px, 4vw, 28px)/1 var(--display); color: var(--amber); letter-spacing: .025em; }
+h1 { margin: 0; font: 700 clamp(18px, 4vw, 25px)/1 var(--display); color: var(--amber); letter-spacing: .025em; }
 .meta { color: var(--dim); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
 .bezel { background: #050505; border: 3px double var(--edge-hi); padding: clamp(6px, 1.4vw, 12px); }
 .screen { position: relative; width: 100%; max-width: 100%; aspect-ratio: 4 / 3; background: #000; overflow: hidden; }
@@ -50,10 +50,10 @@ canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; 
 #start span { color: var(--dim); font-size: 11px; text-transform: uppercase; }
 #start[hidden] { display: none; }
 #start:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
-.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 9px; padding: 8px; background: var(--panel); border: 1px solid var(--edge); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 7px; padding: 6px; background: var(--panel); border: 1px solid var(--edge); }
 .controls button {
   font: 700 11px/1 var(--mono); letter-spacing: .03em; text-transform: uppercase; color: var(--amber); background: #090a08;
-  border: 1px solid var(--edge-hi); padding: 8px 10px; cursor: pointer;
+  border: 1px solid var(--edge-hi); padding: 7px 8px; cursor: pointer;
 }
 .controls button:hover:not(:disabled) { background: var(--amber); color: #080808; }
 .pick { color: var(--dim); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
@@ -62,14 +62,17 @@ canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; 
 #midiVolume { width: 90px; accent-color: var(--amber); }
 .controls button:disabled { opacity: .4; cursor: default; }
 .panel { background: var(--panel); border: 1px solid var(--edge); overflow: hidden; }
-.panel summary { cursor: pointer; color: var(--amber); font: 700 12px/1 var(--display); letter-spacing: .03em; padding: 10px 12px; }
+.panel summary { cursor: pointer; color: var(--amber); font: 700 12px/1 var(--display); letter-spacing: .03em; padding: 9px 10px; list-style: none; }
+.panel summary::-webkit-details-marker { display: none; }
+.panel summary::before { content: "[+] "; color: var(--dim); }
+.panel[open] summary::before { content: "[-] "; }
 .panel summary span { color: var(--dim); font: 11px/1 var(--mono); margin-left: 10px; }
 .catalog-tools { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 12px 10px; }
 .catalog-tools[hidden] { display: none; }
 .catalog-tools input, .catalog-tools select { box-sizing: border-box; color: var(--fg); background: #090a08; border: 1px solid var(--edge-hi); padding: 7px 8px; font: 11px/1 var(--mono); }
 .catalog-tools input { flex: 1 1 180px; min-width: 0; }
 .catalog-tools output { align-self: center; color: var(--dim); font-size: 11px; }
-.shortcut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; max-height: 280px; overflow: auto; padding: 0 12px 12px; }
+.shortcut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 4px; max-height: 280px; overflow: auto; padding: 0 10px 10px; }
 .shortcut {
   position: relative; min-height: 74px; overflow: hidden; cursor: pointer; border: 1px solid var(--edge);
   background-color: #080808; background-position: center; background-size: cover; color: white; text-align: left; padding: 0;
@@ -78,7 +81,7 @@ canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; 
 .shortcut b { color: var(--amber); font-weight: 700; margin-right: 5px; }
 .shortcut i { float: right; color: #bbb8a6; font-style: normal; font-weight: 400; }
 .shortcut:hover { border-color: var(--amber); }
-.shortcut[aria-current="true"] { border: 2px solid var(--amber); }
+.shortcut[aria-current="true"] { border-color: var(--amber); outline: 1px solid var(--amber); outline-offset: -3px; }
 .shortcut:disabled { filter: grayscale(.7); opacity: .55; cursor: default; }
 .code-panel { grid-column: 2; grid-row: 2 / span 4; position: sticky; top: 10px; height: calc(100vh - 26px); min-height: 520px; background: #080908; border: 1px solid var(--edge-hi); overflow: hidden; }
 .code-panel[hidden] { display: none; }
@@ -110,30 +113,30 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
 <body>
 <main id="app" class="code-open">
   <header>
-    <h1>UBER256 // DOS INTRO LAB</h1>
-    <div class="meta" id="meta">REAL-MODE X86 · TEXT/VGA · 4 BYTES–40K</div>
+    <h1>UBER256 DOS WORKBENCH</h1>
+    <div class="meta" id="meta">REAL MODE X86 / VGA / 4 BYTES–40K</div>
   </header>
   <div class="bezel">
     <div class="screen" id="screen">
       <canvas id="canvas" width="640" height="400" tabindex="0" aria-label="DOS screen"></canvas>
-      <button id="start" type="button"><b>BOOT MEGA.COM</b><span id="startsub">DOSBOX-X/WASM · 640×400 OUTPUT · BROWSER MIDI</span></button>
+      <button id="start" type="button"><b>LOAD MEGA.COM</b><span id="startsub">DOSBOX-X/WASM / 640×400 / BROWSER MIDI</span></button>
     </div>
   </div>
   <div class="controls">
     <label for="prog" class="pick">Program</label>
     <select id="prog" aria-label="DOS program"></select>
-    <button id="prev" type="button" disabled aria-label="Previous part">← Prev</button>
-    <button id="next" type="button" disabled aria-label="Next part">Next →</button>
-    <button id="fs" type="button" disabled>Full screen</button>
-    <button id="codeToggle" type="button">Hide source</button>
-    <button id="restart" type="button" disabled>Reset MEGA.COM</button>
+    <button id="prev" type="button" disabled aria-label="Previous part">← PREV</button>
+    <button id="next" type="button" disabled aria-label="Skip to next part">SKIP →</button>
+    <button id="fs" type="button" disabled>FULLSCREEN</button>
+    <button id="codeToggle" type="button">ASM OFF</button>
+    <button id="restart" type="button" disabled>RESET MEGA.COM</button>
     <label class="volume pick" for="midiVolume">MIDI <input id="midiVolume" type="range" min="0" max="100" value="68" aria-label="Browser MIDI volume"></label>
     <button id="mute" type="button" disabled>Mute</button>
-    <span id="keyHint"><kbd>←</kbd>/<kbd>→</kbd> swap part &nbsp; <kbd>Space</kbd> next &nbsp; <kbd>Esc</kbd> quit</span>
+    <span id="keyHint"><kbd>←</kbd>/<kbd>→</kbd> part &nbsp; <kbd>Space</kbd> skip &nbsp; <kbd>Esc</kbd> quit</span>
     <span id="status">idle</span>
   </div>
   <details class="panel" id="shortcuts" open>
-    <summary>PROGRAM INDEX <span id="shortcutMeta">LOADING CATALOGUE</span></summary>
+    <summary>PROGRAM DIRECTORY <span id="shortcutMeta">READING CATALOGUE</span></summary>
     <div class="catalog-tools" id="catalogTools" hidden>
       <input id="demoSearch" type="search" placeholder="FILTER BY NAME" aria-label="Filter demos by name">
       <select id="sizeFilter" aria-label="Filter demos by size"><option value="all">ALL SIZES</option><option value="8">4–8 BYTES</option><option value="16">9–16 BYTES</option><option value="128">17–128 BYTES</option><option value="256">129–256 BYTES</option></select>
@@ -143,7 +146,7 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
   </details>
   <p class="note" id="runtimeNote">RUNTIME: DOSBOX-X/WASM · CPU: MAX CYCLES · VIDEO: VGA MODE 13H · CLOCK: BIOS 18.2065 HZ · AUDIO: DOS OUTPUT + SYNCHRONIZED WEB MIDI</p>
   <aside class="code-panel" id="codePanel" aria-label="Highlighted assembly source">
-    <div class="code-head"><strong id="codeTitle">FLOWTEX.ASM</strong><span id="codeMeta">RAW NASM / LIVE PART FOLLOW</span><button id="codeClose" type="button">CLOSE</button></div>
+    <div class="code-head"><strong id="codeTitle">FLOWTEX.ASM</strong><span id="codeMeta">NASM SOURCE / LIVE ADDRESS</span><button id="codeClose" type="button">CLOSE</button></div>
     <pre class="asm-view" id="asmView"><code id="asmCode"></code></pre>
   </aside>
 </main>
@@ -184,7 +187,7 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
   let fw = 640, fh = 400, img = null, frames = 0, audio = null, dosGain = null, midi = null;
   let syncEvent = -1, syncPart = 0, syncLabel = 'waiting for DOS sync';
   let syncOffsets = [], syncValues = new Map(), syncHeapLength = 0, lastSyncScan = 0;
-  let activeSyncOffset = -1, currentPart = 0;
+  let activeSyncOffset = -1, currentPart = 0, pendingPart = 0;
 
   const CATALOG = window.UBER256_CATALOG;
   if (!CATALOG || !CATALOG.standalone || !CATALOG.shows) throw new Error('Browser catalogue missing; run ./build.sh');
@@ -245,13 +248,14 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
       : prog();
     const source = window.EMBEDDED_ASM && window.EMBEDDED_ASM[name];
     codeTitle.textContent = name + '.ASM';
-    codeMeta.textContent = hasPartControl() ? 'RAW NASM / LIVE PART FOLLOW' : 'RAW NASM / COMPLETE PROGRAM';
+    codeMeta.textContent = prog() === 'ATLAS' ? 'NASM SOURCE + SHARED ENGINE / LIVE PART'
+      : hasPartControl() ? 'NASM SOURCE / LIVE PART' : 'NASM SOURCE / COMPLETE PROGRAM';
     asmCode.innerHTML = source ? highlightAsm(source) : '<span class="asm-line" data-line="1">Source map missing; run ./build.sh</span>';
     asmView.scrollTop = 0;
   }
   function setCodeOpen(open) {
     appEl.classList.toggle('code-open', open); codePanel.hidden = !open;
-    codeToggle.textContent = open ? 'Hide source' : 'Show source';
+    codeToggle.textContent = open ? 'ASM OFF' : 'ASM ON';
   }
   codeToggle.addEventListener('click', () => setCodeOpen(codePanel.hidden));
   codeClose.addEventListener('click', () => setCodeOpen(false));
@@ -374,6 +378,11 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     if (!transition || transition[0] === syncEvent) return;
     syncEvent = transition[0]; syncPart = transition[1];
     if (activeSyncOffset < 0) activeSyncOffset = transition[2];
+    if (pendingPart) {
+      heap[activeSyncOffset + 2] = pendingPart;
+      syncLabel = 'jumping to part ' + pendingPart;
+      pendingPart = 0;
+    }
     {
       if (!syncPart) {
         syncLabel = 'card · synced chime';
@@ -499,7 +508,12 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
     showAsm(part);
     updateShortcutState();
     const heap = window.Module && Module.HEAPU8;
-    if (!startBtn.hidden || !heap || activeSyncOffset < 0) return;
+    if (!startBtn.hidden) return;
+    if (!heap || activeSyncOffset < 0) {
+      pendingPart = part;
+      syncLabel = 'queued part ' + part;
+      return;
+    }
     heap[activeSyncOffset + 2] = part;
     syncLabel = 'jumping to part ' + part;
     canvas.focus();
@@ -511,21 +525,24 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
   prevBtn.addEventListener('click', () => movePart(-1));
   nextBtn.addEventListener('click', () => movePart(1));
   const label = () => {
-    if (!startBtn.hidden) startBtn.querySelector('b').textContent = 'BOOT ' + prog() + '.COM';
+    if (hasPartControl() && !currentPart) currentPart = 1;
+    if (!startBtn.hidden) startBtn.querySelector('b').textContent = 'LOAD ' + prog() + '.COM';
     document.getElementById('startsub').textContent = hasPartControl()
       ? 'DOSBOX-X/WASM · 640×400 OUTPUT · BROWSER MIDI'
       : 'DOSBOX-X/WASM · EXACT COM · SOURCE LINKED';
     runtimeNote.textContent = hasPartControl()
       ? 'RUNTIME: DOSBOX-X/WASM · CPU: MAX CYCLES · VIDEO: VGA · CLOCK: BIOS 18.2065 HZ · AUDIO: DOS OUTPUT + SYNCHRONIZED WEB MIDI'
       : 'RUNTIME: DOSBOX-X/WASM · CPU: MAX CYCLES · VIDEO: TEXT/VGA · EXACT COM PAYLOAD · COMPLETE ASM SOURCE';
-    restartBtn.textContent = 'Reset ' + prog() + '.COM';
+    restartBtn.textContent = 'RESET ' + prog() + '.COM';
+    prevBtn.disabled = !hasPartControl();
+    nextBtn.disabled = !hasPartControl();
     shortcutMeta.textContent = hasPartControl()
       ? SHOW_PARTS[prog()].length + ' PARTS / THUMBNAIL + ASM + DIRECT JUMP'
       : isDemo()
         ? DEMOS.length + ' DEMOS / THUMBNAIL + ASM + BOOT'
         : '1 PROGRAM / THUMBNAIL + ASM';
     keyHint.innerHTML = hasPartControl()
-      ? '<kbd>←</kbd>/<kbd>→</kbd> swap part &nbsp; <kbd>Space</kbd> next &nbsp; <kbd>Esc</kbd> quit'
+      ? '<kbd>←</kbd>/<kbd>→</kbd> part &nbsp; <kbd>Space</kbd> skip &nbsp; <kbd>Esc</kbd> quit'
       : NO_EXIT.has(prog()) ? '<kbd>Reset</kbd> stop · no exit bytes' : '<kbd>Esc</kbd> quit';
     catalogTools.hidden = !isDemo();
     renderShortcuts();
@@ -542,13 +559,21 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
   demoSearch.addEventListener('input', renderShortcuts);
   sizeFilter.addEventListener('change', renderShortcuts);
   label();
-  // Keep Space from scrolling the page while the demo has focus.
+  // Show controls use the same signed DOS command byte as thumbnail jumps.
+  // This remains deterministic during cards and before the Wasm heap is found.
   window.addEventListener('keydown', e => {
-    if (!startBtn.hidden && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) {
-      e.preventDefault(); movePart(e.code === 'ArrowLeft' ? -1 : 1); return;
+    if (!hasPartControl() || e.target.matches('input, select')) return;
+    if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+      e.preventDefault();
+      movePart(e.code === 'ArrowLeft' ? -1 : 1);
+      canvas.focus();
+      return;
     }
-    if (e.code === 'Space' && !startBtn.hidden) return;
-    if (e.code === 'Space') e.preventDefault();
+    if (e.code === 'Space') {
+      e.preventDefault();
+      movePart(1);
+      canvas.focus();
+    }
   });
   document.addEventListener('visibilitychange', () => {
     if (!midi) return;

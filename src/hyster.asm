@@ -1,5 +1,8 @@
-; DOS atlas adaptation; see docs/DOS_ATLAS_STATE.md for mechanism and limits.
+; Two thresholds retain the previous framebuffer state in the dead band.
+%define EFFECT_ID "hyster"
+%define EFFECT_TITLE "Hysteresis Memory"
+%define EFFECT_SUMMARY "Persistent state with separate on and off thresholds"
 %define HYSTER 1
 %define PALETTE 2
 %define INSTRUMENT 46         ; orchestral harp
-%include "temporal.inc"
+%include "atlas_effect.inc"

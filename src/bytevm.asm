@@ -1,5 +1,8 @@
-; DOS atlas adaptation; see docs/DOS_ATLAS_STATE.md for mechanism and limits.
+; Eight packed two-bit opcodes interpret one tiny program per pixel.
+%define EFFECT_ID "bytevm"
+%define EFFECT_TITLE "Bytecode VM"
+%define EFFECT_SUMMARY "Packed two-bit opcodes transform each pixel"
 %define BYTEVM 1
 %define PALETTE 7
 %define INSTRUMENT 114        ; steel drums
-%include "temporal.inc"
+%include "atlas_effect.inc"
