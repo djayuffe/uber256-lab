@@ -24,6 +24,8 @@ fi
 .venv/bin/python tests/test_temporal.py
 .venv/bin/python tests/test_atlas_state.py
 .venv/bin/python tests/test_atlas_palettes.py
+.venv/bin/python tests/test_novel_effects.py
+python3 tools/render_novel_reference.py --check
 .venv/bin/python tests/test_atlas_show.py
 .venv/bin/python tests/test_launcher.py
 if command -v node >/dev/null 2>&1; then

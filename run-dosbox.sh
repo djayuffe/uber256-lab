@@ -3,7 +3,7 @@
 #   ./run-dosbox.sh galaxy             one demo
 #   ./run-dosbox.sh selftex goldtex    several, in the order given
 #   ./run-dosbox.sh '*tex'             a pattern (quoted), matched in the order below: SELFTEX, GOLDTEX, FLOWTEX
-#   ./run-dosbox.sh all                all seventy-four standalone demos
+#   ./run-dosbox.sh all                all eighty standalone demos
 #   ./run-dosbox.sh micro              all thirty 4–8 byte demos
 #   ./run-dosbox.sh atlas              the twenty-seven atlas adaptations
 #   ./run-dosbox.sh atlas-show         continuous atlas show: timed parts, Space skips
@@ -12,7 +12,7 @@
 #   ./run-dosbox.sh ubershow           the preserved earlier 18-scene engine
 #   ./run-dosbox.sh uber40k            the 20-scene 3D/OPL2 show
 set -eu
-ORDER="galaxy cliff chladni fire escher julia latch order roots selftex goldtex flowtex moire rotozoom causal phase horizon commute lift mirror resfield shuffle hyster residual signed runs bytevm reverso bifurc terrace loom ring prefix rank ballot timelens emboss surgery bracket orbit critical warp"
+ORDER="galaxy cliff chladni fire escher julia latch order roots selftex goldtex flowtex moire rotozoom xortun plasma caflame voxfloor kaleido raymarch causal phase horizon commute lift mirror resfield shuffle hyster residual signed runs bytevm reverso bifurc terrace loom ring prefix rank ballot timelens emboss surgery bracket orbit critical warp"
 MICRO="overlap overmax oversub overhear stackmap stkrain bullets snow breath buzz static ticker geiger typer mirror8 spectrum stripe big tall keyscan pspback state flux weave codepal psppal noisepal mode3 evo1 evo2"
 FAMILY="overlap overmax oversub overhear stackmap stkrain bullets snow breath buzz static ticker geiger typer mirror8 spectrum stripe big tall keyscan pspback state flux weave codepal psppal noisepal mode3 evo1 evo2 uber10 uber128"
 ATLAS="causal phase horizon commute lift mirror resfield shuffle hyster residual signed runs bytevm reverso bifurc terrace loom ring prefix rank ballot timelens emboss surgery bracket orbit critical"

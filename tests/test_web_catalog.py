@@ -19,8 +19,8 @@ shows = catalog["shows"]
 current_source_names = {path.stem.upper() for path in (ROOT / "src").glob("*.asm")}
 source_names = set(source_paths())
 
-assert len(standalone) == 74
-assert len({entry[0] for entry in standalone}) == 74
+assert len(standalone) == 80
+assert len({entry[0] for entry in standalone}) == 80
 assert current_source_names <= {entry[0] for entry in standalone}
 assert {entry[0] for entry in standalone} <= source_names
 assert len(shows["MEGA"]) == 15 and len(shows["ATLAS"]) == 27
@@ -51,7 +51,13 @@ for name, _image, _size in shows["ATLAS"]:
     assert '; ---- begin temporal.inc ----' in listing
     assert '; ---- begin dos.inc ----' in listing
     assert '; ---- begin palettes.inc ----' in listing
+for name in ("XORTUN", "PLASMA", "CAFLAME", "VOXFLOOR", "KALEIDO", "RAYMARCH"):
+    listing = embedded["EMBEDDED_ASM"][name]
+    assert '; ---- begin novel_effect.inc ----' in listing
+    assert '; ---- begin temporal.inc ----' in listing
+    assert '; ---- begin dos.inc ----' in listing
+    assert '; ---- begin palettes.inc ----' in listing
 assert embedded["UBER256_CATALOG"] == catalog
 assert {entry[1] for entries in [standalone, *shows.values()] for entry in entries} == set(embedded["EMBEDDED_THUMBNAILS"])
 
-print("Web catalogue: 74 standalone demos + 5 integrated programs, thumbnails, ASM and COM payloads PASS")
+print("Web catalogue: 80 standalone demos + 5 integrated programs, thumbnails, ASM and COM payloads PASS")

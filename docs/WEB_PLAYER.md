@@ -34,7 +34,7 @@ entry is maintained.
 
 The visual index always has a corresponding raw source view:
 
-- Size-coded demo mode shows all 75 thumbnails (74 standalones plus UBER70),
+- Size-coded demo mode shows all 81 thumbnails (80 standalones plus UBER70),
   with name search and 8/16/128/256-byte filters. A card selects that exact `.COM`, updates
   the URL hash and displays its complete `src/<name>.asm` before boot.
 - MEGA and ATLAS show their ordered part lists. Before boot a card previews source;

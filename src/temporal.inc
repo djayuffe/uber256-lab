@@ -58,7 +58,114 @@ frame:
 %endif
     mov bx,-160
 .px:
-%ifdef CAUSAL
+%ifdef XORTUN
+    mov ax,bx
+    imul ax,ax
+    mov dx,si
+    imul dx,dx
+    add ax,dx
+    shr ax,6                  ; concentric square-distance bands
+    mov dx,bx
+    sub dx,si
+    add dx,bp                 ; diagonal phase supplies the spiral motion
+    xor al,dl
+%elifdef PLASMA
+    mov ax,bx
+    add ax,bp
+    call triangle
+    mov dl,al
+    mov ax,si
+    sub ax,bp
+    call triangle
+    add dl,al
+    mov ax,bx
+    add ax,si
+    mov cx,bp
+    sar cx,1
+    add ax,cx
+    call triangle
+    add al,dl                 ; three separable phases, modulo 256
+%elifdef CAFLAME
+    cmp si,92
+    jge .caseed
+    mov al,[es:di+2559]
+    xor al,[es:di+2561]       ; eight-row cellular rise, prior frame
+    rol al,1
+    add al,[es:di+2560]       ; retain heat instead of collapsing to sparse bits
+    ror al,1
+    jmp short .cadone
+.caseed:
+    mov ax,bx
+    imul ax,ax,1973
+    xor ax,bp
+    mov dx,si
+    imul dx,dx,257
+    xor ax,dx                 ; eight independently seeded fuel rows
+    xor al,ah                 ; deterministic moving bottom seed
+.cadone:
+%elifdef VOXFLOOR
+    mov ax,si
+    add ax,100
+    mov cx,ax
+    shr cx,5                  ; depth band selects shift 0..6
+    mov ax,bx
+    imul ax,ax
+    shr ax,cl
+    mov dx,si
+    shl dx,3
+    add ax,dx
+    add ax,bp
+    xor al,ah                 ; perspective square field plus scanline shade
+%elifdef KALEIDO
+    mov ax,bx
+    cwd
+    xor ax,dx
+    sub ax,dx
+    mov cx,ax                 ; u = abs(x)
+    mov ax,si
+    cwd
+    xor ax,dx
+    sub ax,dx                 ; v = abs(y)
+    imul cx,ax                ; folded cross term
+    mov ax,bx
+    imul ax,ax
+    mov dx,si
+    imul dx,dx
+    add ax,dx
+    shr ax,5
+    shl cx,1
+    xor ax,cx
+    add ax,bp                 ; palette indices rotate through the folded field
+%elifdef RAYMARCH
+    mov dx,bp
+    and dx,63                 ; moving start depth
+    mov cx,8                  ; bounded eight-slice distance search
+.raystep:
+    mov ax,dx
+    add ax,bp
+    call triangle
+    sar al,3
+    cbw
+    add ax,bx                 ; slice centre oscillates with depth
+    imul ax,ax
+    push dx
+    mov dx,ax
+    mov ax,si
+    imul ax,ax
+    add ax,dx
+    pop dx
+    cmp ax,1600               ; first circle hit shades by remaining steps/depth
+    jb .rayhit
+    add dx,8
+    loop .raystep
+    xor al,al
+    jmp short .raydone
+.rayhit:
+    mov al,cl
+    shl al,5
+    add al,dl
+.raydone:
+%elifdef CAUSAL
     mov ax,bx
     imul ax,ax
     add ax,cx                 ; r2 <= 35600: unsigned, fits 16 bits
@@ -622,7 +729,7 @@ frame:
     sub dl,al
     mov al,dl
 %else
-    %error Atlas wrapper must select a known effect
+    %error Effect wrapper must select a known kernel
 %endif
     stosb
     inc bx

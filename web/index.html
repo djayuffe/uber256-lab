@@ -248,7 +248,9 @@ p.note { margin: 0; color: var(--dim); font-size: 11px; max-width: 110ch; text-t
       : prog();
     const source = window.EMBEDDED_ASM && window.EMBEDDED_ASM[name];
     codeTitle.textContent = name + '.ASM';
+    const shared = source && /; ---- begin (?:atlas|novel)_effect\.inc ----/.test(source);
     codeMeta.textContent = prog() === 'ATLAS' ? 'NASM SOURCE + SHARED ENGINE / LIVE PART'
+      : shared ? 'NASM SOURCE + SHARED ENGINE / COMPLETE PROGRAM'
       : hasPartControl() ? 'NASM SOURCE / LIVE PART' : 'NASM SOURCE / COMPLETE PROGRAM';
     asmCode.innerHTML = source ? highlightAsm(source) : '<span class="asm-line" data-line="1">Source map missing; run ./build.sh</span>';
     asmView.scrollTop = 0;

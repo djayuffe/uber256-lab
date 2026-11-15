@@ -31,8 +31,8 @@ def source_paths() -> dict[str, pathlib.Path]:
 INCLUDE = re.compile(r'^\s*%include\s+"([^"]+)"\s*(?:;.*)?$', re.MULTILINE)
 
 
-def expanded_atlas_source(path: pathlib.Path) -> str:
-    """Inline the ATLAS shared engine for the browser listing, never for builds."""
+def expanded_shared_source(path: pathlib.Path) -> str:
+    """Inline a shared effect engine for the browser listing, never for builds."""
     seen: set[pathlib.Path] = set()
 
     def expand(current: pathlib.Path) -> str:
@@ -61,5 +61,7 @@ def source_text() -> dict[str, str]:
     result = {}
     for name, path in source_paths().items():
         text = path.read_text(encoding="utf-8")
-        result[name] = expanded_atlas_source(path) if '%include "atlas_effect.inc"' in text else text
+        shared = ('%include "atlas_effect.inc"' in text
+                  or '%include "novel_effect.inc"' in text)
+        result[name] = expanded_shared_source(path) if shared else text
     return result
