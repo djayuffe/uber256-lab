@@ -11,6 +11,12 @@ if ! .venv/bin/python -c 'import unicorn' >/dev/null 2>&1; then
     fi
     .venv/bin/python -m pip install -q unicorn
 fi
+if ! .venv/bin/python -c 'from PIL import Image' >/dev/null 2>&1; then
+    if ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
+        .venv/bin/python -m ensurepip --upgrade
+    fi
+    .venv/bin/python -m pip install -q pillow
+fi
 if ! .venv/bin/python -c 'from unicorn import Uc, UC_ARCH_X86, UC_MODE_16; u=Uc(UC_ARCH_X86, UC_MODE_16); u.mem_map(0, 0x1000)' >/dev/null 2>&1; then
     echo 'ERROR: installed Unicorn cannot initialize its x86 engine on this CPU.' >&2
     echo 'Use a compatible native Unicorn build, then rerun tests/run_tests.sh.' >&2
@@ -25,7 +31,7 @@ fi
 .venv/bin/python tests/test_atlas_state.py
 .venv/bin/python tests/test_atlas_palettes.py
 .venv/bin/python tests/test_novel_effects.py
-python3 tools/render_novel_reference.py --check
+.venv/bin/python tools/render_novel_reference.py --check
 .venv/bin/python tests/test_atlas_show.py
 .venv/bin/python tests/test_launcher.py
 if command -v node >/dev/null 2>&1; then
